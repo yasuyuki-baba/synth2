@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 
-namespace synth2::host
+namespace synth2::editor
 {
 // Shared by the native selector and portable interaction tests. Values are
 // original source words; popup indices never become host parameter ranges.

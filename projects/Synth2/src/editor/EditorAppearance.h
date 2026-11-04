@@ -1,7 +1,7 @@
 #pragma once
 #include <algorithm>
 
-namespace synth2::host
+namespace synth2::editor
 {
 // Shared by native iGraphics and both review artifacts. Red is concentrated in
 // the header and filter; ordinary controls retain a quiet, warm neutral palette.

@@ -2,7 +2,7 @@
 #include <array>
 #include <vector>
 
-namespace synth2::host
+namespace synth2::editor
 {
 struct EditorPage
 {

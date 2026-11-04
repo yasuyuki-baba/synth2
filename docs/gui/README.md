@@ -35,6 +35,20 @@ reads or invalid source loads preserve valid state. State recall retains source
 text and its patch display name and does not require the source ZIP. UI notifications must not sweep imported
 values through native setters and thereby change loading history.
 
+The SDK-independent presentation headers live in `projects/Synth2/src/editor`
+under `synth2::editor`; `src/host` owns the processor/state and catalog boundaries.
+The header audit compiles each presentation header independently and rejects
+dependencies on host/engine objects or iPlug2. `ParameterPresentation` is shared
+with native host parameter registration without depending on ProcessorBridge.
+
+The native adapter is split by responsibility: `Synth2Editor.cpp` coordinates
+layout, page visibility and editor lifetime; `editor/EditorControls` owns drawing
+and control input; `editor/Synth2LibraryEditor.cpp` owns catalog/menu/dialog actions
+and host notification after a successful sound transaction. Shared native tags and
+appearance helpers keep layout and library updates consistent. Catalog, selection
+and dialog lifetime remain owned by Synth2; controls borrow them. Both native
+build paths consume the same editor source list.
+
 ```sh
 cmake --preset core
 cmake --build build-oos-core --target ExportEditorLayout

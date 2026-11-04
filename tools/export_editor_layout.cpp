@@ -1,8 +1,8 @@
-#include "host/EditorLayout.h"
-#include "host/EditorPages.h"
-#include "host/EditorAppearance.h"
-#include "host/EditorValueDisplay.h"
-#include "host/ParameterPresentation.h"
+#include "editor/EditorLayout.h"
+#include "editor/EditorPages.h"
+#include "editor/EditorAppearance.h"
+#include "editor/EditorValueDisplay.h"
+#include "editor/ParameterPresentation.h"
 #include "host/ProcessorBridge.h"
 #include "patch/Synth1SourceRange.h"
 #include <iomanip>
@@ -14,7 +14,7 @@
 int main()
 {
     synth2::host::ProcessorBridge processor;
-    const auto& a=synth2::host::editorAppearance();
+    const auto& a=synth2::editor::editorAppearance();
     std::cout << "{\"width\":1280,\"height\":920,\"appearance\":{";
     bool firstColor=true;
     for (const auto& color:std::initializer_list<std::pair<const char*,const char*>>{
@@ -28,7 +28,7 @@ int main()
     }
     std::cout << "},\"panels\":[";
     bool firstPanel=true;
-    for (const auto& panel:synth2::host::editorPanels())
+    for (const auto& panel:synth2::editor::editorPanels())
     {
         if (!firstPanel) std::cout << ','; firstPanel=false;
         std::cout << "{\"title\":" << std::quoted(panel.title) << ",\"description\":" << std::quoted(panel.description)
@@ -39,10 +39,10 @@ int main()
         {
             if (!first) std::cout << ','; first=false;
             const auto& control=panel.controls[cell];
-            const auto b=synth2::host::editorControlBounds(panel,cell);
+            const auto b=synth2::editor::editorControlBounds(panel,cell);
             std::cout << "{\"parameter\":" << control.parameter << ",\"label\":" << std::quoted(control.label)
                       << ",\"bounds\":[" << b.x << ',' << b.y << ',' << b.width << ',' << b.height << "]"
-                      << ",\"diameter\":" << synth2::host::editorKnobDiameter(control.parameter,b.height)
+                      << ",\"diameter\":" << synth2::editor::editorKnobDiameter(control.parameter,b.height)
                       << ",\"tone\":" << std::quoted(control.parameter==19 ? a.accent : a.pointer) << '}';
         }
         std::cout << "]}";
@@ -55,28 +55,28 @@ int main()
         const auto initial=std::lround(info.minimum+processor.normalizedValue(index)*(info.maximum-info.minimum));
         std::cout << "{\"minimum\":" << synth2::sourceMinimum(index) << ",\"maximum\":" << synth2::sourceMaximum(index)
                   << ",\"initial\":" << initial
-                  << ",\"integerSteps\":" << (synth2::host::parameterUsesIntegerSteps(index) ? "true" : "false")
-                  << ",\"toggle\":" << (synth2::host::editorToggle(index) ? "true" : "false") << ",\"choices\":[";
+                  << ",\"integerSteps\":" << (synth2::editor::parameterUsesIntegerSteps(index) ? "true" : "false")
+                  << ",\"toggle\":" << (synth2::editor::editorToggle(index) ? "true" : "false") << ",\"choices\":[";
         bool first=true;
-        for (const auto& choice:synth2::host::editorChoices(index))
+        for (const auto& choice:synth2::editor::editorChoices(index))
         {
             if (!first) std::cout << ','; first=false;
             std::cout << '[' << choice.value << ',' << std::quoted(choice.label) << ']';
         }
         std::cout << "],\"unitDisplay\":[";
-        if (synth2::host::editorHasUnit(index))
+        if (synth2::editor::editorHasUnit(index))
             for (int raw=0;raw<128;++raw)
             {
                 if (raw) std::cout << ',';
-                std::cout << std::quoted(synth2::host::editorValueDisplay(index,raw));
+                std::cout << std::quoted(synth2::editor::editorValueDisplay(index,raw));
             }
         std::cout << "]}";
     }
     std::cout << "],\"supplements\":[";
-    for (std::size_t i=5;i<synth2::host::editorPages().size();++i)
+    for (std::size_t i=5;i<synth2::editor::editorPages().size();++i)
     {
         if (i!=5) std::cout << ',';
-        const auto& page=synth2::host::editorPages()[i];
+        const auto& page=synth2::editor::editorPages()[i];
         std::cout << "{\"name\":" << std::quoted(page.name) << ",\"parameters\":[";
         bool first=true;
         for (int parameter:page.parameters) { if (!first) std::cout << ','; first=false; std::cout << parameter; }

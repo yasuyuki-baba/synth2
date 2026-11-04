@@ -1,7 +1,7 @@
 # Generate a small binary-data library without adding a JUCE dependency to the
 # editor's font-loading API. file(CONFIGURE) preserves timestamps when unchanged.
 set(font_source "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedEditorFonts.cpp")
-set(font_content "#include \"EditorFonts.h\"\nnamespace synth2::host {\n")
+set(font_content "#include \"editor/EditorFonts.h\"\nnamespace synth2::editor {\n")
 foreach(face Regular Bold Mono)
     if(face STREQUAL "Mono")
         set(font_name LiberationMono-Regular.ttf)
@@ -17,6 +17,6 @@ endforeach()
 string(APPEND font_content "}\n")
 file(CONFIGURE OUTPUT "${font_source}" CONTENT "${font_content}" @ONLY)
 add_library(Synth2EditorFonts STATIC "${font_source}")
-target_include_directories(Synth2EditorFonts PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/host)
+target_include_directories(Synth2EditorFonts PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src)
 target_compile_features(Synth2EditorFonts PRIVATE cxx_std_20)
 set_target_properties(Synth2EditorFonts PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF)

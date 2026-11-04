@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 
-namespace synth2::host
+namespace synth2::editor
 {
 // Presentation only: host automation, text-entry prompts and source words retain
 // their original units. Times are nominal envelope endpoints, not elapsed time.

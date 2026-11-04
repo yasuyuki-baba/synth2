@@ -206,6 +206,11 @@ See [source strategies](docs/architecture/source-conversion.md),
   the host's global locale or tightening legacy state spellings to patch syntax.
   Keep historical family-model corrections in the legacy typed-import adapter;
   resolved native control decoding must not apply those corrections again.
+- Keep SDK-independent presentation in src/editor under synth2::editor. Native
+  drawing controls and library/menu/dialog adapters belong to projects/Synth2/editor;
+  Synth2Editor coordinates layout and lifetime. Preserve shared control tags,
+  catalog/selection ownership and weak dialog-lifetime guards when splitting files.
+  Audit presentation headers against host/engine/SDK dependencies.
 
 ## Public distribution
 

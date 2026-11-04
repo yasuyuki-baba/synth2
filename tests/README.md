@@ -25,7 +25,7 @@ FETCHCONTENT_SOURCE_DIR_GOOGLETEST). The `core` preset uses `build-oos-core`.
 | MeasurementToolsTests | Standard-library WAV/hash/subprocess contracts |
 | BuildToolsTests | Local Git SDK fixtures and synthetic native archive completeness, notices/metadata and bundle preservation |
 | NamingLint / NamingLintTests | Portable C++ file/type spelling and setting-type suffixes, including patch/core; synthetic lint diagnostics |
-| HeaderBoundaryAudit | GNU-style GNU/Clang frontends with Ninja/Makefiles: independent extracted-header compilation and forbidden transitive dependencies, plus DSP boundary audit |
+| HeaderBoundaryAudit | GNU-style GNU/Clang frontends with Ninja/Makefiles: independent DSP/voice/editor/state header compilation and forbidden transitive dependencies |
 
 CTest entries group the public checks. Compatibility in a test name refers to
 supported product API/input behavior, not comparison

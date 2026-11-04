@@ -2,7 +2,7 @@
 #include "support/GeneratedPatches.h"
 #include "host/PatchLibrary.h"
 #include "host/ProcessorBridge.h"
-#include "host/EditorPages.h"
+#include "editor/EditorPages.h"
 #include <miniz.h>
 #include <array>
 #include <atomic>
@@ -71,5 +71,5 @@ TEST(PatchLibrary, LongZipFilenameIsNotTruncated) {
     TemporaryFile file(".zip");const std::string name=std::string(700,'a')+".sy1";ASSERT_TRUE(writeZip(file.path,{{name,ownedPatch}}));PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(file.path.string(),error))<<error;ASSERT_EQ(library.patches().size(),1u);EXPECT_TRUE(library.patches()[0].name.starts_with(name+"  -  "));EXPECT_EQ(library.patches()[0].text,ownedPatch);
 }
 TEST(EditorPages, SoundParametersAppearOnceAndMetadataIsHidden) {
-    std::array<int,128> seen{};for(const auto& page:synth2::host::editorPages()){EXPECT_FALSE(page.parameters.empty());EXPECT_LE(page.parameters.size(),30u);for(int i:page.parameters){ASSERT_GE(i,0);ASSERT_LT(i,128);++seen[i];}}for(int i=0;i<128;++i)EXPECT_EQ(seen[i],i<99 ? 1 : 0)<<i;
+    std::array<int,128> seen{};for(const auto& page:synth2::editor::editorPages()){EXPECT_FALSE(page.parameters.empty());EXPECT_LE(page.parameters.size(),30u);for(int i:page.parameters){ASSERT_GE(i,0);ASSERT_LT(i,128);++seen[i];}}for(int i=0;i<128;++i)EXPECT_EQ(seen[i],i<99 ? 1 : 0)<<i;
 }

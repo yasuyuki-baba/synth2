@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
-#include "host/EditorInteraction.h"
-#include "host/EditorValueDisplay.h"
+#include "editor/EditorInteraction.h"
+#include "editor/EditorValueDisplay.h"
 #include "host/ProcessorBridge.h"
-#include "host/ParameterPresentation.h"
+#include "editor/ParameterPresentation.h"
 #include <array>
+
+using namespace synth2::editor;
 
 namespace
 {

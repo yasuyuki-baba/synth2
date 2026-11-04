@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile DSP, voice and serialized-state interfaces and check their boundaries."""
+"""Compile DSP, voice, editor and serialized-state interfaces and check boundaries."""
 import argparse
 import hashlib
 import json
@@ -28,8 +28,17 @@ STANDARD_HEADERS = (
 # Serialized values and numeric I/O must not import the running host/engine.
 STATE_FORBIDDEN = ('/ProcessorBridge.h', '/SynthEngine.h', '/SynthVoice.h',
                    '/RenderControls.h', '/dsp/', '/patch/', '/iPlug2/', '/IPlug/', '/IGraphics/')
+EDITOR_FORBIDDEN = ('/host/', '/SynthEngine.h', '/SynthVoice.h', '/RenderControls.h',
+                    '/iPlug2/', '/IPlug/', '/IGraphics/')
 # Each extracted header must compile first, without another header supplying its includes.
 ISOLATED_HEADERS = {
+    'editor/EditorAppearance.h': EDITOR_FORBIDDEN,
+    'editor/EditorFonts.h': EDITOR_FORBIDDEN,
+    'editor/EditorInteraction.h': EDITOR_FORBIDDEN,
+    'editor/EditorLayout.h': EDITOR_FORBIDDEN,
+    'editor/EditorPages.h': EDITOR_FORBIDDEN,
+    'editor/EditorValueDisplay.h': EDITOR_FORBIDDEN,
+    'editor/ParameterPresentation.h': EDITOR_FORBIDDEN,
     'host/ParameterInfo.h': STATE_FORBIDDEN,
     'host/ProcessorState.h': STATE_FORBIDDEN,
     'serialization/FiniteNumber.h': STATE_FORBIDDEN,

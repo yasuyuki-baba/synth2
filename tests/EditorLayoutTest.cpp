@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
-#include "host/EditorLayout.h"
-#include "host/EditorPages.h"
-#include "host/EditorValueDisplay.h"
+#include "editor/EditorLayout.h"
+#include "editor/EditorPages.h"
+#include "editor/EditorValueDisplay.h"
 #include "patch/Synth1SourceRange.h"
 #include <Synth1PatchIo.h>
 #include <array>
 #include <map>
 #include <set>
 
-using namespace synth2::host;
+using namespace synth2::editor;
 namespace
 {
 bool overlaps(const EditorBounds& a,const EditorBounds& b)

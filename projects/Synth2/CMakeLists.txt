@@ -30,6 +30,10 @@ endif()
 if(NOT synth2_iplug_formats)
     message(FATAL_ERROR "Select at least one iPlug2 format")
 endif()
+set(synth2_editor_sources
+    Synth2Editor.cpp
+    editor/EditorControls.cpp
+    editor/Synth2LibraryEditor.cpp)
 include(${CMAKE_CURRENT_LIST_DIR}/EditorFonts.cmake)
 if(MINGW AND SYNTH2_IPLUG2_FORMATS STREQUAL "APP")
     include(${CMAKE_CURRENT_LIST_DIR}/MinGWStandalone.cmake)
@@ -60,7 +64,7 @@ foreach(format IN LISTS synth2_iplug_formats)
 endforeach()
 
 iplug_add_plugin(Synth2
-    SOURCES Synth2.cpp Synth2Editor.cpp Synth2.h config.h
+    SOURCES Synth2.cpp ${synth2_editor_sources} Synth2.h config.h
     FORMATS ${synth2_iplug_formats}
     UI IGRAPHICS
     DEFINES _USE_MATH_DEFINES

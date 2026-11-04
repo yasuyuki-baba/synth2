@@ -9,7 +9,7 @@ compatibility checkout. Native APP capture is an optional Wine GUI workflow.
 | Render patches and exact MIDI histories | [Synth2Probe](synth2_probe.cpp) |
 | Inspect resolved controls and selected DSP routes | [Synth2LoadingProbe](synth2_loading_probe.cpp) |
 | Compare WAVs for diagnostics | [CompareWaves](compare_waves.cpp) |
-| Audit DSP, voice and state header compilation/dependency boundaries | audit_dsp_headers.py; GNU-style GNU/Clang Ninja/Makefile builds also provide CTest `HeaderBoundaryAudit` and target `Synth2HeaderAudit` |
+| Audit DSP, voice, editor and state header compilation/dependency boundaries | audit_dsp_headers.py; GNU-style GNU/Clang Ninja/Makefile builds also provide CTest `HeaderBoundaryAudit` and target `Synth2HeaderAudit` |
 | Check portable C++ file/type names and setting suffixes | `python3 tools/lint_naming.py` or CMake target `Synth2NamingLint` |
 | Preview/render the editor study | preview_editor.py, render_editor_study.py |
 | Capture the Windows APP editor | capture_iplug_wine.py |

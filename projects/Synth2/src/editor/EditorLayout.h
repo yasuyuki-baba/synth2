@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace synth2::host
+namespace synth2::editor
 {
 struct EditorChoice { int value; const char* label; };
 struct EditorBounds { int x,y,width,height; };

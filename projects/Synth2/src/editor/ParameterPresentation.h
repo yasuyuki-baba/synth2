@@ -1,7 +1,7 @@
 #pragma once
 #include "EditorLayout.h"
 
-namespace synth2::host
+namespace synth2::editor
 {
 // Host/UI editing policy only. Loading and state recall retain source words,
 // including historical noncanonical values; this must not quantize the bridge.
