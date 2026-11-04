@@ -10,7 +10,7 @@ Use it when manual platform checks are requested, and record only what actually 
 ## Build and load
 
 Check out the pinned iPlug2 SDK and required format dependencies as described in
-[the build boundary](iplug2-migration.md). Build Release with the root presets:
+[the build boundary](desktop-build.md). Build Release with the root presets:
 
 | Platform | Configure/build presets | Targets to load |
 | --- | --- | --- |

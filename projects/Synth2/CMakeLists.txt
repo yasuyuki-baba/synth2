@@ -5,7 +5,7 @@ if(NOT WIN32 AND NOT APPLE)
 endif()
 set(IPLUG2_DIR "" CACHE PATH "Path to the pinned iPlug2 SDK checkout")
 if(NOT EXISTS "${IPLUG2_DIR}/iPlug2.cmake")
-    message(FATAL_ERROR "Initialize the SDK with: git submodule update --init iPlug2, or set IPLUG2_DIR to an external checkout; see docs/iplug2-migration.md")
+    message(FATAL_ERROR "Initialize the SDK with: git submodule update --init iPlug2, or set IPLUG2_DIR to an external checkout; see docs/desktop-build.md")
 endif()
 
 # The default plugin matrix is unchanged; APP can be selected for UI smoke tests.

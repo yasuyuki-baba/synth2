@@ -10,5 +10,5 @@ paint in the specified environment. It does not establish DAW plugin behavior,
 audio-device operation, native macOS operation or unrestricted GUI interactions.
 The HTML/SVG preview is a separate design aid and must not be labeled a native frame.
 
-See the [GUI contract](README.md) and [desktop build boundary](../iplug2-migration.md).
+See the [GUI contract](README.md) and [desktop build boundary](../desktop-build.md).
 Record the executable identity and capture conditions with any reported frame.

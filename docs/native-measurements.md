@@ -2,7 +2,7 @@
 
 Product requirements and reproducible public tests are defined in the
 [contracts](README.md), [test guide](../tests/README.md) and
-[test input description](evidence.md). No original instrument is needed to build
+[test input description](contracts/validation.md). No original instrument is needed to build
 or run the portable suite.
 
 ## Before/after regression procedure

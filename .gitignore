@@ -38,6 +38,3 @@ __pycache__/
 
 # Local native capture process logs
 docs/gui/*.log
-
-# Optional raster export; the linked vector study remains tracked.
-docs/gui/synth2-study.png

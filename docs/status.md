@@ -25,4 +25,4 @@ plugin identity are separate compatibility questions. Generated-input properties
 sampled reference results do not prove unrestricted audio equivalence.
 
 Public-facing requirements and tests remain self-contained;
-see [test inputs and evidence](evidence.md) and [publication decisions](publication/README.md).
+see [test inputs and evidence](contracts/validation.md) and [distribution requirements](publication/README.md).

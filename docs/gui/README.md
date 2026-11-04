@@ -42,11 +42,13 @@ python3 tools/preview_editor.py --exporter build-oos-core/ExportEditorLayout
 python3 tools/render_editor_study.py --exporter build-oos-core/ExportEditorLayout
 ```
 
-These commands generate the linked HTML/SVG studies. On Windows, use
+These commands generate local studies at `build/editor/synth2-preview.html` and
+`build/editor/synth2-study.svg`; open those files to inspect the design. Generated
+studies are excluded from Git. On Windows, use
 `build-oos-core/ExportEditorLayout.exe` as the exporter path. Optional PNG output
 adds `--png` to the study command and requires discoverable librsvg, Cairo and
 GObject shared libraries; SVG/HTML generation does not require those libraries.
-The optional PNG is a local generated export; the SVG is the tracked layout study.
+The optional PNG is another local generated export alongside the SVG.
 
 The HTML preview illustrates the main synthesis controls; the persistent Library
 view is covered by the native editor and portable catalog tests. The preview has
@@ -56,5 +58,5 @@ focus, scaling, DAW interaction and platform accessibility need platform testing
 See [EditorLayoutTest.cpp](../../tests/EditorLayoutTest.cpp), the patch-library tests
 and [native APP capture](wine-build.md).
 
-[Layout study](synth2-study.svg) and [interactive preview](synth2-preview.html)
-are presentation aids governed by this contract, not audio/DAW validation.
+The generated layout study and interactive preview are presentation aids governed
+by this contract, not audio/DAW validation.

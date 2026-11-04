@@ -64,8 +64,15 @@ owner decision. Unmeasured combinations are not certified by this scope decision
 
 Synth2 keeps self-authored product tests and necessary product assets. State round
 trips, API rejection, signal properties, MIDI scheduling, library and layout tests
-use generated inputs and explicit product requirements.
-No external checkout, credentials or original recording is required.
+use generated inputs and explicit product requirements. Temporary WAV/ZIP/state
+data and bank fixtures are created by the tests. No external patch bank,
+original-engine PCM, clock/RNG trace, expected-control corpus or previous-version
+state archive is bundled or required to build or run the portable suite. No
+external checkout or credentials are required.
+
+Signal properties and submitted state values can be verified directly. Comparing
+two implementations establishes regression preservation under the selected inputs;
+it does not independently establish original-instrument correctness.
 
 ## Limits and procedure
 
@@ -76,7 +83,7 @@ A portable test does not establish a DAW build, a particular audio device, concu
 host safety or a hard real-time deadline. Record exactly what ran and which source,
 binary, loading history, sample rate and comparison conditions were used.
 
-Public users verify product contracts using generated inputs
-and test sources; see [test inputs and evidence](../evidence.md). Publishing
-Synth2 must not introduce an external checkout, credential or original-recording
-requirement into its build or portable tests.
+Publishing Synth2 must not introduce an external checkout, credential or
+original-recording requirement into its build or portable tests. Project-owned
+source follows the [GPL-3.0-or-later grant](../../README.md#license); see
+[distribution requirements](../publication/README.md) for asset and license scope.

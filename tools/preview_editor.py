@@ -41,8 +41,8 @@ def load_model(exporter):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--exporter", type=Path, default=ROOT / "build/ExportEditorLayout")
-    parser.add_argument("--output", type=Path, default=ROOT / "docs/gui/synth2-preview.html")
+    parser.add_argument("--exporter", type=Path, default=ROOT / "build-oos-core/ExportEditorLayout")
+    parser.add_argument("--output", type=Path, default=ROOT / "build/editor/synth2-preview.html")
     args = parser.parse_args()
     model = load_model(args.exporter)
     template = (ROOT / "tools/editor-preview.html").read_text()

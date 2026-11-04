@@ -39,7 +39,7 @@ python tools/audit_dsp_headers.py --build-dir build-oos-ci
 
 The header audit requires a compile database or Ninja; the CI audit runs on Linux.
 For native products, first initialize `iPlug2` and run the dependency helper as in
-[the desktop guide](iplug2-migration.md). On the corresponding native platform:
+[the desktop guide](desktop-build.md). On the corresponding native platform:
 
 ```sh
 cmake --preset windows -B build "-DSYNTH2_IPLUG2_FORMATS=VST3;CLAP;APP"

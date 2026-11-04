@@ -1,47 +1,40 @@
-# Preparing the public product repository
+# Source and binary distribution requirements
 
-Public users must be able to understand product requirements, build the portable
-core and run its tests using the included documentation and public dependencies.
+Project-owned source is GPL-3.0-or-later, with the full text in
+[LICENSE](../../LICENSE) and the grant in [README](../../README.md#license).
+Preserve applicable source authorship and copyright notices. The project license
+does not relicense third-party components or grant rights over separately
+created patches, fonts or other assets; resolve contributor scope and asset
+permissions before distributing additional material.
 
-## License choice and remaining decisions
+## Included assets and dependencies
 
-| Item | Observed state | Publication decision |
-| --- | --- | --- |
-| Project license | GPL-3.0-or-later selected; full text in [LICENSE](../../LICENSE) and grant in [README](../../README.md#license) | Confirm authorship/contributor scope; the choice does not override third-party terms |
-| Patch-core source | Project-owned source maintained and built directly in Synth2 under GPL-3.0-or-later | Preserve applicable authorship and notices; confirm any other contributor scope |
-| Preset assets | No factory bank is bundled; Init is the startup sound and tests generate their own banks | Preserve Init provenance; independently review any future bundled assets |
-| Third-party code/fonts | miniz, tinyxml2, iPlug2 and font notices are included | Preserve their terms/notices; review additional SDK dependencies for native distributions |
-| Publication history | A source snapshot needs its own reviewed root commit and refs | Preserve development history separately; review the complete candidate before publishing |
+- Init is the startup sound and the library is initially empty. No factory bank
+  is bundled; public tests generate their own patch banks. Preserve Init
+  provenance and review rights for any future bundled sounds independently.
+- miniz, tinyxml2, iPlug2 and editor fonts retain their included license notices.
+  Preserve those notices in source and applicable binary packages; review SDK
+  terms for each native format. See the [desktop build guide](../desktop-build.md).
+- Preserve the pinned iPlug2 gitlink and public submodule URL in source checkouts.
+  Source archives do not include submodule contents; native builders must
+  initialize the documented dependency.
 
-## Source snapshot and provenance
+## Distribution contents and verification
 
-A current-tree export includes only tracked product files. It must exclude local
-builds, recordings, downloaded banks and development history. Preserve the pinned
-iPlug2 gitlink and public submodule URL; a source archive does not include submodule
-contents, so native builders must initialize the documented public dependency.
+Distribute product source and required assets without local builds, downloaded
+banks, recordings, credentials or investigation outputs. Source and binary
+packages must retain their applicable licenses, notices and provenance.
+Publishing a source snapshot does not itself clear historical asset rights or
+resolve contributor scope.
 
-Preserve authorship and copyright notices in source files and the included
-third-party license notices when starting a new history. A new root commit does
-not resolve contributor scope or grant redistribution rights for separately
-authored assets. Retain development
-history separately rather than rewriting existing refs as routine cleanup.
+Product requirements, build instructions and portable tests must remain
+self-contained. Verify source packages with public dependencies or explicit
+source caches using the [test guide](../../tests/README.md). Review actual package
+contents, dependency pins and metadata; an inventory or secret scanner alone does
+not establish distribution readiness. Native packaging and its verification
+boundaries are described in [CI](../ci.md).
 
-Review the actual exported files, commit graph, refs and dependency pins. A path
-inventory or a secret scanner alone cannot certify publication readiness. Keep
-dated review results outside the product requirements and distinguish scanner
-exclusions from reviewed content.
-
-## Publication candidate procedure
-
-1. Complete contributor-scope and asset/fixture checks under the selected GPL-3.0-or-later project license.
-2. Build/test a clean tracked-tree export with public dependencies or explicit
-   source caches. Documentation links and test inputs must be self-contained.
-3. Choose and review the public history separately from the private development
-   repository. Review intended branch/tag/release metadata as well as files.
-4. Publish the approved candidate, then check the documented build/test paths as
-   a reader using only public dependencies and the product checkout.
-
-The public reader entry points are [product contracts](../README.md),
-[tests](../../tests/README.md), [desktop build requirements](../iplug2-migration.md)
-and [test inputs and evidence](../evidence.md). The selected source-code license does not grant rights over separately authored
-assets, settle contributor scope or change repository visibility.
+See [validation](../contracts/validation.md) for test input and evidence rules and
+[product contracts](../README.md) for supported behavior. Portable success does
+not certify native plugin/DAW operation, and these distribution rules do not
+change repository visibility.

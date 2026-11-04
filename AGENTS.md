@@ -18,7 +18,7 @@
   Public tests use the actual portable bridge with self-authored inputs and
   public product requirements. Tests must be self-contained and must not require
   another repository or recorded original-engine output. See
-  [desktop build requirements](docs/iplug2-migration.md). Pin the iPlug2 submodule
+  [desktop build requirements](docs/desktop-build.md). Pin the iPlug2 submodule
   and lock entry together; keep external IPLUG2_DIR overrides and SDK-free portable
   builds supported. Do not auto-fetch SDKs from CMake. Keep project compiler
   requirements target-scoped and offline tools selectable independently of native
@@ -191,9 +191,8 @@
   patches use version 200 with resolved fractional dials; keep that codec and its
   direct mapping separate from Synth1 integer source conversion.
 
-See [source strategies](docs/core-refactoring.md),
+See [source strategies](docs/source-conversion.md),
 [render boundaries](docs/render-boundaries.md),
-[render-state separation](docs/render-state-separation.md) and
 [Voice audio components](docs/voice-audio-components.md) and
 [Voice orchestration](docs/voice-orchestration.md) and
 [output pipeline](docs/output-pipeline.md) and
@@ -211,7 +210,7 @@ See [source strategies](docs/core-refactoring.md),
   contributor-scope and asset/fixture distribution decisions; do not invent grants.
 - Current-tree cleanup does not remove historical objects. Plan publication history
   separately without rewriting refs or changing visibility as routine maintenance.
-  See [publication preparation](docs/publication/README.md).
+  See [distribution requirements](docs/publication/README.md).
 
 ## Compatibility and real-time behavior
 

@@ -63,7 +63,7 @@ transactional rejection for version 200. Library tests exercise the same files.
 [PatchLibraryTest.cpp](../../tests/PatchLibraryTest.cpp) checks transactional bank
 selection. [PatchImportWorkspaceTest.cpp](../../tests/PatchImportWorkspaceTest.cpp)
 checks consistent ordinary/workspace conversion across accepted versions. See
-[source conversion](../core-refactoring.md) for strategy boundaries.
+[source conversion](../source-conversion.md) for strategy boundaries.
 
 ## Evidence and limits
 
@@ -71,5 +71,5 @@ Acceptance and exercised conversion cases do not establish correctness for every
 historical bank. Agreement with a preceding implementation is a separate regression
 criterion and cannot independently establish original-instrument correctness.
 
-The [public test input description](../evidence.md) and linked product tests contain
+The [public test input description](validation.md) and linked product tests contain
 the inputs/expectations needed for local verification without external assets.

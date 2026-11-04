@@ -56,7 +56,7 @@ ctest --test-dir build-oos-tests --output-on-failure
 Native products use the pinned `iPlug2/` submodule and additional SDK revisions
 in [dependencies.lock.json](dependencies.lock.json). Initialize it with
 `git submodule update --init iPlug2`, then follow the
-[desktop build guide](docs/iplug2-migration.md). External `IPLUG2_DIR` checkouts
+[desktop build guide](docs/desktop-build.md). External `IPLUG2_DIR` checkouts
 remain supported; CMake does not fetch or update SDKs.
 
 [GitHub Actions](docs/ci.md) runs SDK-free portable tests on three platforms and
@@ -70,11 +70,11 @@ native plugin or DAW operation.
 | Capabilities and verification limits | [Product status](docs/status.md) |
 | Product behavior and architecture | [Product contracts](docs/README.md) |
 | Portable tests and focused checks | [Testing](tests/README.md) |
-| Plugin and standalone builds | [Desktop build guide](docs/iplug2-migration.md) |
+| Plugin and standalone builds | [Desktop build guide](docs/desktop-build.md) |
 | Editor behavior and design previews | [GUI guide](docs/gui/README.md) |
 | Rendering, inspection and diagnostics | [Development tools](tools/README.md) |
-| Test inputs and evidence | [Evidence](docs/evidence.md) |
-| Distribution considerations | [Publication preparation](docs/publication/README.md) |
+| Test inputs and evidence | [Evidence](docs/contracts/validation.md) |
+| Distribution considerations | [Distribution requirements](docs/publication/README.md) |
 
 ## License
 
@@ -91,5 +91,5 @@ PURPOSE. See [LICENSE](LICENSE) for the complete terms.
 
 Third-party components and fonts retain their own licenses and notices. This grant
 does not establish redistribution rights for separately authored user patches
-or historical assets; publication scope is recorded in the
-[publication review](docs/publication/README.md).
+or historical assets; see the
+[distribution requirements](docs/publication/README.md).
