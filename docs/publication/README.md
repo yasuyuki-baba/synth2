@@ -20,9 +20,10 @@ builds, recordings, downloaded banks and development history. Preserve the pinne
 iPlug2 gitlink and public submodule URL; a source archive does not include submodule
 contents, so native builders must initialize the documented public dependency.
 
-Preserve authorship and third-party notices when starting a new history; see
-[AUTHORS](../../AUTHORS.md). A new root commit does not resolve contributor scope
-or grant redistribution rights for separately authored assets. Retain development
+Preserve authorship and copyright notices in source files and the included
+third-party license notices when starting a new history. A new root commit does
+not resolve contributor scope or grant redistribution rights for separately
+authored assets. Retain development
 history separately rather than rewriting existing refs as routine cleanup.
 
 Review the actual exported files, commit graph, refs and dependency pins. A path
