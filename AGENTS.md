@@ -201,6 +201,12 @@ See [source strategies](docs/architecture/source-conversion.md),
 [Voice lifecycle](docs/architecture/voice-lifecycle.md) and
 [shared modulation ownership](docs/architecture/shared-modulation.md).
 
+- Keep serialized ProcessorState decoding/validation separate from applying a
+  state to ProcessorBridge. Share locale-independent numeric I/O without changing
+  the host's global locale or tightening legacy state spellings to patch syntax.
+  Keep historical family-model corrections in the legacy typed-import adapter;
+  resolved native control decoding must not apply those corrections again.
+
 ## Public distribution
 
 - Keep product specifications, build instructions and portable tests self-contained.

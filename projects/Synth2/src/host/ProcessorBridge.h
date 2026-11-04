@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ParameterInfo.h"
+
 #include <cstddef>
 #include <array>
 #include <cstdint>
@@ -11,12 +13,6 @@ namespace synth2 { class SynthEngine; }
 
 namespace synth2::host
 {
-struct ParameterInfo
-{
-    std::string id, name;
-    double minimum, maximum, defaultNormalized;
-};
-
 // SDK-independent instrument boundary. Owns the portable engine, parameter and
 // loading state directly; no plugin framework is needed by this library.
 // Calls are serialized by the hosting SDK. State and patch I/O are non-RT.
@@ -26,7 +22,7 @@ public:
     // Retain the preceding host's conservative release/tail notification.
     // Effect-tail duration remains approximate; this does not truncate DSP.
     static constexpr double tailLengthSeconds = 60.0;
-    static constexpr int parameterCount = 129;
+    static constexpr int parameterCount = processorParameterCount;
     static constexpr std::size_t midiCapacity = 4096;
     ProcessorBridge();
     ~ProcessorBridge();

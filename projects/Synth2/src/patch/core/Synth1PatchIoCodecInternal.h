@@ -5,6 +5,9 @@
 
 #include <optional>
 
+// Decode controls only; callers select native resolution or legacy adaptation.
+Synth1Patch decodePatchControls(const Synth1PatchDocument& normalized, const Synth1PatchDocument& source);
+
 std::optional<bool> readToggle(const Synth1PatchDocument& document, int index);
 std::optional<int> readRaw(const Synth1PatchDocument& document, int index);
 

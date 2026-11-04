@@ -38,7 +38,7 @@ add_library(Synth2Core STATIC
     projects/Synth2/src/SynthVoice.cpp projects/Synth2/src/VoiceCorePool.cpp projects/Synth2/src/SynthDiagnostics.cpp projects/Synth2/src/dsp/OutputPipeline.cpp projects/Synth2/src/dsp/SharedModulationRuntime.cpp
     projects/Synth2/src/render/RenderPolicy.cpp projects/Synth2/src/patch/PatchLoader.cpp projects/Synth2/src/patch/PatchMapper.cpp projects/Synth2/src/patch/Synth1PatchMapper.cpp
     projects/Synth2/src/patch/PatchFormat.cpp
-    projects/Synth2/src/host/ProcessorBridge.cpp projects/Synth2/src/host/PatchLibrary.cpp
+    projects/Synth2/src/host/ProcessorBridge.cpp projects/Synth2/src/host/ProcessorState.cpp projects/Synth2/src/host/PatchLibrary.cpp
     projects/Synth2/src/host/PatchCatalog.cpp)
 target_include_directories(Synth2Core PUBLIC projects/Synth2/src projects/Synth2/src/host)
 target_link_libraries(Synth2Core PUBLIC Synth1PatchCore PRIVATE Synth2Resources Synth2Zip Synth2Xml)

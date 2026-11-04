@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile DSP interfaces independently and check their transitive boundaries."""
+"""Compile DSP, voice and serialized-state interfaces and check their boundaries."""
 import argparse
 import hashlib
 import json
@@ -25,8 +25,14 @@ STANDARD_HEADERS = (
     'VoiceEnvelopeConfigurator.h', 'SharedModulationSettings.h',
     'LfoHistoryEvent.h', 'EffectSettings.h', 'OutputPipelineSettings.h', 'PitchBendSmoother.h', 'OscillatorCoarsePitch.h', 'FmPhaseCorrection.h', 'PulseWidthRead.h',
 )
+# Serialized values and numeric I/O must not import the running host/engine.
+STATE_FORBIDDEN = ('/ProcessorBridge.h', '/SynthEngine.h', '/SynthVoice.h',
+                   '/RenderControls.h', '/dsp/', '/patch/', '/iPlug2/', '/IPlug/', '/IGraphics/')
 # Each extracted header must compile first, without another header supplying its includes.
 ISOLATED_HEADERS = {
+    'host/ParameterInfo.h': STATE_FORBIDDEN,
+    'host/ProcessorState.h': STATE_FORBIDDEN,
+    'serialization/FiniteNumber.h': STATE_FORBIDDEN,
     'midi/ArpeggiatorSettings.h': ('/RenderControls.h', '/Arpeggiator.h', '/SynthEngine.h', '/SynthVoice.h', '/patch/'),
     'midi/Arpeggiator.h': ('/RenderControls.h', '/SynthEngine.h', '/SynthVoice.h', '/patch/'),
     'VoiceCore.h': ('/SynthEngine.h', '/SynthVoice.h', '/VoiceCorePool.h', '/VoiceDispatcher.h', '/RenderControls.h', '/patch/'),

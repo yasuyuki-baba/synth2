@@ -52,6 +52,14 @@ See [patch loading](../contracts/patch-loading.md) for required behavior and tes
 - `exportSynth1Patch` writes canonical modern-format typed values, not a lossless
   reconstruction of the original file.
 
+`Synth1PatchLegacyImport.cpp` owns the family-normalizing API and its workspace
+overload. Historical value-combination overrides belong to that model conversion,
+not the complete native resolver or resolved-control decoder. They are not a
+general specification of DLL loading; retain their existing behavior until
+independent conversion evidence supports replacing them. Ordinary native file
+loads use the complete resolver; direct semantic import and legacy non-native
+states retain their distinct optional-field contract.
+
 The loading/host adapters own transactional acceptance, source text, runtime edits
 and saved-state metadata. The patch core does not own voices, clocks, random
 streams or host automation ranges. See [processor/state](../contracts/processor-state.md)

@@ -10,6 +10,7 @@ add_library(Synth1PatchCore STATIC
     ${synth1probe_core_dir}/Synth1PatchFamilyRawAdaptation.cpp
     ${synth1probe_core_dir}/Synth1PatchDocumentIo.cpp
     ${synth1probe_core_dir}/Synth1PatchIoCodec.cpp
+    ${synth1probe_core_dir}/Synth1PatchLegacyImport.cpp
     ${synth1probe_core_dir}/Synth1PatchIo.cpp
 )
 target_include_directories(Synth1PatchCore PUBLIC ${synth1probe_core_dir})

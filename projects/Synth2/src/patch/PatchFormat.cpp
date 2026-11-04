@@ -1,6 +1,7 @@
 #include "PatchFormat.h"
 #include "PatchLoader.h"
 #include "Synth1SourceRange.h"
+#include "serialization/FiniteNumber.h"
 #include <charconv>
 #include <cmath>
 #include <iomanip>
@@ -23,22 +24,16 @@ template<class Value> Value number(std::string_view text)
 }
 template<> float number<float>(std::string_view text)
 {
-    // Apple libc++ does not provide floating-point from_chars on every supported
-    // toolchain. Keep one locale-independent decimal path on all platforms.
-    // Some stream implementations also accept hex floats; patch files do not.
-    if(text.find_first_not_of("0123456789.eE+-")!=std::string_view::npos)
+    // Patch tokens use decimal syntax; the state codec retains legacy strtod
+    // spellings through the same locale-independent conversion primitive.
+    if(text.empty() || text.front()=='+' || text.find_first_not_of("0123456789.eE+-")!=std::string_view::npos)
         throw std::runtime_error("Invalid patch number");
-    std::istringstream input{std::string(text)};
-    input.imbue(std::locale::classic());
-    // A float subnormal is well within double's normal range, avoiding a
-    // library-dependent stream range error before the final float conversion.
-    double parsed{};
-    if(text.empty() || text.front()=='+' || !(input>>std::noskipws>>parsed) || !input.eof()
-        || !std::isfinite(parsed) || std::abs(parsed)>std::numeric_limits<float>::max())
+    const auto parsed=serialization::parseFiniteNumber(text);
+    if(!parsed || std::abs(*parsed)>std::numeric_limits<float>::max())
         throw std::runtime_error("Invalid patch number");
-    const auto value=static_cast<float>(parsed);
-    // Formatted extraction can silently underflow to zero. Preserve the former
-    // parser's range rejection while allowing signed zero and subnormal floats.
+    const auto value=static_cast<float>(*parsed);
+    // Conversion can underflow to zero. Preserve the patch format's range
+    // rejection while allowing signed zero and subnormal floats.
     const auto significand=text.substr(0,text.find_first_of("eE"));
     if(value==0 && significand.find_first_of("123456789")!=std::string_view::npos)
         throw std::runtime_error("Invalid patch number");

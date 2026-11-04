@@ -37,6 +37,14 @@ text where available. Rejected patch loads and malformed state restores must
 leave the current valid state intact. A state file is not a snapshot of running
 oscillators, effect delay buffers, clocks or RNG execution history.
 
+`ProcessorState` and its codec own the binary/XML document, validation and source
+context reconstruction. `ProcessorBridge` snapshots controls for saving and
+applies only a fully validated decoded state. The codec owns no engine, atomics,
+audio buffers or receiver clocks. Parameter metadata is a separate value type.
+Patch and state I/O share a private C-locale numeric conversion without changing
+the host's global locale. State documents retain legacy finite-number spellings;
+version 200 patch tokens retain their stricter decimal-only syntax and range checks.
+
 Serialize host calls. `prepare` establishes sample rate and buffer capacity before
 rendering. Valid process calls produce stereo output within prepared capacity.
 Reject and silence oversized callbacks without reallocating or splitting DSP to
