@@ -1,0 +1,68 @@
+name: Build Synth2
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    name: Portable (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout without native SDK
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          submodules: false
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify SDK-free checkout
+        run: python -c "from pathlib import Path; assert not Path('iPlug2/iPlug2.cmake').exists()"
+      - name: Lint workflow definitions
+        if: runner.os == 'Linux'
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Configure portable tests
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          "-DPython3_EXECUTABLE=${{ steps.python.outputs.python-path }}"
+          -DSYNTH2_BUILD_IPLUG2=OFF -DSYNTH2_BUILD_TOOLS=OFF -DSYNTH2_BUILD_TESTS=ON
+      - name: Build
+        run: cmake --build build --config Release --parallel 4
+      - name: Test
+        run: ctest --test-dir build -C Release -L portable --output-on-failure --no-tests=error
+      - name: Audit DSP header boundaries
+        if: runner.os == 'Linux'
+        run: python tools/audit_dsp_headers.py --build-dir build
+      - name: Preserve test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: portable-diagnostics-${{ matrix.os }}
+          path: build/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: Native
+    needs: portable
+    uses: ./.github/workflows/native.yml

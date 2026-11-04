@@ -1,0 +1,37 @@
+# Synth2 product documentation
+
+Use this index to find the authoritative document for each topic. Directory
+READMEs introduce their local contents and link to these detailed contracts
+rather than duplicating them.
+
+These documents define what the product must do, its ownership boundaries, how to
+verify them and what remains unverified. Do not convert the current implementation
+into a requirement merely because it exists. Distinguish intended behavior,
+independently observed behavior, implementation regressions and unresolved gaps.
+
+| Need | Maintained contract |
+| --- | --- |
+| Source formats, defaults and transactional loading | [Patch loading](contracts/patch-loading.md) |
+| Stable parameters, saved state and callback interface | [Processor/state](contracts/processor-state.md) |
+| MIDI, ARP and physical/logical voices | [MIDI and voices](contracts/midi-voices.md) |
+| Shared clocks, random streams and input history | [Modulation](contracts/modulation.md) |
+| DSP/output order, numerical behavior and silence | [Audio rendering](contracts/audio-rendering.md) |
+| Test oracles, provenance and compatibility scope | [Validation](contracts/validation.md) |
+| Source-version strategy boundary | [Source conversion](core-refactoring.md) |
+| Component inputs and state ownership | [Render boundaries](render-boundaries.md) |
+| Voice audio component inputs and state | [Voice audio components](voice-audio-components.md) |
+| Output order and lifecycle retention | [Output pipeline](output-pipeline.md) |
+| Host lifecycle and offline callback timing | [Host validation](host-validation.md) |
+| Before/after audio and loading comparisons | [Reference comparisons](native-measurements.md) |
+| CI checks and candidate artifacts | [Continuous integration](ci.md) |
+| Native formats and toolchains | [Desktop build boundary](iplug2-migration.md) |
+| Editor behavior and design | [GUI](gui/README.md) |
+
+[status.md](status.md) is a short capability/verification index, not a development
+journal. Each requirement should name a regression test or retained evidence and
+state its limits. Change a contract only for an explicit product decision or new
+independent evidence; do not silently bless a failing implementation or weaken a bound.
+
+Public readers can use [test inputs and evidence](evidence.md) and the included
+test sources for local verification. Future publication
+work follows [the publication preparation](publication/README.md).

@@ -1,0 +1,60 @@
+# Editor behavior and visual contract
+
+Ordinary sound design belongs on one Synth surface with Synth1-inspired functional
+groups. Oscillators, Filter and Amplifier occupy the top; two LFOs, Voice/Unison
+and ARP occupy the middle; effects and EQ/Pan occupy the bottom. MIDI routing uses
+a supplementary view. Serialized metadata and reserved fields stay outside the
+editor; their host IDs, patch values and state serialization remain supported.
+There is no Advanced tab. Preset browsing and master
+volume remain visible. The supplementary [Library view](patch-library.md) accumulates
+imported sounds and combines bank, tag, keyword and favorite filters.
+
+Use restrained red accents, warm-white legends and black controls, with subtle
+Nord Lead 2 influence and Synth2's own identity. Prioritize high-use controls,
+especially cutoff; do not invent unsupported instrument features to match a panel.
+Bundle editor fonts so installed font families cannot change the layout.
+
+Named selectors write actual source integers while preserving host IDs/ranges.
+For example, chorus choices write 1/2/4. Opening the editor must not normalize
+noncanonical values: show Default/Custom where appropriate. Numeric editing uses
+source values; units are presentation only. Nominal envelope durations are not
+measured note lengths. Context-dependent parameters retain source readouts until
+an accurate unit conversion is available.
+
+Host and editor numeric editing use integer steps for discrete selections,
+quantized tuning, counts and MIDI source/destination words. Continuous dials
+retain fractional values, including fine tuning and route sensitivity. Envelope,
+fine-tuning and EQ unit readouts use the fractional dial
+position rather than rounding to an adjacent integer first. Unit readouts remain
+presentation only; numeric entry and host automation use the original source
+scale. See the [processor contract](../contracts/processor-state.md).
+
+`EditorLayout`, `EditorAppearance`, `EditorValueDisplay` and the exporter provide
+shared native/preview geometry, appearance and value displays. Failed library
+reads or invalid source loads preserve valid state. State recall retains source
+text and its patch display name and does not require the source ZIP. UI notifications must not sweep imported
+values through native setters and thereby change loading history.
+
+```sh
+cmake --preset core
+cmake --build build-oos-core --target ExportEditorLayout
+python3 tools/preview_editor.py --exporter build-oos-core/ExportEditorLayout
+python3 tools/render_editor_study.py --exporter build-oos-core/ExportEditorLayout
+```
+
+These commands generate the linked HTML/SVG studies. On Windows, use
+`build-oos-core/ExportEditorLayout.exe` as the exporter path. Optional PNG output
+adds `--png` to the study command and requires discoverable librsvg, Cairo and
+GObject shared libraries; SVG/HTML generation does not require those libraries.
+The optional PNG is a local generated export; the SVG is the tracked layout study.
+
+The HTML preview illustrates the main synthesis controls; the persistent Library
+view is covered by the native editor and portable catalog tests. The preview has
+no audio engine or complete versioned loading resolver. SVG
+and PNG studies are design renderings, not native plugin screenshots. Native
+focus, scaling, DAW interaction and platform accessibility need platform testing.
+See [EditorLayoutTest.cpp](../../tests/EditorLayoutTest.cpp), the patch-library tests
+and [native APP capture](wine-build.md).
+
+[Layout study](synth2-study.svg) and [interactive preview](synth2-preview.html)
+are presentation aids governed by this contract, not audio/DAW validation.

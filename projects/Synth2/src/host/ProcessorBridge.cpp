@@ -1,0 +1,520 @@
+#include "ProcessorBridge.h"
+#include "SynthEngine.h"
+#include "patch/PatchLoader.h"
+#include "patch/PatchFormat.h"
+#include "patch/Synth1PatchMapper.h"
+#include "patch/Synth1SourceRange.h"
+#include "render/RandomArpAdmission.h"
+#include "CoreResources.h"
+#include "dsp/LfoHistory.h"
+#include "render/FilterParameterMapping.h"
+#include <Synth1NativeLoading.h>
+#include <Synth1PatchNativeControls.h>
+#include <tinyxml2.h>
+#include <atomic>
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <iomanip>
+#include <locale>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#if defined(__SSE__) || defined(_M_X64)
+#include <xmmintrin.h>
+#endif
+
+namespace synth2::host
+{
+namespace
+{
+struct NoDenormals
+{
+#if defined(__SSE__) || defined(_M_X64)
+    unsigned previous=_mm_getcsr();
+    NoDenormals(){_mm_setcsr(previous|0x8040);}
+    ~NoDenormals(){_mm_setcsr(previous);}
+#elif defined(__aarch64__)
+    uint64_t previous{};
+    NoDenormals(){asm volatile("mrs %0, fpcr":"=r"(previous));const auto next=previous|(uint64_t{1}<<24);asm volatile("msr fpcr, %0"::"r"(next));}
+    ~NoDenormals(){asm volatile("msr fpcr, %0"::"r"(previous));}
+#endif
+};
+float defaultSource(int i)
+{
+    float value=0;
+    if(i==4)value=1;
+    if(i==52)value=64;
+    if(i==83)value=66;
+    if(i==85)value=24;
+    if(i==75)value=22;
+    if(i==93)value=2;
+    if(i==94)value=16;
+    if(i==1)value=1;
+    if(i==2 || i==3 || i==8 || i==11 || i==21 || (i>=60 && i<=63) || i==72 || i==84 || i==90 || i==98)value=64;
+    if(i==19 || i==17 || i==27)value=127;
+    if(i==29)value=100;
+    if(i==31)value=2;
+    if(i==33)value=11;
+    if(i==34)value=64;
+    if(i==126)value=105;
+    return value;
+}
+std::string escapeXml(const std::string& value)
+{
+    std::string out;
+    for(char c:value)switch(c)
+    {
+        case '&':out+="&amp;";break;case '<':out+="&lt;";break;case '>':out+="&gt;";break;
+        case '\"':out+="&quot;";break;case '\r':out+="&#13;";break;case '\n':out+="&#10;";break;
+        case '\t':out+="&#9;";break;default:out+=c;break;
+    }
+    return out;
+}
+uint32_t read32(const uint8_t* p){return uint32_t(p[0])|(uint32_t(p[1])<<8)|(uint32_t(p[2])<<16)|(uint32_t(p[3])<<24);}
+void append32(std::vector<uint8_t>& bytes,uint32_t word){for(int i=0;i<4;++i)bytes.push_back(static_cast<uint8_t>(word>>(8*i)));}
+}
+struct ProcessorBridge::Impl
+{
+    SynthEngine engine;
+    std::array<std::atomic<float>,parameterCount> values{};
+    std::array<ParameterInfo,parameterCount> info{};
+    std::array<std::atomic<float>*,126> rawSourceValues{};
+    std::atomic<float>* rawPatchVersion=&values[126];
+    std::atomic<float>* rawMasterVolume=&values[128];
+    std::unique_ptr<Synth1PatchMapper> parameterMapper=std::make_unique<Synth1PatchMapper>();
+    bool continuousControls=true;
+    bool directControls=false;
+    int parameterMappingVersion=-1;
+    std::atomic<bool> replacingParameters{false},phaseResetRequested{false};
+    std::atomic<unsigned> missingEnvelopeFields{0};
+    std::atomic<bool> nativeSourceLoading{false},nativeRandomArpSeen{false};
+    std::array<std::atomic<uint64_t>,2> nativeSourcePresence{},nativeRuntimeEdits{};
+    std::array<std::atomic<int>,99> nativeInitialControls{};
+    std::atomic<int> nativeSourceVersion{0};
+    std::atomic<uint64_t> lastNativeParameterPair{~uint64_t{0}};
+    std::atomic<uint64_t> lastReceiverParameterPair{~uint64_t{0}};
+    struct FilterEdit {int index{};float before{},after{};uint64_t generation{};};
+    dsp::HistoryQueue<FilterEdit> filterEdits;
+    std::array<FilterEdit,decltype(filterEdits)::capacity> pendingFilterEdits{};
+    std::atomic<uint64_t> filterGeneration{0};
+    uint64_t appliedFilterDrops=0;
+    dsp::LfoHistory<> lfoHistory;
+    std::string lastLoadedPreset;
+    std::string patchName = "Init";
+    int program=0;
+    struct Event{int offset;uint8_t status,data1,data2;};
+    std::array<Event,midiCapacity> events{};
+    size_t eventCount=0;uint64_t drops=0;bool overflow=false;int capacity=0;
+    audio::AudioBuffer<float> scratch;
+    audio::MidiBuffer midi;
+    Impl()
+    {
+        parameterMapper->setContinuousControls(continuousControls);
+        for(int i=0;i<parameterCount;++i)
+        {
+            const float minimum=i==128 ? 0.f : static_cast<float>(sourceMinimum(i));
+            const float maximum=i==128 ? 1.f : static_cast<float>(sourceMaximum(i));
+            const float initial=i==128 ? 1.f : defaultSource(i);
+            info[i]={i==128 ? "masterVolume" : "p"+std::to_string(i),i==128 ? "Master Volume" : resources::parameterNames[i],minimum,maximum,(initial-minimum)/(maximum-minimum)};
+            values[i].store(initial);
+            if(i<126)rawSourceValues[i]=&values[i];
+        }
+        std::string error;
+        if(!load(std::string(reinterpret_cast<const char*>(resources::initPatch),resources::initPatchSize),error))throw std::runtime_error(error);
+        patchName="Init";
+        updateSynthParams();engine.initializeNativeRandomHistory();
+    }
+    float normalized(int i)const
+    {const auto& p=info.at(i);return (values.at(i).load()-static_cast<float>(p.minimum))/static_cast<float>(p.maximum-p.minimum);}
+    void setNormalized(int i,double normalizedValue)
+    {
+        if(!std::isfinite(normalizedValue))return;
+        const auto& p=info.at(i);const auto n=static_cast<float>(std::clamp(normalizedValue,0.,1.));
+        const float previous=values[i].exchange(static_cast<float>(p.minimum)+static_cast<float>(p.maximum-p.minimum)*n);
+        if(i<126)parameterValueChanged(i,n,previous);
+    }
+    void setSource(int i,float value)
+    {
+        const auto& p=info[i];
+        const float normalizedValue=(value-static_cast<float>(p.minimum))/static_cast<float>(p.maximum-p.minimum);
+        setNormalized(i,normalizedValue);
+    }
+    std::array<uint64_t,2> runtimeEdits() const noexcept
+    { return {nativeRuntimeEdits[0].load(),nativeRuntimeEdits[1].load()}; }
+    std::array<int,99> initialControls() const noexcept
+    { std::array<int,99> result;for(int i=0;i<99;++i)result[i]=nativeInitialControls[i].load();return result; }
+    void storeNativeContext(const std::array<int,99>& values,std::array<uint64_t,2> edits,int version) noexcept
+    { for(int i=0;i<99;++i)nativeInitialControls[i].store(values[i]);for(int i=0;i<2;++i)nativeRuntimeEdits[i].store(edits[i]);nativeSourceVersion.store(version); }
+    std::array<uint64_t,2> sourcePresence() const noexcept
+    { return {nativeSourcePresence[0].load(),nativeSourcePresence[1].load()}; }
+    void storeSourcePresence(std::array<uint64_t,2> values) noexcept
+    { for(size_t i=0;i<2;++i)nativeSourcePresence[i].store(values[i]); }
+
+
+    void parameterValueChanged (int index, float value,float previous)
+    {
+        if (! replacingParameters.load())
+        {
+            if(index>=0 && index<126)
+            {
+                const auto oldEdits=nativeRuntimeEdits[index/64].fetch_or(uint64_t{1}<<(index%64));
+                if(render::filterParameter(index) && nativeSourceLoading.load()
+                    && (oldEdits&(uint64_t{1}<<(index%64)))==0)
+                    previous=static_cast<float>(nativeInitialControls[index].load());
+            }
+            missingEnvelopeFields.fetch_and (~static_cast<unsigned> (synth1::patch::nativeEnvelopePresenceBit (index)));
+            // Native RVA0x2a4d0 suppresses a consecutive identical integer
+            // (parameter,dial) pair, rather than comparing the patch value.
+            int dial=static_cast<int>(std::lround(synth2::sourceMinimum(index)+value*(synth2::sourceMaximum(index)-synth2::sourceMinimum(index))));
+            if(index==67 || index==69)dial=dial!=0;
+            const uint64_t pair=(static_cast<uint64_t>(index)<<32)|static_cast<uint32_t>(dial);
+            const bool repeated=lastNativeParameterPair.exchange(pair)==pair;
+            // Receiver edits retain fractional values. Consecutive identical
+            // setters are neutral, including when separated by callbacks; an
+            // intervening parameter makes the next setter effective again.
+            uint32_t bits;std::memcpy(&bits,&value,sizeof(bits));
+            const uint64_t receiverPair=(static_cast<uint64_t>(index)<<32)|bits;
+            const bool repeatedReceiver=lastReceiverParameterPair.exchange(receiverPair)==receiverPair;
+            if(!repeatedReceiver && render::filterParameter(index))
+            {
+                const auto& info= this->info[index];
+                const float next=static_cast<float>(info.minimum)+static_cast<float>(info.maximum-info.minimum)*value;
+                filterEdits.push({index,previous/127.0f,next/127.0f,filterGeneration.load()});
+            }
+            if(!repeated && nativeRandomArpSeen.load())lfoHistory.push({4,-1,0,{}});
+            if(!repeated && (index==43 || index==48))
+                lfoHistory.push({0,index==43 ? 0 : 1,dial,{}});
+            if(!repeated && (index==41 || index==42 || index==44 || index==46 || index==47 || index==49 || index==68 || index==70 || (index>=84 && index<=89) || index==31 || index==59))
+                lfoHistory.push({4,index,dial,{}});
+            if(!repeated && (index==67 || index==69))
+                lfoHistory.push({3,index==67 ? 0 : 1,dial,{}});
+        }
+    }
+
+
+    void flushNativeLfoHistory() noexcept
+    {
+        if(lfoHistory.droppedEvents()!=0)engine.invalidateNativeRandomHistory();
+        synth2::dsp::LfoHistoryEvent event;
+        // Bound work even if a producer keeps publishing during a callback.
+        for(uint32_t count=0;count<decltype(lfoHistory)::capacity && lfoHistory.pop(event);++count)
+            engine.applyNativeLfoHistory(event);
+    }
+
+    void queueNativeLfoLoad() noexcept
+    {
+        const int version=nativeSourceVersion.load();
+        const int mappedVersion=static_cast<int>(std::lround((&values[126])->load()));
+        const bool native=directControls || (nativeSourceLoading.load() && mappedVersion==version && synth1::patch::isNativeSourceVersion(version));
+        const auto initial=initialControls();const auto edits=runtimeEdits();
+        const auto control=[&](int index) {
+            if(native && !directControls && (edits[index/64]&(uint64_t{1}<<(index%64)))==0)return initial[index];
+            auto* value=(&values[static_cast<size_t>(index)]);
+            return value!=nullptr ? static_cast<int>(std::lround(value->load())) : 0;
+        };
+        if(control(59)!=0 && control(31)==4)nativeRandomArpSeen.store(true);
+        lfoHistory.push({native ? 2 : 1,control(43),control(48),
+            {control(86),control(87),control(88),control(89)},{control(67)!=0,control(69)!=0},
+            {{{control(41),control(42),control(44)},{control(46),control(47),control(49)}}},
+            native && (!(control(59)!=0 && control(31)==4) || synth2::render::admitRandomArp({control(59)!=0,control(31),control(34),control(38),control(42),control(47)})),
+            control(59)!=0 && control(31)==4});
+    }
+
+    void updateSynthParams()
+    {
+        updateParametersFromSy1();
+    }
+
+    void updateParametersFromSy1()
+    {
+        if(replacingParameters.load())return;
+        auto& synthParams = engine.getParams();
+        const int patchVersion=directControls ? currentPatchFormatVersion : static_cast<int>(std::round(rawPatchVersion->load()));
+
+        if (! parameterMapper || parameterMappingVersion != patchVersion)
+        {
+            parameterMapper->resetSourceVersion(directControls ? currentPatchFormatVersion : patchVersion>=1 && patchVersion<=113 ? patchVersion : 105);
+            parameterMappingVersion = patchVersion;
+        }
+        if (parameterMapper != nullptr)
+        {
+            parameterMapper->setDirectControls(directControls);
+            flushNativeLfoHistory();
+            parameterMapper->setRandomHistoryValid(engine.nativeRandomHistoryValid());
+            parameterMapper->setMissingEnvelopeFields (missingEnvelopeFields.load());
+            parameterMapper->setNativeSourceContext(nativeSourceLoading.load() && patchVersion==nativeSourceVersion.load() && synth1::patch::isNativeSourceVersion(patchVersion),sourcePresence(),initialControls(),runtimeEdits());
+            parameterMapper->mapParameterValues (rawSourceValues, synthParams);
+            engine.setRenderHistory(parameterMapper->getRenderHistory());
+            synthParams.masterVolume = rawMasterVolume->load();
+            if (phaseResetRequested.exchange (false)) engine.requestPhaseReset();
+            // Restore the state before the pending edits from their recorded
+            // source values, then apply every edit before MIDI can sample an
+            // envelope's release level. No samples or shared clocks advance.
+            const auto generation=filterGeneration.load();
+            FilterEdit event;size_t count=0;
+            for(size_t read=0;read<decltype(filterEdits)::capacity && filterEdits.pop(event);++read)
+                if(event.generation==generation)pendingFilterEdits[count++]=event;
+            if(count!=0)
+            {
+                const auto final=synthParams;
+                for(size_t i=count;i>0;--i)
+                {
+                    const auto& edit=pendingFilterEdits[i-1];
+                    render::applyFilterParameter(synthParams,edit.index,edit.before,engine.getRenderHistory().nativeMidiRoutingLoadHistory);
+                }
+                for(size_t i=0;i<count;++i)
+                {
+                    const auto& edit=pendingFilterEdits[i];engine.applyFilterParameter(edit.index,edit.after);
+                }
+                synthParams=final;
+                engine.updateFilterEnvelopeConfiguration();
+            }
+            const auto drops=filterEdits.droppedEvents();
+            if(drops!=appliedFilterDrops)
+            {
+                // Lost intermediate edits cannot be reconstructed. Publish the
+                // final controls before MIDI, report every drop and recover on
+                // the next accepted edit without inventing missing history.
+                engine.updateFilterEnvelopeConfiguration();engine.restartFilterCutoff();
+                appliedFilterDrops=drops;
+            }
+        }
+    }
+    bool load(const std::string& text,std::string& error)
+    {
+        try
+        {
+            if(isContinuousPatch(text))
+            {
+                const auto patch=parseContinuousPatch(text);
+                replacingParameters.store(true);
+                // Store exact parsed floats; a normalize/denormalize round trip
+                // can otherwise lose a low bit at signed source ranges.
+                for(int i=0;i<parameterCount;++i)values[i].store(patch.values[i]);
+                directControls=true;continuousControls=true;
+                parameterMapper->setContinuousControls(true);
+                lastLoadedPreset=text;patchName=patch.name;
+                missingEnvelopeFields.store(0);storeSourcePresence({});storeNativeContext({}, {},113);
+                nativeSourceLoading.store(false);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
+                queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);
+                error.clear();return true;
+            }
+            const auto document=parsePatchDocument(text);
+            if(document.version() && (*document.version()<1 || *document.version()>113))throw std::runtime_error("Unsupported Synth1 patch format version");
+            const int version=document.version().value_or(hasPatchTitle(text) ? 100 : 105);
+            const bool native=document.version() ? synth1::patch::isNativeSourceVersion(version) : hasPatchTitle(text);
+            if(!native)for(const auto& e:document.entries)
+                if(e.index<0 || e.index>=126 || e.rawValue<sourceMinimum(e.index) || e.rawValue>sourceMaximum(e.index))throw std::runtime_error("Patch value is outside the supported source parameter range");
+            std::array<int,99> initial{};
+            if(native)initial=synth1::patch::resolveNativePatchControls(document).values;
+            std::array<uint64_t,2> presence{};unsigned missing=63;
+            for(const auto& e:document.entries)
+            {if(e.index<0 || e.index>=126)throw std::runtime_error("Invalid source index");presence[e.index/64]|=uint64_t{1}<<(e.index%64);missing&=~static_cast<unsigned>(synth1::patch::nativeEnvelopePresenceBit(e.index));}
+            replacingParameters.store(true);
+            directControls=false;
+            for(int i=0;i<128;++i)setNormalized(i,info[i].defaultNormalized);
+            if(native)
+                for(int i=0;i<99;++i)setSource(i,static_cast<float>(std::clamp(synth1::patch::nativeDefaultSourceDial(i,version),sourceMinimum(i),sourceMaximum(i))));
+            else if(document.version().value_or(105)>=104)
+                for(int i:synth1::patch::nativeEnvelopeIndices)
+                    if(missing&synth1::patch::nativeEnvelopePresenceBit(i))setNormalized(i,(i==13 ? 0.f : i==21 ? 127.f : 64.f)/127.f);
+            setNormalized(126,version/127.f);
+            for(const auto& e:document.entries)setSource(e.index,static_cast<float>(std::clamp(e.rawValue,sourceMinimum(e.index),sourceMaximum(e.index))));
+            lastLoadedPreset=text;patchName=hasPatchTitle(text) ? document.name : "Untitled";missingEnvelopeFields.store(missing);storeSourcePresence(presence);
+            storeNativeContext(initial,{},version);nativeSourceLoading.store(native);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
+            queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);error.clear();return true;
+        }
+        catch(const std::exception& e){replacingParameters.store(false);error=e.what();return false;}
+    }
+    std::string savePatch()const
+    {
+        ContinuousPatch patch;patch.name=patchName;
+        for(int i=0;i<parameterCount;++i)patch.values[i]=values[i].load();
+        // Import conversion has already happened for native files. Export the
+        // resolved dials, then overlay live edits, rather than converting again
+        // when the Synth2 file is read.
+        const int version=static_cast<int>(std::lround(values[126].load()));
+        if(!directControls && nativeSourceLoading.load() && version==nativeSourceVersion.load())
+        {
+            const auto initial=initialControls();const auto edits=runtimeEdits();
+            for(int i=0;i<99;++i)if(!(edits[i/64]&(uint64_t{1}<<(i%64))))
+                patch.values[i]=static_cast<float>(std::clamp(initial[i],sourceMinimum(i),sourceMaximum(i)));
+        }
+        if(!continuousControls)for(int i=0;i<128;++i)patch.values[i]=std::round(patch.values[i]);
+        return formatContinuousPatch(patch);
+    }
+    std::vector<uint8_t> save()const
+    {
+        // Keep the established binary-XML envelope readable without a framework.
+        const int version=static_cast<int>(std::lround(values[126].load()));
+        const bool native=nativeSourceLoading.load() && version==nativeSourceVersion.load() && synth1::patch::isNativeSourceVersion(version);
+        std::ostringstream xml;xml.imbue(std::locale::classic());xml<<std::setprecision(17);
+        xml<<"<?xml version=\"1.0\" encoding=\"UTF-8\"?> <PARAMS stateVersion=\""<<(continuousControls ? 3 : native ? 2 : 1)<<'"';
+        if(continuousControls)xml<<" nativeSource=\""<<(native ? 1 : 0)<<'"';
+        if(directControls)xml<<" patchFormat=\"200\"";
+        if(native)
+        {
+            for(const auto& field:{std::make_pair("sourcePresence",sourcePresence()),std::make_pair("nativeRuntimeEdits",runtimeEdits())})
+            {xml<<' '<<field.first<<"=\"";for(int i=0;i<126;++i)xml<<((field.second[i/64]>>(i%64))&1);xml<<'"';}
+        }
+        xml<<" missingEnvelopeFields=\""<<missingEnvelopeFields.load()<<"\" program=\""<<program<<"\" presetText=\""<<escapeXml(lastLoadedPreset)<<"\" patchName=\""<<escapeXml(patchName)<<"\">";
+        for(int i=0;i<parameterCount;++i)xml<<"<PARAM id=\""<<info[i].id<<"\" value=\""<<values[i].load()<<"\"/>";
+        xml<<"</PARAMS>";const auto text=xml.str();std::vector<uint8_t> bytes;bytes.reserve(text.size()+9);
+        append32(bytes,0x21324356);append32(bytes,static_cast<uint32_t>(text.size()));bytes.insert(bytes.end(),text.begin(),text.end());bytes.push_back(0);return bytes;
+    }
+    void restore(const void* data,int size)
+    {
+        if(!data || size<9 || size>4*1024*1024)return;
+        const auto* bytes=static_cast<const uint8_t*>(data);const auto length=read32(bytes+4);
+        if(read32(bytes)!=0x21324356 || length>static_cast<uint32_t>(size-8))return;
+        tinyxml2::XMLDocument xml(true,tinyxml2::PRESERVE_WHITESPACE);
+        if(xml.Parse(reinterpret_cast<const char*>(bytes+8),length)!=tinyxml2::XML_SUCCESS)return;
+        auto* root=xml.RootElement();if(!root || std::strcmp(root->Name(),"PARAMS"))return;
+        auto property=[&](const char* key)->std::string{const auto* s=root->Attribute(key);return s ? s : "";};
+        const auto stateVersion=property("stateVersion");if(stateVersion!="1" && stateVersion!="2" && stateVersion!="3")return;
+        const auto patchFormat=property("patchFormat");
+        if(!patchFormat.empty() && (patchFormat!="200" || stateVersion!="3" || property("nativeSource")!="0"))return;
+        const bool direct=patchFormat=="200";
+        if(stateVersion=="3" && property("nativeSource")!="0" && property("nativeSource")!="1")return;
+        const bool native=stateVersion=="2" || (stateVersion=="3" && property("nativeSource")=="1");
+        std::array<uint64_t,2> presence{},edits{};std::array<int,99> initial{};
+        if(native)
+        {
+            for(const auto& field:{std::make_pair("sourcePresence",&presence),std::make_pair("nativeRuntimeEdits",&edits)})
+            {const auto bits=property(field.first);if(bits.size()!=126 || bits.find_first_not_of("01")!=std::string::npos)return;
+             for(int i=0;i<126;++i)if(bits[i]=='1')(*field.second)[i/64]|=uint64_t{1}<<(i%64);}
+        }
+        std::array<float,parameterCount> next{};std::array<bool,parameterCount> seen{};int count=0;
+        for(auto* child=root->FirstChildElement();child;child=child->NextSiblingElement())
+        {
+            const auto* id=child->Attribute("id");const auto* valueText=child->Attribute("value");
+            if(std::strcmp(child->Name(),"PARAM") || !id || !valueText)return;
+            int index=-1;for(int i=0;i<parameterCount;++i)if(info[i].id==id){index=i;break;}
+            if(index<0 || seen[index])return;
+            char* end=nullptr;const double value=std::strtod(valueText,&end);
+            if(end==valueText || *end || !std::isfinite(value) || value<info[index].minimum || value>info[index].maximum)return;
+            next[index]=static_cast<float>(value);seen[index]=true;++count;
+        }
+        if(count!=parameterCount)return;
+        unsigned missing=0;
+        if(root->Attribute("missingEnvelopeFields"))
+        {const auto text=property("missingEnvelopeFields");if(text.empty() || text.size()>2 || text.find_first_not_of("0123456789")!=std::string::npos)return;missing=static_cast<unsigned>(std::stoul(text));if(missing>63)return;}
+        const int version=static_cast<int>(std::lround(next[126]));const auto preset=property("presetText");
+        if(!direct && isContinuousPatch(preset))return;
+        if(direct)
+        {
+            if(missing!=0)return;
+            try {parseContinuousPatch(preset);}catch(const std::exception&){return;}
+        }
+        if(native)
+        {
+            if(!synth1::patch::isNativeSourceVersion(version))return;
+            unsigned expected=63;
+            for(int i:synth1::patch::nativeEnvelopeIndices)if((presence[i/64]|edits[i/64])&(uint64_t{1}<<(i%64)))expected&=~static_cast<unsigned>(synth1::patch::nativeEnvelopePresenceBit(i));
+            if(!root->Attribute("missingEnvelopeFields") || missing!=expected)return;
+            try
+            {
+                const auto original=parsePatchDocument(preset);
+                if(original.version().value_or(hasPatchTitle(preset) ? 100 : 105)!=version || (!original.version() && !hasPatchTitle(preset)))return;
+                std::array<uint64_t,2> originalPresence{};std::array<int,126> source{};
+                for(int i=0;i<99;++i)source[i]=std::clamp(synth1::patch::nativeDefaultSourceDial(i,version),sourceMinimum(i),sourceMaximum(i));
+                for(const auto& e:original.entries)
+                {if(e.index<0 || e.index>=126)return;originalPresence[e.index/64]|=uint64_t{1}<<(e.index%64);source[e.index]=std::clamp(e.rawValue,sourceMinimum(e.index),sourceMaximum(e.index));}
+                if(originalPresence!=presence)return;
+                initial=synth1::patch::resolveNativePatchControls(original).values;
+                for(int i=0;i<126;++i)if(!(edits[i/64]&(uint64_t{1}<<(i%64))) && std::abs(next[i]-source[i])>.001)return;
+            }
+            catch(const std::exception&){return;}
+        }
+        auto restoredName=property("patchName");
+        if(restoredName.empty())
+        {
+            restoredName=preset.empty() ? "Init" : "Untitled";
+            try { if(direct)restoredName=parseContinuousPatch(preset).name;
+                  else if(hasPatchTitle(preset))restoredName=parsePatchDocument(preset).name; }
+            catch(const std::exception&) {}
+        }
+        replacingParameters.store(true);
+        directControls=direct;
+        for(int i=0;i<parameterCount;++i)values[i].store(next[i]);
+        patchName=std::move(restoredName);
+        program=std::max(0,root->IntAttribute("program",0));lastLoadedPreset=preset;
+        missingEnvelopeFields.store(missing);storeSourcePresence(presence);storeNativeContext(initial,edits,version);
+        nativeSourceLoading.store(native);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);
+        continuousControls=stateVersion=="3";
+        parameterMapper->setContinuousControls(continuousControls);
+    }
+    template<class Sample> bool render(Sample* left,Sample* right,int frames,double bpm)
+    {
+        // A prepared zero-frame callback owns no sample memory and must retain
+        // queued events, even when the host supplies null channel pointers.
+        if(frames==0 && capacity>0)return true;
+        if(!left || !right || frames<0 || frames>capacity || capacity==0)
+        {
+            if(left && frames>0)std::fill_n(left,frames,Sample{});if(right && frames>0)std::fill_n(right,frames,Sample{});
+            eventCount=0;overflow=false;midi.clear();return false;
+        }
+        midi.clear();
+        if(overflow)for(int c=1;c<=16;++c)midi.addEvent(audio::MidiMessage::allSoundOff(c),0);
+        else for(size_t i=0;i<eventCount;++i)
+        {const auto& e=events[i];if(e.offset>=frames){++drops;continue;}midi.addEvent(audio::MidiMessage(e.status,e.data1,e.data2),e.offset);}
+        eventCount=0;overflow=false;
+        float* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<float> buffer(pointers,2,frames);buffer.clear();
+        const NoDenormals noDenormals;
+        bpm=std::isfinite(bpm) && bpm>0 && bpm<=1000 ? bpm : 120;
+        engine.getParams().hostBpm=static_cast<float>(bpm);
+        const bool randomArp=values[59].load()!=0 && values[31].load()==4;
+        if((randomArp && bpm!=120.) || frames>64)engine.invalidateNativeRandomHistory();
+        for(const auto& metadata:midi)
+        {
+            const auto& message=metadata.getMessage();
+            const int controller=message.isController() ? message.getControllerNumber() : -1;
+            const bool supportedController=message.isPitchWheel() || controller==1 || controller==64 || controller==120 || controller==121 || controller==123;
+            if((message.isController() || message.isChannelPressure() || message.isPitchWheel()) && !supportedController)engine.invalidateNativeRandomHistory();
+        }
+        updateSynthParams();engine.render(buffer,midi,0,frames);
+        for(int i=0;i<frames;++i){left[i]=pointers[0][i];right[i]=pointers[1][i];}return true;
+    }
+};
+ProcessorBridge::ProcessorBridge():impl(std::make_unique<Impl>()){}
+ProcessorBridge::~ProcessorBridge()=default;
+const ParameterInfo& ProcessorBridge::parameter(int index)const{return impl->info.at(index);}
+double ProcessorBridge::normalizedValue(int index)const{return impl->normalized(index);}
+void ProcessorBridge::setNormalizedValue(int index,double value){impl->setNormalized(index,value);}
+void ProcessorBridge::prepare(double rate,int frames)
+{
+    if(!std::isfinite(rate) || rate<=0 || frames<=0)throw std::invalid_argument("Invalid Synth2 playback configuration");
+    impl->scratch.setSize(2,frames);impl->eventCount=0;impl->overflow=false;impl->midi.clear();
+    impl->flushNativeLfoHistory();if(rate!=44100. || frames!=64)impl->engine.invalidateNativeRandomHistory();
+    impl->engine.prepareToPlay(rate,frames);impl->capacity=frames;
+}
+void ProcessorBridge::release(){impl->engine.releaseResources();impl->capacity=0;impl->eventCount=0;impl->overflow=false;impl->midi.clear();}
+bool ProcessorBridge::enqueueMidi(int offset,uint8_t status,uint8_t first,uint8_t second)noexcept
+{
+    if(offset<0 || status<0x80 || status>=0xf0 || first>127 || second>127){++impl->drops;return false;}
+    if(impl->eventCount==midiCapacity){++impl->drops;impl->overflow=true;return false;}
+    impl->events[impl->eventCount++]={offset,status,first,second};return true;
+}
+bool ProcessorBridge::process(float* l,float* r,int n,double bpm){return impl->render(l,r,n,bpm);}
+bool ProcessorBridge::process(double* l,double* r,int n,double bpm){return impl->render(l,r,n,bpm);}
+uint64_t ProcessorBridge::droppedMidiMessages()const noexcept{return impl->drops;}
+uint64_t ProcessorBridge::droppedFilterControlEdits()const noexcept{return impl->filterEdits.droppedEvents();}
+bool ProcessorBridge::loadPatch(const std::string& text,std::string& error){return impl->load(text,error);}
+std::string ProcessorBridge::savePatch()const{return impl->savePatch();}
+bool ProcessorBridge::loadProgram(const std::string& text,int index,std::string& error,const std::string& displayName)
+{
+    if(index<0 || index>=4096){error="The selected patch is outside the supported bank range.";return false;}
+    if(!impl->load(text,error))return false;
+    impl->program=index;if(!displayName.empty())impl->patchName=displayName;return true;
+}
+std::string ProcessorBridge::currentPatchName()const{return impl->patchName;}
+int ProcessorBridge::currentProgram()const noexcept{return impl->program;}
+std::vector<uint8_t> ProcessorBridge::saveState()const{return impl->save();}
+void ProcessorBridge::restoreState(const void* data,int size){impl->restore(data,size);}
+const SynthEngine& ProcessorBridge::engineForInspection()const noexcept{return impl->engine;}
+bool ProcessorBridge::readNativeControls(std::array<int,99>& out)const noexcept{return impl->parameterMapper && impl->parameterMapper->readNativeControls(out);}
+int ProcessorBridge::mappedVersion()const noexcept{return impl->parameterMapper ? impl->parameterMapper->getSourceVersion() : 0;}
+uint64_t ProcessorBridge::historyDrops()const noexcept{return impl->lfoHistory.droppedEvents();}
+
+}

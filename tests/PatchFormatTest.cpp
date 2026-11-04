@@ -1,0 +1,109 @@
+#include <gtest/gtest.h>
+#include "host/ProcessorBridge.h"
+#include "patch/PatchFormat.h"
+#include "patch/Synth1EnvelopeTime.h"
+#include "../tools/host_scenarios.h"
+#include "support/StateDocument.h"
+#include <array>
+#include <bit>
+#include <limits>
+
+namespace
+{
+using synth2::host::ProcessorBridge;
+using Stereo=std::array<std::array<float,64>,2>;
+Stereo render(ProcessorBridge& p,int block)
+{
+    if(block==1)EXPECT_TRUE(p.enqueueMidi(13,0x90,60,100));
+    if(block==400)EXPECT_TRUE(p.enqueueMidi(29,0x80,60,0));
+    Stereo out{};EXPECT_TRUE(p.process(out[0].data(),out[1].data(),64,120));return out;
+}
+}
+
+TEST(PatchFormat, Version200PreservesEveryFloatAndEscapedNameExactly)
+{
+    ProcessorBridge processor;auto patch=synth2::parseContinuousPatch(processor.savePatch());
+    patch.name=R"(Owned #1; "quoted" \ patch, 日本語)";
+    for(int i=0;i<129;++i)if(i!=126)
+    {
+        const auto& info=processor.parameter(i);
+        patch.values[i]=static_cast<float>(info.minimum+(info.maximum-info.minimum)*0.371234567);
+    }
+    const auto text=synth2::formatContinuousPatch(patch);
+    EXPECT_TRUE(text.starts_with("ver=200\n"));
+    const auto decoded=synth2::parseContinuousPatch(text);
+    EXPECT_EQ(decoded.name,patch.name);
+    for(int i=0;i<129;++i)if(i!=126)
+        EXPECT_EQ(std::bit_cast<uint32_t>(decoded.values[i]),std::bit_cast<uint32_t>(patch.values[i]))<<i;
+    std::string error;ASSERT_TRUE(processor.loadPatch(text,error))<<error;
+    EXPECT_EQ(processor.savePatch(),text);
+    EXPECT_EQ(processor.currentPatchName(),patch.name);
+    processor.prepare(44100,64);render(processor,0);
+    EXPECT_EQ(processor.mappedVersion(),200);
+    std::array<int,99> controls;EXPECT_FALSE(processor.readNativeControls(controls));
+}
+
+TEST(PatchFormat, FractionalDialsBypassLegacyConversionAndSurviveStateRecall)
+{
+    ProcessorBridge source;auto patch=synth2::parseContinuousPatch(source.savePatch());
+    patch.values[16]=64.25f;patch.values[19]=37.25f;patch.values[52]=0.125f;
+    std::string error;ASSERT_TRUE(source.loadPatch(synth2::formatContinuousPatch(patch),error))<<error;
+    const auto state=source.saveState();
+    EXPECT_EQ(stateinspection::attribute(*stateinspection::document(state),"stateVersion"),"3");
+    EXPECT_EQ(stateinspection::attribute(*stateinspection::document(state),"patchFormat"),"200");
+    ProcessorBridge restored;restored.restoreState(state.data(),static_cast<int>(state.size()));
+    EXPECT_EQ(restored.saveState(),state);EXPECT_EQ(restored.savePatch(),source.savePatch());
+    source.prepare(44100,64);restored.prepare(44100,64);
+    for(int i=0;i<700;++i)EXPECT_EQ(render(source,i),render(restored,i))<<i;
+    synth2::RenderControls mapped;ASSERT_TRUE(synth2::readMappedSynthParams(source,mapped));
+    EXPECT_FLOAT_EQ(mapped.cutoffIndex,(37.25f/127.0f)*1023.0f);
+    EXPECT_FLOAT_EQ(mapped.chorus.time,0.125f/127.0f);
+    EXPECT_FLOAT_EQ(mapped.filterEnv.decaySec,0.01f*std::pow(6000.f,64.25f/127.f));
+}
+
+TEST(PatchFormat, ImportedNativeFilesExportResolvedDialsWithoutDoubleConversion)
+{
+    for(int version:{100,104,105,106,107,108,109,110,111,112,113})
+    {
+        SCOPED_TRACE(version);ProcessorBridge source,restored;std::string error;
+        ASSERT_TRUE(source.loadPatch("Owned converted patch\nver="+std::to_string(version)+
+            "\n19,91\n29,73\n16,64\n52,0\n75,52\n84,31\n",error))<<error;
+        source.setNormalizedValue(19,37.25/127.0);
+        const auto text=source.savePatch();
+        ASSERT_TRUE(restored.loadPatch(text,error))<<error;
+        EXPECT_EQ(restored.savePatch(),text);
+        source.prepare(44100,64);restored.prepare(44100,64);
+        for(int i=0;i<700;++i)EXPECT_EQ(render(source,i),render(restored,i))<<i;
+    }
+}
+
+TEST(PatchFormat, InvalidContinuousFilesPreserveProgramAndState)
+{
+    ProcessorBridge p;std::string error;ASSERT_TRUE(p.loadProgram(p.savePatch(),7,error));
+    const auto text=p.savePatch();const auto before=p.saveState();
+    for(const auto& suffix:{"19,nan\n","19,inf\n","19,1e1000\n","19,1junk\n","19,128\n",
+                           "-1,0\n","129,0\n","126,113\n","19,1\n","ver=200\n"})
+    {
+        EXPECT_FALSE(p.loadProgram(text+suffix,3,error))<<suffix;
+        EXPECT_EQ(p.saveState(),before);EXPECT_EQ(p.currentProgram(),7);
+    }
+    for(const auto& bad:{"ver=200\n19,37.25\n","ver=199\n19,37\n","ver=201\n19,37\n","ver=113\n19,37.25\n"})
+    {EXPECT_FALSE(p.loadPatch(bad,error))<<bad;EXPECT_EQ(p.saveState(),before);}
+    auto bad=stateinspection::document(before);bad->RootElement()->SetAttribute("patchFormat","201");
+    const auto bytes=stateinspection::bytes(*bad);p.restoreState(bytes.data(),static_cast<int>(bytes.size()));
+    EXPECT_EQ(p.saveState(),before);
+}
+
+TEST(PatchFormat, ContinuousFileEnablesFractionalModeAfterLegacyStateRestore)
+{
+    ProcessorBridge p;auto legacy=stateinspection::document(p);legacy->RootElement()->SetAttribute("stateVersion","2");
+    legacy->RootElement()->DeleteAttribute("nativeSource");
+    const auto bytes=stateinspection::bytes(*legacy);p.restoreState(bytes.data(),static_cast<int>(bytes.size()));
+    ASSERT_EQ(stateinspection::attribute(*stateinspection::document(p),"stateVersion"),"2");
+    auto patch=synth2::parseContinuousPatch(p.savePatch());patch.values[19]=37.25f;
+    std::string error;ASSERT_TRUE(p.loadPatch(synth2::formatContinuousPatch(patch),error))<<error;
+    EXPECT_EQ(stateinspection::attribute(*stateinspection::document(p),"stateVersion"),"3");
+    p.prepare(44100,64);render(p,0);synth2::RenderControls mapped;
+    ASSERT_TRUE(synth2::readMappedSynthParams(p,mapped));
+    EXPECT_FLOAT_EQ(mapped.cutoffIndex,(37.25f/127.f)*1023.f);
+}
