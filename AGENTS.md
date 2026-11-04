@@ -10,6 +10,8 @@
 - Maintain public GitHub Actions checks for portable tests and native build
   candidates. Validate locally while developing; CI build success does not certify
   GUI/DAW/device behavior. See [continuous integration](docs/ci.md).
+  Let normal pushes run CI; use skip directives only when the owner explicitly
+  requests pausing Actions for the current work.
 - Desktop configurations target Windows VST3/CLAP and macOS VST3/CLAP/AUv2,
   plus standalone APP on both desktop platforms.
   Use the iPlug2OOS layout in `projects/Synth2`; keep JUCE out of production,
