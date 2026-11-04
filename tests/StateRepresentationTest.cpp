@@ -75,13 +75,16 @@ TEST(StateRepresentation, LegacyNumberSpellingsRemainReadableAndInvalidNumbersAr
 
 TEST(StateRepresentation, ParameterOrderAndEquivalentNumbersPreserveNativeAndLegacyRecall)
 {
-    for(int version:{101,113}) for(bool scientific:{false,true})
+    for(int version:{101,113}) for(bool scientific:{false,true}) for(bool crlf:{false,true})
     {
         SCOPED_TRACE(version);
         SCOPED_TRACE(scientific);
+        SCOPED_TRACE(crlf);
         synth2::host::ProcessorBridge source,restored;
         std::string error;
-        ASSERT_TRUE(source.loadProgram("Owned state\nver="+std::to_string(version)+"\n9,-12\n19,91\n29,73\n",7,error));
+        const std::string newline=crlf ? "\r\n" : "\n";
+        ASSERT_TRUE(source.loadProgram("Owned state"+newline+"ver="+std::to_string(version)+newline+
+            "9,-12"+newline+"19,91"+newline+"29,73"+newline,7,error));
         source.setNormalizedValue(128,.375);
         const auto expected=source.saveState();
         auto xml=stateinspection::document(expected);
