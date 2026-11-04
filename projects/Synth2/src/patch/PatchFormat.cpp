@@ -25,6 +25,9 @@ template<> float number<float>(std::string_view text)
 {
     // Apple libc++ does not provide floating-point from_chars on every supported
     // toolchain. Keep one locale-independent decimal path on all platforms.
+    // Some stream implementations also accept hex floats; patch files do not.
+    if(text.find_first_not_of("0123456789.eE+-")!=std::string_view::npos)
+        throw std::runtime_error("Invalid patch number");
     std::istringstream input{std::string(text)};
     input.imbue(std::locale::classic());
     // A float subnormal is well within double's normal range, avoiding a
