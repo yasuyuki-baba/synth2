@@ -134,8 +134,8 @@ TEST(PatchCatalog, RejectsOversizedTagWithoutChangingMetadata) {
 TEST(PatchCatalog, FolderImportPreservesRelativeNamesAndNaturalOrder) {
     CatalogFiles files;const auto folder=files.dir/"OwnedFolder";
     fs::create_directories(folder/"Nested");
-    {std::ofstream out(folder/"Nested"/"10.sy1");out<<bass;}
-    {std::ofstream out(folder/"Nested"/"2.sy1");out<<warm;}
+    {std::ofstream out(folder/"Nested"/"10.sy1",std::ios::binary);out<<bass;}
+    {std::ofstream out(folder/"Nested"/"2.sy1",std::ios::binary);out<<warm;}
     PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
     ASSERT_TRUE(catalog.importFile(folder.string()+"/",result,error))<<error;EXPECT_EQ(result.added,2u);
     const auto i=imported(catalog);EXPECT_EQ(catalog.patches()[i].patch.text,warm);

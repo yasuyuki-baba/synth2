@@ -69,7 +69,7 @@ def audit(source_root):
     errors = []
     portable_paths = {}
     for path in files:
-        relative = path.relative_to(source_root)
+        relative = path.relative_to(source_root).as_posix()
         if not PASCAL_CASE.fullmatch(path.stem):
             errors.append(f'{relative}: file stem must use PascalCase')
         key = str(relative).casefold()

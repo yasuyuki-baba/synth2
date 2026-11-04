@@ -135,7 +135,7 @@ class PinnedSDKPreparation(unittest.TestCase):
             (product / 'dependencies.lock.json').write_text(json.dumps(lock))
             commit(product)
             manifest = base / 'manifest.json'
-            result = sdk_setup.prepare(product, sdk, manifest)
+            result = sdk_setup.prepare(product, sdk / '..' / sdk.name, manifest)
             self.assertEqual(result['example']['revision'], revision)
             self.assertFalse(git(sdk, 'diff', '--name-only', 'HEAD'))
             sdk_setup.prepare(product, sdk, manifest)

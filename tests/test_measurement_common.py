@@ -132,7 +132,8 @@ class MeasurementIO(unittest.TestCase):
 
     def test_runner_logs_failures_before_raising_or_returning(self):
         log = self.root/'failure.log'
-        command = [sys.executable, '-c', 'print("failed");raise SystemExit(7)']
+        command = [sys.executable, '-c',
+                   'import sys;sys.stdout.buffer.write(b"failed\\n");raise SystemExit(7)']
         with self.assertRaisesRegex(RuntimeError, 'Render failed \\(7\\)'):
             run_logged(command, log, text=True, failure_label='Render failed')
         self.assertEqual(log.read_text(), 'failed\n')
@@ -145,7 +146,9 @@ class MeasurementIO(unittest.TestCase):
         result = run_logged([sys.executable, '-c',
             'import os;print(os.getcwd());print(os.environ["MEASUREMENT_TEST_VALUE"])'],
             self.root/'text.log', cwd=self.root, env=env, text=True)
-        self.assertEqual(result.stdout.splitlines(), [str(self.root.resolve()), 'literal value'])
+        lines = result.stdout.splitlines()
+        self.assertTrue(self.root.samefile(lines[0]))
+        self.assertEqual(lines[1:], ['literal value'])
 
     def test_timeout_retains_partial_output(self):
         error = subprocess.TimeoutExpired(['host'], 120, output=b'partial native log\n')

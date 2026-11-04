@@ -7,9 +7,21 @@
 #include <array>
 #include <bit>
 #include <limits>
+#include <locale>
+#include <utility>
 
 namespace
 {
+struct CommaDecimal : std::numpunct<char>
+{
+    char do_decimal_point() const override {return ',';}
+};
+struct ScopedCommaLocale
+{
+    std::locale previous=std::locale();
+    ScopedCommaLocale(){std::locale::global(std::locale(previous,new CommaDecimal));}
+    ~ScopedCommaLocale(){std::locale::global(previous);}
+};
 using synth2::host::ProcessorBridge;
 using Stereo=std::array<std::array<float,64>,2>;
 Stereo render(ProcessorBridge& p,int block)
@@ -41,6 +53,34 @@ TEST(PatchFormat, Version200PreservesEveryFloatAndEscapedNameExactly)
     processor.prepare(44100,64);render(processor,0);
     EXPECT_EQ(processor.mappedVersion(),200);
     std::array<int,99> controls;EXPECT_FALSE(processor.readNativeControls(controls));
+}
+
+TEST(PatchFormat, DecimalParsingIsLocaleIndependentAndRejectsInvalidRanges)
+{
+    const ScopedCommaLocale locale;
+    ProcessorBridge processor;
+    const auto original=processor.savePatch();
+    const auto entry=original.find("\n19,")+1;
+    ASSERT_NE(entry,0u);
+    const auto end=original.find('\n',entry);
+    const auto withValue=[&](const std::string& token)
+    {
+        auto text=original;text.replace(entry,end-entry,"19,"+token);return text;
+    };
+    for(const auto& [token,expected]:std::array<std::pair<const char*,float>,6>{{
+        {".5",.5f},{"5.",5.f},{"1.25e+1",12.5f},{"1.25E-1",.125f},
+        {"1.40129846e-45",std::numeric_limits<float>::denorm_min()},{"-0",-0.f}}})
+    {
+        const auto patch=synth2::parseContinuousPatch(withValue(token));
+        EXPECT_EQ(std::bit_cast<uint32_t>(patch.values[19]),std::bit_cast<uint32_t>(expected))<<token;
+    }
+    const auto before=processor.saveState();
+    for(const auto* token:{"+1","1e","1e+","1.2.3","0x1p0","1 2","nan","inf","1e1000","1e-1000"})
+    {
+        std::string error;
+        EXPECT_FALSE(processor.loadPatch(withValue(token),error))<<token;
+        EXPECT_EQ(processor.saveState(),before)<<token;
+    }
 }
 
 TEST(PatchFormat, FractionalDialsBypassLegacyConversionAndSurviveStateRecall)

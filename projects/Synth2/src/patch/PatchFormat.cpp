@@ -21,6 +21,26 @@ template<class Value> Value number(std::string_view text)
         throw std::runtime_error("Invalid patch number");
     return value;
 }
+template<> float number<float>(std::string_view text)
+{
+    // Apple libc++ does not provide floating-point from_chars on every supported
+    // toolchain. Keep one locale-independent decimal path on all platforms.
+    std::istringstream input{std::string(text)};
+    input.imbue(std::locale::classic());
+    // A float subnormal is well within double's normal range, avoiding a
+    // library-dependent stream range error before the final float conversion.
+    double parsed{};
+    if(text.empty() || text.front()=='+' || !(input>>std::noskipws>>parsed) || !input.eof()
+        || !std::isfinite(parsed) || std::abs(parsed)>std::numeric_limits<float>::max())
+        throw std::runtime_error("Invalid patch number");
+    const auto value=static_cast<float>(parsed);
+    // Formatted extraction can silently underflow to zero. Preserve the former
+    // parser's range rejection while allowing signed zero and subnormal floats.
+    const auto significand=text.substr(0,text.find_first_of("eE"));
+    if(value==0 && significand.find_first_of("123456789")!=std::string_view::npos)
+        throw std::runtime_error("Invalid patch number");
+    return value;
+}
 void validate(int index,float value)
 {
     if(index<0 || index>=129 || index==126 || !std::isfinite(value)

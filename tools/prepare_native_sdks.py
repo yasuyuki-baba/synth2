@@ -15,6 +15,7 @@ def git(directory, *arguments):
 
 
 def prepare(root, sdk, output):
+    root, sdk = Path(root).resolve(), Path(sdk).resolve()
     lock = json.loads((root / 'dependencies.lock.json').read_text())
     revision = git(sdk, 'rev-parse', 'HEAD')
     if revision != lock['iplug2']['revision']:

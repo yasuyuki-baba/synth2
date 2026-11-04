@@ -81,7 +81,7 @@ bool PatchLibrary::openDirectory(const std::string& path,std::string& error)
                 throw std::runtime_error("The folder contains an empty patch or exceeds the bank size limits.");
             total+=static_cast<std::size_t>(bytes);files.push_back(file.path());
         }
-        const auto utf8=[](const fs::path& p){const auto s=p.u8string();return std::string(s.begin(),s.end());};
+        const auto utf8=[](const fs::path& p){const auto s=p.generic_u8string();return std::string(s.begin(),s.end());};
         std::stable_sort(files.begin(),files.end(),[&](const auto& a,const auto& b){return naturalLess(utf8(a.lexically_relative(root)),utf8(b.lexically_relative(root)));});
         if(files.empty()){error="No .sy1 patches were found in this folder.";return false;}
         std::vector<LibraryPatch> next;next.reserve(files.size());total=0;
