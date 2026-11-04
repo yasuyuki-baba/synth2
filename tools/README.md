@@ -14,13 +14,13 @@ compatibility checkout. Native APP capture is an optional Wine GUI workflow.
 | Preview/render the editor study | preview_editor.py, render_editor_study.py |
 | Capture the Windows APP editor | capture_iplug_wine.py |
 
-Use the [reference comparison procedure](../docs/native-measurements.md) for a
+Use the [reference comparison procedure](../docs/validation/reference-comparisons.md) for a
 self-authored input example, exact MIDI timeline format, loading-probe file layout
 and byte-for-byte before/after checks. The loading probe is a case-based tool, not
 a single-patch command; its mode determines which values it reports.
 
-For offline timing, see the [host benchmark](../docs/host-validation.md). Editor
-generation and native capture instructions are in the [GUI guide](../docs/gui/README.md).
+Editor generation is described in the [GUI guide](../docs/gui/README.md); native
+APP capture is covered by the [platform guide](../docs/validation/manual-platform.md#native-windows-app-capture).
 
 `measurement_common.py` supplies standard-library WAV decoding, hashes, raw stereo
 errors and logged subprocess I/O. Its tests are part of the portable suite.
@@ -36,3 +36,23 @@ Native CI helpers: `prepare_native_sdks.py` installs lock-file SDK revisions and
 writes a build-identity manifest. `package_native.py` checks the expected native
 products and creates a Windows ZIP or macOS tar.gz with metadata and notices.
 See [CI](../docs/ci.md) for local commands and verification boundaries.
+
+## Offline host benchmark
+
+`Synth2HostBenchmark` is a non-gating offline diagnostic. It exercises explicitly
+specified dry/wet synthetic profiles, checks core occupancy and audio, and reports
+callback timing separately from setup and validation work. Use fresh CSV outputs,
+record compiler/binary/CPU/run context and compare like-for-like conditions.
+
+```sh
+cmake --preset core
+cmake --build build-oos-core --target Synth2HostBenchmark
+./build-oos-core/Synth2HostBenchmark build-oos-core/host-benchmark.csv 128
+```
+
+On Windows, invoke `build-oos-core/Synth2HostBenchmark.exe` instead. The CSV path
+must not exist; choose a fresh filename for each run.
+
+Offline over-budget observations are not detected audio-device underruns. Neither
+average nor sampled maximum callback time establishes a hard real-time deadline.
+Actual DAW/device testing and concurrency contracts require separate validation.

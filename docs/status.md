@@ -13,7 +13,7 @@ JUCE or another repository. Native wrappers require their platform SDKs.
 | GUI | Shared layout/value semantics, bundled fonts, main Synth surface and supplementary MIDI/library views |
 | Native targets | Windows VST3/CLAP/APP; macOS VST3/CLAP/AUv2/APP configurations |
 
-The [verification map](test-coverage.md) identifies public automated coverage.
+The [verification map](validation/coverage.md) identifies public automated coverage.
 Actual GUI/DAW/device checks are manual-only and excluded from the automated-test
 inventory. Public tests enforce synthetic loading/state/host/library/editor and DSP/MIDI
 properties without captured original outputs.

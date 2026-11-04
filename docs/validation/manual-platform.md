@@ -10,7 +10,7 @@ Use it when manual platform checks are requested, and record only what actually 
 ## Build and load
 
 Check out the pinned iPlug2 SDK and required format dependencies as described in
-[the build boundary](desktop-build.md). Build Release with the root presets:
+[the build boundary](../desktop-build.md). Build Release with the root presets:
 
 | Platform | Configure/build presets | Targets to load |
 | --- | --- | --- |
@@ -49,3 +49,18 @@ For standalone APP, repeat editor interaction and MIDI/pedal checks with a real
 MIDI/audio device, verify device selection and sample-rate changes, and close and
 reopen the application. Do not infer device latency or hard real-time guarantees
 from portable tests or successful offline rendering.
+
+## Native Windows APP capture
+
+`tools/capture_iplug_wine.py` captures a built Windows APP under Wine with audio
+and MIDI I/O disabled. It requires the built PE, Wine/Xvfb/X11 and ImageMagick.
+Use its `--help` for explicit executable, Wine, prefix and output paths. Preserve
+runtime trust/proxy configuration and use a fresh output file.
+
+A captured native frame checks that the actual APP editor can initialize and
+paint in the specified environment. It does not establish DAW plugin behavior,
+audio-device operation, native macOS operation or unrestricted GUI interactions.
+The HTML/SVG preview is a separate design aid and must not be labeled a native frame.
+
+See the [GUI contract](../gui/README.md) and [desktop build boundary](../desktop-build.md).
+Record the executable identity and capture conditions with any reported frame.

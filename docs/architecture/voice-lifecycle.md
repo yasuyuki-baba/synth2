@@ -23,8 +23,8 @@ values. Preserve native duration/peak conversions, velocity references, keyboard
 and unison offsets, and arithmetic order. Sample-rate updates do not manufacture
 a note-on or reset every physical state.
 
-See [HostLifecycleTest.cpp](../tests/HostLifecycleTest.cpp) and
-[PlaybackBehaviorTest.cpp](../tests/PlaybackBehaviorTest.cpp). Observed reuse rules apply within their admitted rendering/history domains.
+See [HostLifecycleTest.cpp](../../tests/HostLifecycleTest.cpp) and
+[PlaybackBehaviorTest.cpp](../../tests/PlaybackBehaviorTest.cpp). Observed reuse rules apply within their admitted rendering/history domains.
 
 Each physical core owns the only amplitude envelope. Direct callers and mapped
 patches use the same VCA configuration, per-core aligned gain block and natural

@@ -36,9 +36,9 @@ Render-policy mutation phases are ordered. Pass the oscillator admission result
 explicitly into dependent filter, LFO and gain phases. Avoid hidden reads of
 partially mutated aggregate controls.
 
-See [render boundaries](render-boundaries.md), [modulation](contracts/modulation.md)
+See [render boundaries](render-boundaries.md), [modulation](../contracts/modulation.md)
 and [voice lifecycle](voice-lifecycle.md).
-[HostLifecycleTest.cpp](../tests/HostLifecycleTest.cpp) checks pitch across sample
-rates and reprepare playability; [ModulationBehaviorTest.cpp](../tests/ModulationBehaviorTest.cpp)
+[HostLifecycleTest.cpp](../../tests/HostLifecycleTest.cpp) checks pitch across sample
+rates and reprepare playability; [ModulationBehaviorTest.cpp](../../tests/ModulationBehaviorTest.cpp)
 checks shared clock, fallback source and read-only consumer properties. These generated-input
 checks do not establish every tuning/receiver history or independent native identity.

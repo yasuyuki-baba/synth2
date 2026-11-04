@@ -48,6 +48,15 @@ batch is consumed, replace it with channel-stop messages so a dropped Note Off
 cannot leave its note held indefinitely. Do not silently keep a partial batch. The 60-second host tail declaration is approximate
 metadata and must not truncate the rendered tail.
 
+## Host lifecycle
+
+Repeated program changes, state recall, note release and subsequent playback after
+reprepare must remain valid within the documented lifecycle rules. Sample-rate
+changes must not manufacture a note-on or promise continuation of every physical
+history. Prepared capacity, zero-frame MIDI and oversized-callback rejection
+follow the process contract above; conditional voice/output retention is defined
+by the [output pipeline](../architecture/output-pipeline.md).
+
 ## Verification
 
 The public `ParameterContract` in
@@ -64,6 +73,10 @@ The public tests require no previous-implementation state archive.
 stable-ID binding with reversed XML children and equivalent fixed/scientific
 numeric spellings for native-context and legacy states. Unknown and duplicate IDs
 remain atomic rejections after reordering.
+
+[HostLifecycleTest.cpp](../../tests/HostLifecycleTest.cpp) covers variable block
+sizes/rates, generated-patch recall, dense voices, stop/retrigger and finite
+output. These generated histories do not establish arbitrary host behavior.
 
 ## Limits
 

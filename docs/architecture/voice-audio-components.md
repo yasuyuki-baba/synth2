@@ -17,9 +17,9 @@ Compose pitch controls before the single lookup, retaining fractional receiver
 values and exact integer anchors; preserve FM/PW
 selection, filter setup/bypass order, VCA gain partitions and buffer alignment.
 No component extraction may introduce a new RNG source, allocation or reset.
-See [audio rendering](contracts/audio-rendering.md). Public checks in
-[DspBasicsTest.cpp](../tests/DspBasicsTest.cpp) and
-[FilterBehaviorTest.cpp](../tests/FilterBehaviorTest.cpp) use generated signals
+See [audio rendering](../contracts/audio-rendering.md). Public checks in
+[DspBasicsTest.cpp](../../tests/DspBasicsTest.cpp) and
+[FilterBehaviorTest.cpp](../../tests/FilterBehaviorTest.cpp) use generated signals
 for oscillator pitch, envelope lifecycle and filter properties. They do not
 establish every receiver history or original-engine sample identity.
 
@@ -32,7 +32,7 @@ an extra filter; it needs no envelope signal or pending-transition span. Native
 receiver partitioning remains in OscillatorControlRenderer, with caller-owned
 real FM depth and existing control spans.
 
-[FmPhaseCorrectionTest.cpp](../tests/FmPhaseCorrectionTest.cpp) checks compatible
+[FmPhaseCorrectionTest.cpp](../../tests/FmPhaseCorrectionTest.cpp) checks compatible
 phase bounds, unfiltered coefficient changes, reset/disabled behavior and
 synchronized-noise history with generated inputs. Compatibility feedback bounds
 fractional-product drift; it is not unbiased fractional phase accumulation.

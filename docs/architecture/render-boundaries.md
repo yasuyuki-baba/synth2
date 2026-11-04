@@ -25,7 +25,7 @@ independently without Engine, Voice, patch or the full render aggregate.
 
 Preserve all-core envelope/glide/FM/filter order and each receiver's boundaries.
 See [voice orchestration](voice-orchestration.md)
-and the [audio contract](contracts/audio-rendering.md). Validate dependency changes
+and the [audio contract](../contracts/audio-rendering.md). Validate dependency changes
 with `tools/audit_dsp_headers.py`, and behavior with the loading/component suites.
 
 Prepared `LfoBlock` storage is separate from the `Lfo` generator; read-only adapters
@@ -53,5 +53,5 @@ The bridge publishes/flushes load history before mapping and supplies its validi
 explicitly to policy. Engine applies context at its clock/reload boundaries;
 Voice does not receive a patch document or source version. State serialization
 preserves loading/source metadata, not diagnostic snapshots or running DSP memory.
-See [state](contracts/processor-state.md), [modulation](contracts/modulation.md)
-and [loading](contracts/patch-loading.md) for behavior and regression entry points.
+See [state](../contracts/processor-state.md), [modulation](../contracts/modulation.md)
+and [loading](../contracts/patch-loading.md) for behavior and regression entry points.

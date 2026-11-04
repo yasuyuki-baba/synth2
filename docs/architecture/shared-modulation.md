@@ -26,9 +26,9 @@ SDK or the render aggregate. `render/SharedModulationConfiguration.h` adapts the
 loading and render controls. The bridge owns bounded history publication; Engine
 owns region splitting, scheduling and output lifecycle.
 
-See [modulation requirements](contracts/modulation.md) and the LFO/CRT/ARP tests.
+See [modulation requirements](../contracts/modulation.md) and the LFO/CRT/ARP tests.
 `tools/audit_dsp_headers.py` checks independent compilation and forbidden transitive
-dependencies. [ModulationBehaviorTest.cpp](../tests/ModulationBehaviorTest.cpp)
+dependencies. [ModulationBehaviorTest.cpp](../../tests/ModulationBehaviorTest.cpp)
 uses generated inputs to check reset, tempo, key overlap, disabled advancement and
 read-only consumers. These properties do not establish every shared-draw sequence
 or arbitrary live-history equivalence.

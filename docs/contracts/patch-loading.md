@@ -63,7 +63,7 @@ transactional rejection for version 200. Library tests exercise the same files.
 [PatchLibraryTest.cpp](../../tests/PatchLibraryTest.cpp) checks transactional bank
 selection. [PatchImportWorkspaceTest.cpp](../../tests/PatchImportWorkspaceTest.cpp)
 checks consistent ordinary/workspace conversion across accepted versions. See
-[source conversion](../source-conversion.md) for strategy boundaries.
+[source conversion](../architecture/source-conversion.md) for strategy boundaries.
 
 ## Evidence and limits
 

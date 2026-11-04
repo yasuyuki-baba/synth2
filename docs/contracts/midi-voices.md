@@ -41,4 +41,4 @@ identity across arbitrary callback partitions.
 
 
 Single-note results do not establish repeated-note, arbitrary live-edit or all
-controller behavior. See [voice lifecycle](../voice-lifecycle.md) for ownership.
+controller behavior. See [voice lifecycle](../architecture/voice-lifecycle.md) for ownership.

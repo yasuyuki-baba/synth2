@@ -8,7 +8,7 @@ using standard-library C++20, without plugin SDKs, JUCE, Wine or an original DLL
 
 | Topic | Guide |
 | --- | --- |
-| Import/export APIs and conversion boundaries | [Source conversion](../../../../../docs/source-conversion.md) |
+| Import/export APIs and conversion boundaries | [Source conversion](../../../../../docs/architecture/source-conversion.md) |
 | Accepted inputs, defaults and transactional loading | [Patch loading](../../../../../docs/contracts/patch-loading.md) |
 | Saved source and runtime edits | [Processor/state](../../../../../docs/contracts/processor-state.md) |
 | Public tests, execution and verification limits | [Testing](../../../../../tests/README.md) |

@@ -1,8 +1,8 @@
 # Reference comparison methodology
 
 Product requirements and reproducible public tests are defined in the
-[contracts](README.md), [test guide](../tests/README.md) and
-[test input description](contracts/validation.md). No original instrument is needed to build
+[contracts](../README.md), [test guide](../../tests/README.md) and
+[test input description](../contracts/validation.md). No original instrument is needed to build
 or run the portable suite.
 
 ## Before/after regression procedure
@@ -181,6 +181,6 @@ Retain raw complete stereo and file hashes. Aligned, downmixed or gain-fitted
 metrics are diagnostics and cannot replace raw comparison. An experiment supports
 its sampled conditions; it does not automatically become a product requirement.
 
-Use the [product tools](../tools/README.md) for candidate rendering and diagnostics.
+Use the [product tools](../../tools/README.md) for candidate rendering and diagnostics.
 Keep numerical operation order and state lifetime intact during refactors, and
 compare candidate WAV bytes and loaded controls with the preceding implementation.

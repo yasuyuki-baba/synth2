@@ -77,7 +77,7 @@ it does not independently establish original-instrument correctness.
 ## Limits and procedure
 
 See [tests/README.md](../../tests/README.md) for reproducible product commands and
-the [reference comparison procedure](../native-measurements.md) for self-authored
+the [reference comparison procedure](../validation/reference-comparisons.md) for self-authored
 inputs, resolved-control inspection and exact before/after checks.
 A portable test does not establish a DAW build, a particular audio device, concurrent
 host safety or a hard real-time deadline. Record exactly what ran and which source,

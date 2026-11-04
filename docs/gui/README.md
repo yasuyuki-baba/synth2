@@ -56,7 +56,7 @@ no audio engine or complete versioned loading resolver. SVG
 and PNG studies are design renderings, not native plugin screenshots. Native
 focus, scaling, DAW interaction and platform accessibility need platform testing.
 See [EditorLayoutTest.cpp](../../tests/EditorLayoutTest.cpp), the patch-library tests
-and [native APP capture](wine-build.md).
+and [native APP capture](../validation/manual-platform.md#native-windows-app-capture).
 
 The generated layout study and interactive preview are presentation aids governed
 by this contract, not audio/DAW validation.

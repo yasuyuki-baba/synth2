@@ -48,9 +48,9 @@ processing never advances shared LFO clocks. These retention rules are required
 behavior; component lifecycle checks alone do not establish every conditional
 Engine transition or arbitrary host-history equivalence.
 
-See [audio rendering](contracts/audio-rendering.md) for operation-order constraints.
+See [audio rendering](../contracts/audio-rendering.md) for operation-order constraints.
 
-[EffectLifecycleTest.cpp](../tests/EffectLifecycleTest.cpp) uses generated impulses
+[EffectLifecycleTest.cpp](../../tests/EffectLifecycleTest.cpp) uses generated impulses
 for delay tail/reset contracts and checks that gain advances through silent input
 while preserving samples outside the requested output region. Explicit delay
 reset/rate setup is tested separately from Engine's conditional history-retention

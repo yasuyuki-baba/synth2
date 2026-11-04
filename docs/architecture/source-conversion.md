@@ -30,7 +30,7 @@ integer does not require expanding host automation ranges.
 
 The parser/model lives in `projects/Synth2/src/patch/core`. Conversion strategies
 are standard-library code with no SDK or runtime voice/clock ownership.
-See [patch loading](contracts/patch-loading.md) for required behavior and tests.
+See [patch loading](../contracts/patch-loading.md) for required behavior and tests.
 
 ## Patch-core API boundaries
 
@@ -54,15 +54,17 @@ See [patch loading](contracts/patch-loading.md) for required behavior and tests.
 
 The loading/host adapters own transactional acceptance, source text, runtime edits
 and saved-state metadata. The patch core does not own voices, clocks, random
-streams or host automation ranges. See [processor/state](contracts/processor-state.md)
+streams or host automation ranges. See [processor/state](../contracts/processor-state.md)
 for saved-state ownership.
 
 ## Runtime workspace
 
-Runtime dial mapping reuses a mapper-owned source/import workspace. Initialize
+ProcessorBridge owns the prepared mapper. Parsing, file access and state
+serialization stay outside audio callbacks. Runtime dial mapping reuses a
+mapper-owned source/import workspace. Initialize
 legacy immutable import maps before audio processing; resetting a source-version
 strategy must invalidate its cache/controller context without allocating a new
-mapper in the callback. See the [verification map](test-coverage.md).
+mapper in the callback. See the [verification map](../validation/coverage.md).
 
 Ordinary and workspace import/decode overloads share conversion semantics.
 Prepare `Synth1PatchImportWorkspace` outside audio callbacks so repeated

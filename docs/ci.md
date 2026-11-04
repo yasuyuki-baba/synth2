@@ -67,4 +67,4 @@ chosen public history. Candidates are unsigned and macOS builds are not notarize
 A native compile/package result does not establish plugin scanning, GUI interaction,
 DAW session compatibility, device behavior or hard real-time guarantees. Those
 remain outside the automated-test inventory; use the separate
-[manual platform guide](native-validation.md) when that work is requested.
+[manual platform guide](validation/manual-platform.md) when that work is requested.

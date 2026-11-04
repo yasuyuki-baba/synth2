@@ -119,7 +119,7 @@ See [processor contract](contracts/processor-state.md), [GUI contract](gui/READM
 and [tests](../tests/README.md). Portable success does not establish native plugin,
 DAW, signing/notarization or hardware real-time behavior.
 
-The [optional manual guide](native-validation.md) describes wrapper, automation,
+The [optional manual guide](validation/manual-platform.md) describes wrapper, automation,
 session recall and standalone-device checks. These are outside automated-test scope
 and are not tracked as missing automated tests.
 

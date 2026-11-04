@@ -118,7 +118,7 @@ admission does not select an alternative tuning or bend transfer.
 waveform bounds, depth/phase, tempo response, key synchronization, disabled shared
 clock advancement and read-only consumer access.
 The tests do not prove all combinations
-of edits, prepares, MIDI traffic or sample rates. [Shared modulation](../shared-modulation.md)
+of edits, prepares, MIDI traffic or sample rates. [Shared modulation](../architecture/shared-modulation.md)
 defines the component ownership and ordering boundary.
 
 [HistoryQueueBehaviorTest.cpp](../../tests/HistoryQueueBehaviorTest.cpp) checks

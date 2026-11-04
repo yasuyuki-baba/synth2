@@ -191,13 +191,13 @@
   patches use version 200 with resolved fractional dials; keep that codec and its
   direct mapping separate from Synth1 integer source conversion.
 
-See [source strategies](docs/source-conversion.md),
-[render boundaries](docs/render-boundaries.md),
-[Voice audio components](docs/voice-audio-components.md) and
-[Voice orchestration](docs/voice-orchestration.md) and
-[output pipeline](docs/output-pipeline.md) and
-[Voice lifecycle](docs/voice-lifecycle.md) and
-[shared modulation ownership](docs/shared-modulation.md).
+See [source strategies](docs/architecture/source-conversion.md),
+[render boundaries](docs/architecture/render-boundaries.md),
+[Voice audio components](docs/architecture/voice-audio-components.md) and
+[Voice orchestration](docs/architecture/voice-orchestration.md) and
+[output pipeline](docs/architecture/output-pipeline.md) and
+[Voice lifecycle](docs/architecture/voice-lifecycle.md) and
+[shared modulation ownership](docs/architecture/shared-modulation.md).
 
 ## Public distribution
 
@@ -255,7 +255,7 @@ See [source strategies](docs/source-conversion.md),
   ctest --preset core -L portable
   ```
 
-- Maintain the [verification map](docs/test-coverage.md) when public contract
+- Maintain the [verification map](docs/validation/coverage.md) when public contract
   coverage changes. Actual SDK GUI interaction, DAW sessions and physical-device
   checks are outside automated-test scope; do not list them as missing/pending
   automated tests. Keep the manual guide separate; portable success is not a native pass.
