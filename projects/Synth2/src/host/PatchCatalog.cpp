@@ -89,16 +89,16 @@ bool PatchCatalog::reload(std::string& error) {
     try {
         std::vector<CatalogPatch> next;
         std::size_t total=0;
-        if(!directory.empty() && fs::exists(directory/"banks")) {
+        if(!directory.empty() && fs::is_directory(fs::symlink_status(directory/"banks"))) {
             std::vector<fs::path> banks;
             for(const auto& bank:fs::directory_iterator(directory/"banks"))
-                if(fs::is_directory(bank.symlink_status()) && utf8(bank.path().filename()).starts_with("bank-"))banks.push_back(bank.path());
+                if(PresetFiles::isManagedBank(directory,bank.path()))banks.push_back(bank.path());
             std::sort(banks.begin(),banks.end());
             for(const auto& bank:banks) {
                 const auto bankId=utf8(bank.filename()), bankName=read(bank/"name",16384);
                 std::vector<fs::path> patches;
                 for(const auto& file:fs::directory_iterator(bank))
-                    if(file.path().extension()==".sy1" && fs::is_regular_file(file.symlink_status()))patches.push_back(file.path());
+                    if(PresetFiles::isManagedPatch(directory,file.path()))patches.push_back(file.path());
                 std::sort(patches.begin(),patches.end());
                 for(const auto& file:patches) {
                     const auto key=utf8(file.stem());

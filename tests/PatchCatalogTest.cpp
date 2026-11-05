@@ -192,3 +192,38 @@ TEST(PatchCatalog, FailedRegistrationReloadKeepsThePreviousCatalogSnapshot) {
     EXPECT_FALSE(catalog.registerFiles(source.string(),[](const auto&){return ConflictChoice{};},result));EXPECT_FALSE(result.catalogReady);
     ASSERT_EQ(catalog.patches().size(),1u);EXPECT_EQ(catalog.patches()[0].id,original);
 }
+
+TEST(PatchCatalog, RefreshDiscoversDroppedZipsInsideOrdinaryAndFormerStorageFolders) {
+    CatalogFiles files;const auto root=files.dir/"Library";PatchCatalog catalog(root);std::string error;
+    ASSERT_TRUE(catalog.reload(error));ProcessorBridge sounding;const auto before=sounding.saveState();
+    const auto source=files.bank("External.zip",{{"Nested/1.sy1",warm}});
+    for(const auto* folder:{"", "banks", "tags", "favorites", "banks/bank-user"}) {
+        const auto destination=root/folder/"Dropped.ZIP";fs::create_directories(destination.parent_path());fs::copy_file(source,destination);
+    }
+    ASSERT_TRUE(catalog.reload(error))<<error;
+    EXPECT_EQ(catalog.patches().size(),5u);
+    EXPECT_EQ(catalog.search({"Dropped nested warm"}).size(),5u);
+    EXPECT_EQ(sounding.saveState(),before);
+}
+
+TEST(PatchCatalog, RefreshKeepsManagedIdsWithoutHidingNewSourcesInTheSameFolder) {
+    CatalogFiles files;const auto root=files.dir/"Library";const auto bank=root/"banks/bank-existing";
+    fs::create_directories(bank);std::ofstream(bank/"name")<<"Existing bank";
+    std::ofstream(bank/"0002.sy1")<<warm;std::ofstream(bank/"0002.name")<<"Existing sound";
+    PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error));ASSERT_EQ(catalog.patches().size(),1u);
+    const auto original=catalog.patches()[0].id;ASSERT_TRUE(catalog.setFavorite(original,true,error));
+    const auto source=files.bank("External.zip",{{"1.sy1",lead}});fs::copy_file(source,bank/"Added.zip");
+    std::ofstream(bank/"Bass.sy1")<<bass;
+    // A numbered loose file without a legacy display label is still an ordinary preset.
+    std::ofstream(bank/"0003.SY1")<<bass;
+    ASSERT_TRUE(catalog.reload(error))<<error;EXPECT_EQ(catalog.patches().size(),4u);
+    EXPECT_EQ(std::count_if(catalog.patches().begin(),catalog.patches().end(),[&](const auto& p){return p.id==original && p.favorite;}),1);
+    EXPECT_EQ(catalog.search({"Added lead"}).size(),1u);
+}
+
+TEST(PatchCatalog, UnrelatedFileNamedBanksDoesNotBlockDroppedZipDiscovery) {
+    CatalogFiles files;const auto root=files.dir/"Library";fs::create_directories(root);std::ofstream(root/"banks")<<"ordinary file";
+    const auto source=files.bank("External.zip",{{"1.sy1",warm}});fs::copy_file(source,root/"Added.zip");
+    PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;ASSERT_EQ(catalog.patches().size(),1u);
+    EXPECT_EQ(catalog.patches()[0].patch.text,warm);
+}

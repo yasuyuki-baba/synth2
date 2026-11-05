@@ -90,3 +90,7 @@ transactional wrapper-v1/v2 recall. `PatchCatalogTest.cpp` retains metadata and
 source-bank ordinal checks and adds exact registration filters and compatibility
 with existing managed-bank storage. Native adapters preserve these boundaries;
 actual SDK dialogs and standalone teardown are platform interactions.
+
+Dropped-ZIP refresh regressions cover ordinary folders, legacy storage folder
+names, mixed managed/loose sources, and unrelated files named `banks`. Managed
+IDs and metadata remain stable without suppressing newly copied source files.

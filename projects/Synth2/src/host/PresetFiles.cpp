@@ -194,6 +194,25 @@ fs::path environmentPath(const char *name)
 PresetFiles::PresetFiles(fs::path directory) : root(fs::weakly_canonical(fs::absolute(std::move(directory))))
 {
 }
+bool PresetFiles::isManagedBank(const fs::path &directory, const fs::path &bank)
+{
+    return bank.parent_path().lexically_normal() == (directory / "banks").lexically_normal() &&
+           utf8(bank.filename()).starts_with("bank-") && fs::is_directory(fs::symlink_status(bank)) &&
+           fs::is_regular_file(fs::symlink_status(bank / "name"));
+}
+bool PresetFiles::isManagedPatch(const fs::path &directory, const fs::path &file)
+{
+    if (lower(utf8(file.extension())) != ".sy1" || !fs::is_regular_file(fs::symlink_status(file)))
+        return false;
+    const auto bank = file.parent_path();
+    if (!isManagedBank(directory, bank))
+        return false;
+    const auto key = utf8(file.stem());
+    if (key.empty() || key.size() > 4 || key.find_first_not_of("0123456789") != std::string::npos ||
+        std::stoi(key) >= static_cast<int>(PatchLibrary::maximumPatches))
+        return false;
+    return fs::is_regular_file(fs::symlink_status(bank / (key + ".name")));
+}
 bool PresetFiles::scan(std::string &error)
 {
     try
@@ -215,8 +234,7 @@ bool PresetFiles::scan(std::string &error)
                 continue;
             const auto relative = utf8(item.path().lexically_relative(root));
             const auto first = *item.path().lexically_relative(root).begin();
-            if (first == "banks" || first == "tags" || first == "favorites" ||
-                utf8(first).starts_with(".synth2-write-"))
+            if (isManagedPatch(root, item.path()) || utf8(first).starts_with(".synth2-write-"))
                 continue;
             PatchLibrary bank;
             std::string failure;

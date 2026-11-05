@@ -106,7 +106,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new IVButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
         libraryFilter.favoritesOnly=!libraryFilter.favoritesOnly;resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Favorites: off",style),favoritesTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(); },"Refresh",style),4008);
+    graphics->AttachControl(new IVButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
     graphics->AttachControl(new IVButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
@@ -226,6 +226,11 @@ void Synth2::OnIdle()
             browserStatus = e.what();
             refreshBrowser();
         }
+    }
+    if(catalogReloadPending && !libraryJob.valid())
+    {
+        catalogReloadPending=false;
+        reloadCatalog();
     }
     const bool modified = browser.modified(processor);
     if (stateRestored.exchange(false))

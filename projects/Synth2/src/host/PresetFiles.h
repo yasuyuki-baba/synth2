@@ -46,6 +46,9 @@ class PresetFiles
     const std::filesystem::path &directory() const { return root; }
     std::vector<std::size_t> search(const std::string &query, bool restricted,
                                     const std::vector<std::string> &ids) const;
+    // Recognize only actual legacy records, not folders merely named banks/tags/favorites.
+    static bool isManagedBank(const std::filesystem::path& root, const std::filesystem::path& bank);
+    static bool isManagedPatch(const std::filesystem::path& root, const std::filesystem::path& file);
     static std::filesystem::path defaultDirectory();
     static std::filesystem::path settingsDirectory();
     static std::filesystem::path configuredDirectory();

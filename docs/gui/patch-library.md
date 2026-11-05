@@ -13,7 +13,8 @@ bundled, privileged or automatically added.
 
 The configured user directory is recursively scanned for `.sy1` files and `.sy1`
 entries in ZIPs. External additions and replacements become visible on refresh or
-editor reopen. ZIPs remain single files: they are read in memory and never expanded
+editor reopen. A manual Refresh requested during another library job is queued
+and rescans after that job completes. ZIPs remain single files: they are read in memory and never expanded
 or rewritten. Invalid sources remain visible with an error and do not prevent
 other files from appearing. Selecting an invalid row preserves the current sound.
 
@@ -57,8 +58,9 @@ sound supports up to 32 tags of 128 UTF-8 bytes each. Tag spelling is retained a
 ASCII-case duplicates are collapsed. Metadata IDs use relative file plus ZIP-entry
 identity; safe encoded keys prevent path/underscore collisions. Existing managed
 `banks/bank-*` directories and their metadata remain readable with their original
-IDs and ordinals. The `banks`, `tags` and `favorites` root directories are reserved
-for managed storage and metadata; ordinary sources belong elsewhere in the root.
+IDs and ordinals. Only recognized legacy records are excluded from file indexing
+to avoid duplicates. Ordinary ZIP/`.sy1` files are discovered even under `banks`,
+`tags` or `favorites`, including alongside managed records.
 
 | Platform | Default library folder |
 | --- | --- |

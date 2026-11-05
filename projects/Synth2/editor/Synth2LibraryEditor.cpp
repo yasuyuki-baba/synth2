@@ -201,10 +201,13 @@ void Synth2::loadLibraryPatch(std::size_t index)
     notifyHostOfPatch();
     refreshBrowser();
 }
-void Synth2::reloadCatalog()
+void Synth2::reloadCatalog(bool queueIfBusy)
 {
     if (libraryJob.valid())
+    {
+        if(queueIfBusy){catalogReloadPending=true;browserStatus="Refresh queued...";refreshBrowser();}
         return;
+    }
     auto root = catalog.root();
     libraryJob = std::async(std::launch::async,
                             [root]

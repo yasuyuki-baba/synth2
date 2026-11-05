@@ -35,7 +35,7 @@ private:
     void promptForFolder();
     void showImportMenu(iplug::igraphics::IControl* caller);
     void importBank(const std::string& path);
-    void reloadCatalog();
+    void reloadCatalog(bool queueIfBusy = false);
     void showBankMenu(iplug::igraphics::IControl* caller);
     void showTagMenu(iplug::igraphics::IControl* caller);
     void removeLibraryPatch(const std::string& id);
@@ -77,6 +77,7 @@ private:
     synth2::host::PatchCatalog catalog {synth2::host::PatchCatalog::userDirectory()};
     synth2::host::CatalogFilter libraryFilter;
     bool catalogLoaded = false;
+    bool catalogReloadPending = false;
     std::string selectedPatchId;
     std::size_t resultOffset = 0;
     int page = 0;
