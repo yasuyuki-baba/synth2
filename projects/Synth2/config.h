@@ -5,7 +5,7 @@
 #define PLUG_VERSION_STR "0.1.0"
 // Product identity is independent of internal DSP and loading class names.
 #define PLUG_UNIQUE_ID 'Syn2'
-#define PLUG_MFR_ID 'Baba'
+#define PLUG_MFR_ID 'BABA'
 #define PLUG_URL_STR ""
 #define PLUG_EMAIL_STR ""
 #define PLUG_COPYRIGHT_STR "Copyright 2026 Synth2 contributors"

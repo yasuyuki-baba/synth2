@@ -127,7 +127,7 @@ and are not tracked as missing automated tests.
 
 The plugin and APP are named `Synth2`. The four-character plugin ID is `Syn2`;
 the displayed manufacturer name is `babab` and the four-character manufacturer ID
-is `Baba`. The manufacturer ID includes an uppercase character because all-lowercase
+is `BABA`. The manufacturer ID includes uppercase characters because all-lowercase
 Audio Unit manufacturer codes are reserved for Apple. This shared ID also applies
 to native formats that derive their identity from `PLUG_MFR_ID`. Bundle
 components are domain `io.github`, namespace owner `yasuyuki-baba` and name
