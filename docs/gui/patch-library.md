@@ -9,6 +9,13 @@ refresh, filtering and metadata edits preserve the sounding processor.
 The processor starts with Init and the library starts empty; no factory bank is
 bundled, privileged or automatically added.
 
+The persistent sound header shows the current patch name followed by its bank
+name when the selected library entry is available. Init and sounds without a
+matching catalog entry show only the patch name. The full label is available as
+a tooltip. The selected result row uses a contrasting background, a left accent
+stripe and a bold title; favorites remain a separate indicator. Filtering does
+not change the selected sound or mark another row as selected.
+
 ## Files and registration
 
 The configured user directory is recursively scanned for `.sy1` files and `.sy1`
@@ -103,3 +110,6 @@ file conflicts, confined saves, fractional `ver=200` round trips, independent ed
 baselines and transactional wrapper-v1/v2 recall. Other loading/state/patch-format
 tests retain the source and rendering contracts. These portable checks do not
 certify native dialogs, DAW interaction or platform device operation.
+
+`EditorLayoutTest.cpp` checks header labels with and without a bank, duplicate
+patch names across banks, UTF-8 labels and the independent edited marker.

@@ -18,6 +18,7 @@ struct EditorAppearance
     const char* accent="#ed8b88";
     const char* display="#15191a";
     const char* displayText="#e8d1a0";
+    const char* selectedRow="#493039";
     const char* control="#18191c";
     const char* controlEdge="#52494a";
     const char* track="#615456";

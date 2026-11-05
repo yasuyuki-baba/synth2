@@ -35,14 +35,9 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,16,214,65),"SYNTH2",text.WithFont("Synth2UIBold").WithSize(29.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
-    graphics->AttachControl(new ITextControl(IRECT(266,82,644,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(654,82,744,112),[this](IControl*) { showPage(synth2::editor::editorLibraryView); },"Library",style));
+    graphics->AttachControl(new ITextControl(IRECT(20,82,744,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
-    graphics->AttachControl(new ITextControl(IRECT(20,82,66,112),"Find",text.WithSize(12.f).WithAlign(EAlign::Near)));
-    graphics->AttachControl(new SearchControl(IRECT(68,82,248,112),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
-        changeFilter(query);
-    }),searchTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
@@ -164,6 +159,10 @@ void Synth2::showPage(int next)
         for (std::size_t group=5;group<pages.size();++group)
             for (int index:pages[group].parameters)
                 if (auto* control=graphics->GetControlWithTag(parameterTag+index)) control->Hide(page!=static_cast<int>(group)-4);
+        // Invalidate the background as well as the newly visible controls so a
+        // page transition clears the entire previous surface in one redraw.
+        // Do not push parameter values or invoke control actions while repainting.
+        graphics->SetAllControlsDirty();
     }
 }
 

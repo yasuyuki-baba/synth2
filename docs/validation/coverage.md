@@ -83,6 +83,10 @@ requirement, and keep manual-only activities outside the automated inventory.
 
 ## File-backed preset management
 
+`EditorLayoutTest.cpp` checks the current-preset header's bank/name formatting,
+missing-bank fallback, UTF-8 text and edited marker. Native selected-row colors,
+accent stripe and bold title remain platform presentation checks.
+
 `PresetFilesTest.cpp` covers recursive loose/ZIP discovery with invalid rows,
 registration identity, keep/replace/skip and apply-to-all, contained staged saving,
 current-format fractional/master-gain preservation, independent baselines and

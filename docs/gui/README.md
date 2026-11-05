@@ -8,6 +8,13 @@ editor; their host IDs, patch values and state serialization remain supported.
 There is no Advanced tab. Preset browsing and master
 volume remain visible. The supplementary [Library view](patch-library.md) accumulates
 imported sounds and combines bank, tag, keyword and favorite filters.
+Use the Library tab for explicit view switching rather than a duplicate Library
+action button. Clicking the current patch name also opens the Library view.
+Keyword search belongs in the Library view; the persistent header does not
+duplicate its text input. Search and filter state remain intact across view changes.
+View transitions invalidate the complete editor, including its background, after
+updating control visibility. Repainting must not invoke parameter edits or sound
+loading actions.
 
 Use restrained red accents, warm-white legends and black controls, with subtle
 Nord Lead 2 influence and Synth2's own identity. Prioritize high-use controls,

@@ -41,16 +41,13 @@ def render(model):
     text(1260, 30, "100%", 10, align="end")
     box(1020, 46, 240, 4, a["text"], 2, "none")
     nodes.append(f'<circle cx="1253" cy="48" r="6" fill="{a["text"]}"/>')
-    text(20, 102, "Find", 12)
-    box(68, 82, 180, 30)
-    text(78, 102, "Search patches...", 12, a["muted"])
-    text(266, 102, "0 sounds in library", 12)
-    for x, w, label in [(654,90,"Library"),(756,122,"Add sounds...")]:
+    text(20, 102, "0 sounds in library", 12)
+    for x, w, label in [(756,64,"Add..."),(826,52,"Save")]:
         box(x, 82, w, 30)
         text(x+w/2, 101, label, 11, align="middle")
-    for x, label in [(900,"Synth"),(1081,"MIDI")]:
-        box(x,82,179,30,"#442c34" if x==900 else a["control"])
-        text(x+89,101,label,11,align="middle")
+    for x, label in [(900,"Synth"),(1020,"MIDI"),(1140,"Library")]:
+        box(x,82,119,30,"#442c34" if x==900 else a["control"])
+        text(x+59,101,label,11,align="middle")
 
     for section in model["panels"]:
         x,y,w,h = section["bounds"]

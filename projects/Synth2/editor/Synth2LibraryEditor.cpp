@@ -2,6 +2,7 @@
 #include "EditorControls.h"
 #include "EditorControlTags.h"
 #include "editor/EditorPages.h"
+#include "editor/EditorPresetDisplay.h"
 #include <algorithm>
 #include <set>
 #include <stdexcept>
@@ -42,13 +43,19 @@ void Synth2::refreshBrowser()
     };
     setText(bankTag, std::string(libraryFilter.registeredOnly ? "Registered / " : "") +
                          std::to_string(catalog.patches().size()) + " sounds in library");
-    setButton(presetTag, currentPatch + (browser.modified(processor) ? " *" : ""));
+    const auto selected = std::find_if(catalog.patches().begin(), catalog.patches().end(),
+                                       [&](const auto &p) { return p.id == selectedPatchId; });
+    const bool canEdit = selected != catalog.patches().end();
+    const auto bankName = canEdit ? selected->bankName : std::string{};
+    const auto presetLabel = synth2::editor::editorPresetDisplay(currentPatch, bankName, browser.modified(processor));
+    setButton(presetTag, presetLabel);
+    if (auto *c = graphics->GetControlWithTag(presetTag))
+        c->SetTooltip(presetLabel.c_str());
     setText(statusTag,
             browserStatus.empty()
                 ? (catalog.patches().empty() ? "No sounds yet. Use Add sounds... to import a bank or patch."
                                              : std::to_string(matches.size()) + " matching sounds")
                 : browserStatus);
-    setText(searchTag, libraryFilter.query);
     setText(librarySearchTag, libraryFilter.query);
     std::string bankLabel = "All banks";
     for (const auto &patch : catalog.patches())
@@ -62,9 +69,6 @@ void Synth2::refreshBrowser()
     setButton(favoritesTag, libraryFilter.favoritesOnly ? "Favorites: on" : "Favorites: off");
     if (auto *c = graphics->GetControlWithTag(libraryListTag))
         c->As<CatalogListControl>()->setResults(matches, resultOffset);
-    const auto selected = std::find_if(catalog.patches().begin(), catalog.patches().end(),
-                                       [&](const auto &p) { return p.id == selectedPatchId; });
-    const bool canEdit = selected != catalog.patches().end();
     setText(selectedNameTag,
             canEdit ? "Tags for " + selected->patch.name + " (comma-separated; press Enter to save)"
                     : "Select a sound to edit its tags");

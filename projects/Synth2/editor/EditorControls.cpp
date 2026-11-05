@@ -141,12 +141,17 @@ void CatalogListControl::Draw(IGraphics& g) {
         const auto& item=catalog.patches()[matches[offset+row]];
         const auto y=mRECT.T+row*40.f;
         const IRECT bounds(mRECT.L,y,mRECT.R,y+40.f);
-        if(item.id==selected)g.FillRect(color(appearance.display),bounds);
+        const bool isSelected=item.id==selected;
+        if(isSelected) {
+            g.FillRect(color(appearance.selectedRow),bounds);
+            g.FillRect(accent,IRECT(mRECT.L,y,mRECT.L+4,y+40.f));
+        }
         else if(row%2==1)g.FillRect(background,bounds);
         const IText text(13.f,ink,"Synth2UI",EAlign::Near);
         g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+40));
         const auto label=item.patch.name+(item.error.empty() ? "" : " [Cannot load]");
-        g.DrawText(text,label.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
+        const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
+        g.DrawText(titleText,label.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
         g.DrawText(text.WithSize(11.f).WithFGColor(muted),(item.bankName+(item.archiveEntry.empty() ? "" : " / "+item.archiveEntry)).c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
         const auto tags=synth2::host::PatchCatalog::tagText(item.tags);
         g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-8,y+40));

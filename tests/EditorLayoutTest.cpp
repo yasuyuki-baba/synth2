@@ -2,6 +2,7 @@
 #include "editor/EditorLayout.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorValueDisplay.h"
+#include "editor/EditorPresetDisplay.h"
 #include "patch/Synth1SourceRange.h"
 #include <Synth1PatchIo.h>
 #include <array>
@@ -9,6 +10,16 @@
 #include <set>
 
 using namespace synth2::editor;
+TEST(EditorLayout, PresetDisplayIncludesAvailableBankAndPreservesEditMarker)
+{
+    EXPECT_EQ(editorPresetDisplay("Warm Pad", "User Bank", false), "Warm Pad / User Bank");
+    EXPECT_EQ(editorPresetDisplay("Warm Pad", "User Bank", true), "Warm Pad / User Bank *");
+    EXPECT_EQ(editorPresetDisplay("Init", "", false), "Init");
+    EXPECT_EQ(editorPresetDisplay("Recalled Sound", "", true), "Recalled Sound *");
+    EXPECT_EQ(editorPresetDisplay("同名パッチ", "バンク A", false), "同名パッチ / バンク A");
+    EXPECT_NE(editorPresetDisplay("Pad", "Bank A", false), editorPresetDisplay("Pad", "Bank B", false));
+}
+
 namespace
 {
 bool overlaps(const EditorBounds& a,const EditorBounds& b)
