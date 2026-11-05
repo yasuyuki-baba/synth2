@@ -71,6 +71,17 @@ iplug_add_plugin(Synth2
     LINK Synth2Core Synth2EditorFonts
 )
 
+# Native formats share the Synth2 binary name. MSVC derives both the import
+# library and .exp sidecar from it, so parallel links need separate directories.
+if(WIN32)
+    foreach(target Synth2-vst3 Synth2-clap Synth2-app)
+        if(TARGET ${target})
+            set_target_properties(${target} PROPERTIES
+                ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/link/${target}/$<CONFIG>")
+        endif()
+    endforeach()
+endif()
+
 # Keep Xcode's per-configuration bundle paths aligned with the SDK resource
 # hooks and the candidate packager, which both consume build/out directly.
 if(APPLE)
