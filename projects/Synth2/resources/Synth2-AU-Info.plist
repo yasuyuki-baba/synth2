@@ -10,9 +10,9 @@
 			<key>factoryFunction</key>
 			<string>Synth2_Factory</string>
 			<key>manufacturer</key>
-			<string>baba</string>
+			<string>BABA</string>
 			<key>name</key>
-			<string>baba: Synth2</string>
+			<string>babab: Synth2</string>
 			<key>sandboxSafe</key>
 			<true/>
 			<key>subtype</key>
