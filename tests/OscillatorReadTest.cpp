@@ -151,3 +151,82 @@ TEST(OscillatorRead, LegacyBothPitchDestinationUsesTheCommonEnvelopeAtOneOctaveR
         }
     }
 }
+
+TEST(OscillatorRead, ScalarFrequenciesUseFixedCeilingAtEverySampleRate)
+{
+    const auto bank=generatedBank();
+    const std::array<std::pair<float,float>,5> frequencies{{
+        {21999.f,21999.f},{22000.f,22000.f},
+        {std::nextafter(22000.f,INFINITY),22000.f},{34689.f,22000.f},{80000.f,22000.f}}};
+    for(double rate:{32000.,44100.,48000.25,96000.})
+        for(const auto& [requested,expected]:frequencies)
+            for(int index:{0,1})for(bool tables:{false,true})
+            {
+                SCOPED_TRACE(rate);
+                SCOPED_TRACE(requested);
+                SCOPED_TRACE(index);
+                SCOPED_TRACE(tables);
+                synth2::dsp::OscillatorSection actual,reference;
+                synth2::dsp::Oscillator phaseReference;
+                phaseReference.setSampleRate(rate);phaseReference.updatePhaseIncrement(expected);
+                for(auto* section:{&actual,&reference}) {
+                    section->prepare({rate,64,2});section->params={0,2};
+                }
+                for(int frame=0;frame<128;++frame) {
+                    const auto* selected=tables ? &bank : nullptr;
+                    const auto sample=actual.processSample(index==0 ? requested : 440.f,index==1 ? requested : 660.f,
+                        .5f,.5f,0,false,false,0,0,-1,selected);
+                    const auto match=reference.processSample(index==0 ? expected : 440.f,index==1 ? expected : 660.f,
+                        .5f,.5f,0,false,false,0,0,-1,selected);
+                    ASSERT_EQ(actual.readPhaseWords()[2+index],phaseReference.getPhaseIncFixed27());
+                    ASSERT_EQ(actual.readPhaseWords(),reference.readPhaseWords());
+                    ASSERT_EQ(sample,match);
+                }
+            }
+}
+
+TEST(OscillatorRead, CeilingPrecedesFmRingSyncStackAndSubDispatch)
+{
+    auto bank=generatedBank();
+    // Different bands make an uncapped table lookup observable even if only the
+    // phase increment were capped. Inputs are self-authored, not reference PCM.
+    synth2::ShapeTables bands;
+    for(float border:{22050.f,100000.f}) {
+        bands.infos.push_back({bands.data.size(),2048,border});
+        for(int i=0;i<2048;++i)
+            bands.data.push_back(static_cast<float>(std::sin(i*2*std::acos(-1.)/2048))*(border==22050.f ? 1.f : .25f));
+    }
+    bank.setShapeTables(2,std::move(bands));
+    for(int mode=0;mode<6;++mode) {
+        SCOPED_TRACE(mode);
+        synth2::dsp::OscillatorSection actual,reference;
+        for(auto* section:{&actual,&reference}) {
+            section->prepare({44100,64,2});section->params={0,2};
+            section->stackDial=mode==4 ? 32.f : 0.f;
+        }
+        const bool sync=mode==3,ring=mode==2;
+        const double depth=mode>0 && mode<5 ? 1048576.25 : 0.;
+        const float sub=mode==5 ? .25f : 0.f;
+        for(int frame=0;frame<1024;++frame) {
+            const auto a=actual.processSample(440,34689,.5f,.3f,depth,sync,ring,sub,2,0,&bank,-1,0,0,false,true);
+            const auto b=reference.processSample(440,22000,.5f,.3f,depth,sync,ring,sub,2,0,&bank,-1,0,0,false,true);
+            ASSERT_EQ(actual.readPhaseWords(),reference.readPhaseWords());ASSERT_EQ(a,b);
+            ASSERT_EQ(actual.stackPhases,reference.stackPhases);ASSERT_EQ(actual.subSharedPhase,reference.subSharedPhase);
+        }
+    }
+}
+
+TEST(OscillatorRead, CeilingAppliesAfterPitchModulation)
+{
+    const auto bank=generatedBank();
+    struct Input {float base;int control;float expected;};
+    for(const auto input:{Input{40000,-128,20000},Input{20000,128,22000},Input{30000,0,22000}}) {
+        synth2::dsp::OscillatorSection actual,reference;
+        for(auto* section:{&actual,&reference}){section->prepare({44100,64,2});section->params={0,2};}
+        for(int frame=0;frame<128;++frame) {
+            const auto a=actual.processSample(440,input.base,.5f,.5f,0,false,false,0,0,-1,&bank,-1,0,input.control,true);
+            const auto b=reference.processSample(440,input.expected,.5f,.5f,0,false,false,0,0,-1,&bank);
+            ASSERT_EQ(actual.readPhaseWords(),reference.readPhaseWords());ASSERT_EQ(a,b);
+        }
+    }
+}
