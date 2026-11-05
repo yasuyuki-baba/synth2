@@ -1,76 +1,104 @@
 # Persistent sound library
 
-The Library view supports narrowing a collection with an optional bank, a tag,
-all search words and a favorites-only filter. Words are matched independently
-against the patch display name, bank name and tags, in any order. ASCII matching
-is case insensitive; non-ASCII text matches its original UTF-8 bytes. Search
-commits on Enter. The result list displays a bounded page; paging and the mouse
-wheel browse results. The header's previous/next buttons select sounds within
-the current filter, and selecting a result loads it for auditioning with the
-persistent keyboard or MIDI input.
+The Library view combines bank, tag, keyword and favorites filters. All search
+words match independently against the title, relative file/ZIP entry location and
+tags. ASCII matching is case insensitive; other UTF-8 text matches its original
+bytes. The bounded result page and mouse wheel browse results; previous/next selects
+within that filter. Only explicit sound selection loads a sound. Registration,
+refresh, filtering, metadata edits and removal preserve the sounding processor.
+The processor starts with Init and the library starts empty; no factory bank is
+bundled, privileged or automatically added.
 
-The library starts empty and the processor starts with Init. No factory bank is
-bundled or automatically added. Init is the startup sound, not a protected library
-entry. Bank names do not change import, metadata or removal behavior.
+## Files and registration
 
-Use **Add sounds...** to import a `.sy1`, a ZIP bank, or a directory of `.sy1`
-files. Directory imports include nested folders, retain relative names and use
-natural numeric order. Files and folders can also be dropped onto the result
-list. The importer validates every source before publishing a bank, skips exact
-source-text duplicates across the library and reports added/skipped counts.
-Importing, filtering, tagging, favoriting and deleting do not load a sound or
-change the current processor state. Only explicit sound selection loads a patch.
+The configured user directory is recursively scanned for `.sy1` files and `.sy1`
+entries in ZIPs. External additions and replacements become visible on refresh or
+editor reopen. ZIPs remain single files: they are read in memory and never expanded
+or rewritten. Invalid sources remain visible with an error and do not prevent
+other files from appearing. Selecting an invalid row preserves the current sound.
 
-Imported sources are copied into a Synth2-owned library. The original `.sy1`,
-ZIP or folder is not edited and can be moved after import. Each imported bank
-has an independent directory and each patch has a stable library ID. Display
-names are not identities, so equal names can have different tags. Every library
-sound can be tagged, favorited and removed; the same applies to every added bank.
+Add a file or folder from **Add...**, or drop it on the list. Registration copies
+actual `.sy1` and ZIP files and leaves the source intact. Folder names and internal
+hierarchy are retained. Already stored files are referenced without copying. A
+physical filename conflict offers Replace, Keep both (numbered suffix), or Skip,
+with an apply-to-all option. Source text and sound titles do not determine
+collisions. Two different filenames may intentionally contain identical sounds.
 
-Tags are optional user metadata, separate from `.sy1` source text, host parameters
-and DAW sound state. Select a sound, enter comma-separated tags, then press Enter.
-Tag spelling is preserved; duplicate ASCII-case variants in an edit are collapsed.
-A patch supports up to 32 tags of 128 UTF-8 bytes each. Automatic name-based or
-LLM tagging is not part of this feature. A DAW project embeds source text and
-patch display name and remains recallable after library removal; library tags
-and favorites are shared user preferences rather than DAW project data.
+After registration, the browser clears other filters and shows exactly that
+registration's item IDs, including the entries of registered ZIPs. The registration
+filter is indicated in the header. **Show all sounds**, or choosing a bank, clears
+that restriction. The result summary distinguishes registered/skipped files and
+errors. No sound is automatically selected. Filesystem scans, registration and
+saving run on worker jobs outside rendering; conflict choices are handled by the
+editor with dialog lifetime guards.
 
-## Storage and ownership
+## Saving and edited sounds
+
+**Save → Save** writes to the loaded loose library `.sy1`. ZIP sources, Init and
+sources no longer in the library use Save as. **Save → Save as...** chooses a name
+and a destination within the configured directory, including its subfolders.
+Existing destinations require confirmation. Saving uses the existing Synth2
+`ver=200` patch API, preserving fractional controls, reserved values and master
+volume. A ZIP itself is never modified. Complete writes are staged before file
+publication; failures retain the sounding state and its edit baseline.
+
+Successful saves select and reveal the saved file and establish a new baseline.
+The current sound name shows `*` when its parameter values differ from the last
+load/save baseline; returning all values to that baseline clears it. Performance
+MIDI, tags, favorites and browser operations do not mark the sound edited. DAW
+parameter automation does. DAW project saving preserves the baseline and therefore
+does not clear unsaved preset edits. Sound changes do not prompt on every audition.
+
+## Metadata and storage
+
+Tags and favorites remain shared user preferences separate from source files and
+DAW sound state. Select a sound, enter comma-separated tags, then press Enter. A
+sound supports up to 32 tags of 128 UTF-8 bytes each. Tag spelling is retained and
+ASCII-case duplicates are collapsed. Metadata IDs use relative file plus ZIP-entry
+identity; safe encoded keys prevent path/underscore collisions. Existing managed
+`banks/bank-*` directories and their metadata remain readable with their original
+IDs and ordinals. The `banks`, `tags` and `favorites` root directories are reserved
+for managed storage and metadata; ordinary sources belong elsewhere in the root.
 
 | Platform | Default library folder |
 | --- | --- |
 | Windows | `%APPDATA%/Synth2/Library` |
 | macOS | `~/Library/Application Support/Synth2/Library` |
+| Linux portable tools | `$XDG_DATA_HOME/Synth2/Library` or `~/.local/share/Synth2/Library` |
 
-**Add sounds... → Open library folder** reveals the folder for backup or transfer.
-Copy the entire folder to preserve the sounds, tags and favorites. Internal files
-are managed by Synth2; use the import action to add external banks. Library
-removal asks for confirmation and leaves the original import and current sound
-intact. A bank can be removed after selecting its bank filter. Refresh or reopen
-the editor to see another plugin instance's committed changes. Simultaneous
-metadata edits to the same sound use the last completed write.
+**Add... → Open library folder** reveals this folder. **Choose library folder...**
+changes the shared root without moving files. Other instances adopt the configured
+root on editor reopen. Back up the complete directory to retain metadata.
+Individual loose files can be removed; ZIP-contained sounds require removal of
+the containing bank rather than ZIP rewriting. Removal requires confirmation,
+clears the corresponding metadata, and preserves original imports and saved sound
+state. Separate instances see committed file/metadata changes on refresh.
 
-The `banks` directory contains committed `bank-*` folders. Each has a `name`,
-numbered `.sy1` sources and corresponding `.name` display labels. Imports stage
-in hidden temporary folders and become visible via a directory rename. Tags and
-favorites live in separate `tags` and `favorites` directories keyed by library ID;
-metadata replacements use temporary files and atomic replacement. Deleted banks
-are unpublished before their owned files are removed. The importer never uses
-ZIP entry names as filesystem paths.
+Per-file and per-ZIP PatchLibrary limits still apply. The catalog retains its
+100,000-sound/512-MiB source limit; bank/display names remain bounded to 16 KiB.
+A failed catalog reload retains the previous valid snapshot. Catalog indices are
+not host program ordinals; ZIP entries retain their source-bank ordinal.
 
-Individual banks retain the PatchLibrary byte/entry limits. The complete catalog
-is bounded to 100,000 patches and 512 MiB of source text. Bank
-and display names are bounded to 16 KiB each. Invalid imports publish no partial
-bank. Failed reloads retain the previous valid in-memory catalog and report the
-error. All filesystem and catalog work belongs to the UI side, outside audio
-callbacks. Catalog indices are not host program ordinals; selection retains the
-source bank's ordinal.
+## Session recall
+
+Each plugin instance saves its query, bank/tag/favorite filters, registration IDs,
+selection, result-page offset, view and edit baseline in wrapper state v2. Wrapper
+v1 remains readable and retains the processor's patch name. The existing processor
+state independently embeds the sounding source and edits. Recall never reloads a
+selected library file, so moved/deleted/replaced files cannot overwrite the saved
+sound. A scan completes before the restored result offset is clamped. A project
+restore also supersedes pending jobs' browser/baseline updates.
+
+Standalone APP stores the same complete session on normal teardown and restores
+it on startup. Library root configuration is a shared per-user setting; browser
+state and the sounding patch are instance-owned.
 
 ## Verification boundary
 
-`PatchCatalogTest.cpp` verifies accumulation, duplicate detection, folder ordering,
-metadata persistence in a new catalog, combined filters, empty-library startup,
-failed imports, independent instances and removal followed by bank-free state
-recall. Existing library and processor tests cover the loading transaction and
-source/state fidelity. These portable tests do not validate native mouse, focus,
-file dialog or DAW interaction. See [the editor contract](README.md).
+`PatchCatalogTest.cpp` checks file-backed accumulation, metadata, exact registration
+filters, source-bank ordinals, legacy managed-bank readability and removal without
+changing sound recall. `PresetFilesTest.cpp` checks recursive/ZIP scanning, physical
+file conflicts, confined saves, fractional `ver=200` round trips, independent edit
+baselines and transactional wrapper-v1/v2 recall. Other loading/state/patch-format
+tests retain the source and rendering contracts. These portable checks do not
+certify native dialogs, DAW interaction or platform device operation.

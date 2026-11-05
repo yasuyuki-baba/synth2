@@ -124,7 +124,7 @@ bool PatchLibrary::openZip(const void* bytes,size_t size,const std::string& name
         std::string data(e.size,'\0');
         if(!mz_zip_reader_extract_to_mem(&zip,e.index,data.data(),data.size(),0))
         {error="A patch in the bank could not be read completely.";return false;}
-        next.push_back({title(data,e.name),std::move(data)});
+        next.push_back({title(data,e.name),std::move(data),e.name});
     }
     entries.swap(next);bankName=name;error.clear();return true;
 }

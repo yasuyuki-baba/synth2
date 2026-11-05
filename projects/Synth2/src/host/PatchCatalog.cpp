@@ -49,12 +49,13 @@ void replaceText(const fs::path& path,const std::string& text) {
 #endif
     } catch(...) {std::error_code ignored;fs::remove(temporary,ignored);throw;}
 }
-fs::path favorites(const fs::path& root,const std::string& id) {
-    auto filename=id;std::replace(filename.begin(),filename.end(),'/', '_');return root/"favorites"/(filename+".fav");
+fs::path metadataKey(const std::string& id) {
+    if(id.starts_with("bank-")){auto key=id;std::replace(key.begin(),key.end(),'/', '_');return key;}
+    const char* hex="0123456789abcdef";std::string key;for(unsigned char c:id){key+=hex[c>>4];key+=hex[c&15];}
+    fs::path path="files";while(key.size()>100){path/=key.substr(0,100);key.erase(0,100);}return path/key;
 }
-fs::path tagPath(const fs::path& root,const std::string& id) {
-    auto filename=id;std::replace(filename.begin(),filename.end(),'/', '_');return root/"tags"/(filename+".tags");
-}
+fs::path favorites(const fs::path& root,const std::string& id) {auto path=root/"favorites"/metadataKey(id);path+=".fav";return path;}
+fs::path tagPath(const fs::path& root,const std::string& id) {auto path=root/"tags"/metadataKey(id);path+=".tags";return path;}
 std::vector<std::string> tagsAt(const fs::path& root,const std::string& id) {
     if(root.empty() || !fs::exists(tagPath(root,id)))return {};
     return PatchCatalog::splitTags(read(tagPath(root,id),16384));
@@ -68,15 +69,7 @@ void requireRoot(const fs::path& root) {
 }
 
 std::filesystem::path PatchCatalog::userDirectory() {
-#ifdef _WIN32
-    if(const auto* base=_wgetenv(L"APPDATA"))return fs::path(base)/"Synth2"/"Library";
-#elif defined(__APPLE__)
-    if(const auto* base=std::getenv("HOME"))return fs::path(base)/"Library"/"Application Support"/"Synth2"/"Library";
-#else
-    if(const auto* base=std::getenv("XDG_DATA_HOME"))return fs::path(base)/"Synth2"/"Library";
-    if(const auto* base=std::getenv("HOME"))return fs::path(base)/".local"/"share"/"Synth2"/"Library";
-#endif
-    return {};
+    try{return PresetFiles::configuredDirectory();}catch(const std::exception&){return {};}
 }
 std::vector<std::string> PatchCatalog::splitTags(const std::string& text) {
     std::istringstream input(text);std::vector<std::string> tags;std::unordered_set<std::string> seen;
@@ -119,58 +112,38 @@ bool PatchCatalog::reload(std::string& error) {
                 }
             }
         }
+        if(!directory.empty()) {
+            PresetFiles files(directory);if(!files.scan(error))return false;
+            for(const auto& item:files.entries()) {
+                if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
+                total+=item.text.size();auto relative=item.file.lexically_relative(fs::weakly_canonical(directory));
+                const auto bankId=utf8(relative),bankName=bankId;
+                next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error});
+            }
+        }
         entries.swap(next);error.clear();return true;
     } catch(const std::exception& e) {error=e.what();return false;}
 }
 
-bool PatchCatalog::importFile(const std::string& path,ImportResult& result,std::string& error) {
-    result={};fs::path staging;
+bool PatchCatalog::registerFiles(const std::string& path,const ResolveConflict& resolve,PresetImportResult& result) {
     try {
-        requireRoot(directory);
-        // Refresh before mutation so separate plugin instances see committed banks.
-        if(!reload(error))return false;
-        PatchLibrary source;
-        const auto inputPath=fs::path(std::u8string(path.begin(),path.end()));
-        if(fs::is_directory(inputPath)) {if(!source.openDirectory(path,error))return false;}
-        else if(!source.openFile(path,error))return false;
-        if(source.name().size()>16384)throw std::runtime_error("The bank name exceeds the library name limit.");
-        std::unordered_set<std::string_view> known;std::size_t bytes=0;
-        for(const auto& p:entries){known.insert(p.patch.text);bytes+=p.patch.text.size();}
-        std::vector<std::size_t> additions;ProcessorBridge validator;
-        for(std::size_t i=0;i<source.patches().size();++i) {
-            const auto& p=source.patches()[i];
-            if(p.name.size()>16384)throw std::runtime_error("A patch name exceeds the library name limit.");
-            if(!validator.loadPatch(p.text,error)){error="Cannot add "+p.name+": "+error;return false;}
-            if(!known.insert(p.text).second){++result.duplicates;continue;}
-            if(entries.size()+additions.size()>=maximumCatalogPatches || p.text.size()>maximumCatalogBytes-bytes)
-                throw std::runtime_error("The library exceeds its size limit.");
-            bytes+=p.text.size();additions.push_back(i);
-        }
-        if(additions.empty()){error.clear();return true;}
-        fs::create_directories(directory/"banks");
-        // Exclusive directory creation also separates imports from different instances.
-        std::string token;
-        for(int attempt=0;attempt<100;++attempt) {
-            token=std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())+"-"+std::to_string(attempt);
-            staging=directory/"banks"/(".import-"+token);
-            if(fs::create_directory(staging))break;
-            staging.clear();
-        }
-        if(staging.empty())throw std::runtime_error("Could not create a library import folder.");
-        write(staging/"name",source.name());
-        for(const auto i:additions) {
-            auto key=std::to_string(i);key=std::string(4-key.size(),'0')+key;
-            write(staging/(key+".sy1"),source.patches()[i].text);
-            write(staging/(key+".name"),source.patches()[i].name);
-        }
-        const auto committed=directory/"banks"/("bank-"+token);
-        fs::rename(staging,committed);staging.clear();
-        if(!reload(error))return false;
-        result.added=additions.size();return true;
-    } catch(const std::exception& e) {
-        if(!staging.empty()){std::error_code ignored;fs::remove_all(staging,ignored);}
-        error=e.what();return false;
-    }
+        requireRoot(directory);PresetFiles files(directory);result=files.import(fs::path(std::u8string(path.begin(),path.end())),resolve);
+        std::string error;if(!reload(error))result.errors.push_back(error);
+        return result.errors.empty();
+    }catch(const std::exception& e){result={};result.errors.push_back(e.what());return false;}
+}
+
+bool PatchCatalog::importFile(const std::string& path,ImportResult& result,std::string& error) {
+    PresetImportResult registered;
+    bool ok=registerFiles(path,[](const auto&){return ConflictChoice{};},registered);
+    result={registered.ids.size(),registered.skipped};
+    error=registered.errors.empty() ? "" : registered.errors.front();return ok;
+}
+bool PatchCatalog::saveFile(const fs::path& relative,const std::string& text,bool replace,std::string& id,std::string& error) {
+    try {
+        requireRoot(directory);PresetFiles files(directory);if(!files.save(relative,text,replace,id,error))return false;
+        return reload(error);
+    }catch(const std::exception& e){error=e.what();return false;}
 }
 
 bool PatchCatalog::setFavorite(const std::string& id,bool favorite,std::string& error) {
@@ -178,7 +151,7 @@ bool PatchCatalog::setFavorite(const std::string& id,bool favorite,std::string& 
         requireRoot(directory);
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library. Refresh the list.");
-        fs::create_directories(directory/"favorites");
+        fs::create_directories(favorites(directory,id).parent_path());
         if(favorite)replaceText(favorites(directory,id),"favorite\n");else fs::remove(favorites(directory,id));
         found->favorite=favorite;error.clear();return true;
     } catch(const std::exception& e){error=e.what();return false;}
@@ -188,7 +161,7 @@ bool PatchCatalog::setTags(const std::string& id,const std::string& text,std::st
         requireRoot(directory);
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library. Refresh the list.");
-        auto tags=splitTags(text);fs::create_directories(directory/"tags");
+        auto tags=splitTags(text);fs::create_directories(tagPath(directory,id).parent_path());
         if(tags.empty())fs::remove(tagPath(directory,id));else replaceText(tagPath(directory,id),tagText(tags));
         found->tags=std::move(tags);error.clear();return true;
     } catch(const std::exception& e){error=e.what();return false;}
@@ -198,6 +171,12 @@ bool PatchCatalog::removePatch(const std::string& id,std::string& error) {
         requireRoot(directory);
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
+        if(!found->file.empty()) {
+            if(!found->archiveEntry.empty())throw std::runtime_error("Remove the ZIP bank to remove its contained sounds.");
+            if(!fs::remove(found->file))throw std::runtime_error("The file was already removed. Refresh the library.");
+            std::error_code ignored;fs::remove(favorites(directory,id),ignored);fs::remove(tagPath(directory,id),ignored);
+            entries.erase(found);error.clear();return true;
+        }
         const auto bank=directory/"banks"/found->bankId;
         if(!fs::is_directory(fs::symlink_status(bank)))throw std::runtime_error("The bank folder is unavailable.");
         const auto key=id.substr(id.find('/')+1);
@@ -211,6 +190,11 @@ bool PatchCatalog::removeBank(const std::string& bankId,std::string& error) {
         requireRoot(directory);
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.bankId==bankId;});
         if(found==entries.end())throw std::runtime_error("This bank is no longer in the library.");
+        if(!found->file.empty()) {
+            if(!fs::remove(found->file))throw std::runtime_error("The bank was already removed. Refresh the library.");
+            std::error_code ignored;for(const auto& p:entries)if(p.bankId==bankId){fs::remove(favorites(directory,p.id),ignored);fs::remove(tagPath(directory,p.id),ignored);}
+            std::erase_if(entries,[&](const auto& p){return p.bankId==bankId;});error.clear();return true;
+        }
         const auto bank=directory/"banks"/bankId;
         if(!fs::is_directory(fs::symlink_status(bank)))throw std::runtime_error("The bank folder is unavailable.");
         // Unpublish first; refreshes cannot observe a half-deleted bank.
@@ -227,9 +211,10 @@ std::vector<std::size_t> PatchCatalog::search(const CatalogFilter& filter)const 
     std::vector<std::size_t> result;
     for(std::size_t i=0;i<entries.size();++i) {
         const auto& p=entries[i];
+        if(filter.registeredOnly && std::find(filter.registeredIds.begin(),filter.registeredIds.end(),p.id)==filter.registeredIds.end())continue;
         if((!filter.bankId.empty() && p.bankId!=filter.bankId) || (filter.favoritesOnly && !p.favorite))continue;
         if(!filter.tag.empty() && std::none_of(p.tags.begin(),p.tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
-        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+tagText(p.tags));
+        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.archiveEntry+" "+tagText(p.tags));
         if(std::all_of(terms.begin(),terms.end(),[&](const auto& term){return haystack.find(term)!=std::string::npos;}))result.push_back(i);
     }
     return result;

@@ -37,7 +37,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
     graphics->AttachControl(new ITextControl(IRECT(266,82,644,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
     graphics->AttachControl(new IVButtonControl(IRECT(654,82,744,112),[this](IControl*) { showPage(synth2::editor::editorLibraryView); },"Library",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(756,82,878,112),[this](IControl* caller) { showImportMenu(caller); },"Add sounds...",style));
+    graphics->AttachControl(new IVButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
+    graphics->AttachControl(new IVButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new ITextControl(IRECT(20,82,66,112),"Find",text.WithSize(12.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new SearchControl(IRECT(68,82,248,112),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
@@ -169,19 +170,90 @@ void Synth2::showPage(int next)
 
 void Synth2::OnIdle()
 {
+    if (importPrompt && !conflictShown && GetUI())
+    {
+        std::unique_lock lock(importPrompt->mutex);
+        if (importPrompt->alive && importPrompt->pending && !importPrompt->answered)
+        {
+            conflictShown = true;
+            auto prompt = importPrompt;
+            auto filename = prompt->path.filename().u8string();
+            lock.unlock();
+            browserStatus = "File already exists: " + std::string(filename.begin(), filename.end());
+            conflictMenu = std::make_unique<IPopupMenu>("File already exists");
+            for (auto text : {"Replace", "Keep both", "Skip", "Replace all", "Keep both for all", "Skip all"})
+                conflictMenu->AddItem(text);
+            conflictMenu->SetFunction(
+                [this, prompt](IPopupMenu *menu)
+                {
+                    int i = menu->GetChosenItemIdx();
+                    {
+                        std::lock_guard lock(prompt->mutex);
+                        prompt->choice = {i < 0 ? synth2::host::FileConflict::skip
+                                                : static_cast<synth2::host::FileConflict>(i % 3),
+                                          i < 0 || i >= 3};
+                        prompt->answered = true;
+                        prompt->pending = false;
+                    }
+                    prompt->changed.notify_all();
+                    conflictShown = false;
+                });
+            if (auto *caller = GetUI()->GetControlWithTag(bankTag))
+                GetUI()->CreatePopupMenu(*caller, *conflictMenu, caller->GetRECT());
+            refreshBrowser();
+        }
+    }
+    if (libraryJob.valid() && libraryJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    {
+        try
+        {
+            auto result=libraryJob.get();
+            if(result.error.empty()){catalog=std::move(result.catalog);catalogLoaded=true;}
+            if(result.generation==browserGeneration.load() && result.saving && result.error.empty()) {
+                selectedPatchId=result.savedId;currentPatch=result.savedName;browser.baseline=result.savedBaseline;
+                libraryFilter={};resultOffset=0;browserStatus="Preset saved.";
+                const auto matches=catalog.search(libraryFilter);for(std::size_t n=0;n<matches.size();++n)if(catalog.patches()[matches[n]].id==selectedPatchId)resultOffset=(n/visibleRows)*visibleRows;
+                showPage(synth2::editor::editorLibraryView);
+            } else if(result.generation==browserGeneration.load() && result.importing) {
+                libraryFilter={};libraryFilter.registeredOnly=true;libraryFilter.registeredIds=std::move(result.imported.ids);resultOffset=0;
+                browserStatus=std::to_string(result.imported.imported)+" files registered, "+std::to_string(result.imported.skipped)+" skipped, "+std::to_string(result.imported.errors.size())+" errors";
+                if(!result.imported.errors.empty())browserStatus+=" / "+result.imported.errors.front();
+            }else browserStatus=result.error;
+            refreshBrowser();
+        }
+        catch (const std::exception &e)
+        {
+            browserStatus = e.what();
+            refreshBrowser();
+        }
+    }
+    const bool modified = browser.modified(processor);
     if (stateRestored.exchange(false))
     {
-        selectedPatchId.clear(); currentPatch=processor.currentPatchName(); browserStatus.clear(); refreshBrowser();
+        showPage(page);
+        reloadCatalog();
+        refreshBrowser();
+    }
+    if (modified != lastModified)
+    {
+        lastModified = modified;
+        refreshBrowser();
     }
 }
 void Synth2::OnUIOpen()
 {
     dialogLifetime=std::make_shared<int>(0);
     iplug::Plugin::OnUIOpen();
+    if(!libraryJob.valid()) {
+        auto root=synth2::host::PatchCatalog::userDirectory();
+        if(!root.empty() && root!=catalog.root()){catalog=synth2::host::PatchCatalog(root);catalogLoaded=false;libraryFilter={};selectedPatchId.clear();resultOffset=0;}
+    }
     reloadCatalog();
 }
 void Synth2::OnUIClose()
 {
     dialogLifetime.reset();
+    if(importPrompt){{std::lock_guard lock(importPrompt->mutex);importPrompt->alive=false;}importPrompt->changed.notify_all();}
+    conflictShown=false;
     iplug::Plugin::OnUIClose();
 }

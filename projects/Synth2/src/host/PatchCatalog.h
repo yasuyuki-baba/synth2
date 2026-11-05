@@ -1,5 +1,6 @@
 #pragma once
 #include "PatchLibrary.h"
+#include "PresetFiles.h"
 #include <filesystem>
 #include <utility>
 
@@ -10,10 +11,14 @@ struct CatalogPatch {
     int program = 0;
     bool favorite = false;
     std::vector<std::string> tags;
+    std::filesystem::path file;
+    std::string archiveEntry, error;
 };
 struct CatalogFilter {
     std::string query, bankId, tag;
     bool favoritesOnly = false;
+    bool registeredOnly = false;
+    std::vector<std::string> registeredIds;
 };
 struct ImportResult { std::size_t added = 0, duplicates = 0; };
 
@@ -29,6 +34,8 @@ public:
     static std::string tagText(const std::vector<std::string>& tags);
     bool reload(std::string& error);
     bool importFile(const std::string& path, ImportResult& result, std::string& error);
+    bool registerFiles(const std::string&, const ResolveConflict&, PresetImportResult&);
+    bool saveFile(const std::filesystem::path&, const std::string&, bool replace, std::string& id, std::string& error);
     bool setFavorite(const std::string& id, bool favorite, std::string& error);
     bool setTags(const std::string& id, const std::string& tags, std::string& error);
     bool removePatch(const std::string& id, std::string& error);

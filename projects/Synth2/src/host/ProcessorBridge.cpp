@@ -342,10 +342,10 @@ struct ProcessorBridge::Impl
         state.presetText=lastLoadedPreset;state.patchName=patchName;
         return encodeProcessorState(state,info);
     }
-    void restore(const void* data,int size)
+    bool restore(const void* data,int size)
     {
         auto state=decodeProcessorState(data,size,info);
-        if(!state)return;
+        if(!state)return false;
         replacingParameters.store(true);
         directControls=state->directControls;
         for(int i=0;i<parameterCount;++i)values[i].store(state->values[i]);
@@ -354,7 +354,7 @@ struct ProcessorBridge::Impl
         storeNativeContext(state->initialControls,state->runtimeEdits,static_cast<int>(std::lround(state->values[126])));
         nativeSourceLoading.store(state->nativeSource);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);
         continuousControls=state->version==3;
-        parameterMapper->setContinuousControls(continuousControls);
+        parameterMapper->setContinuousControls(continuousControls);return true;
     }
     template<class Sample> bool render(Sample* left,Sample* right,int frames,double bpm)
     {
@@ -423,6 +423,7 @@ std::string ProcessorBridge::currentPatchName()const{return impl->patchName;}
 int ProcessorBridge::currentProgram()const noexcept{return impl->program;}
 std::vector<uint8_t> ProcessorBridge::saveState()const{return impl->save();}
 void ProcessorBridge::restoreState(const void* data,int size){impl->restore(data,size);}
+bool ProcessorBridge::tryRestoreState(const void* data,int size){return impl->restore(data,size);}
 const SynthEngine& ProcessorBridge::engineForInspection()const noexcept{return impl->engine;}
 bool ProcessorBridge::readNativeControls(std::array<int,99>& out)const noexcept{return impl->parameterMapper && impl->parameterMapper->readNativeControls(out);}
 int ProcessorBridge::mappedVersion()const noexcept{return impl->parameterMapper ? impl->parameterMapper->getSourceVersion() : 0;}
