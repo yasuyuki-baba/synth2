@@ -32,8 +32,15 @@ if(NOT synth2_iplug_formats)
 endif()
 set(synth2_editor_sources
     Synth2Editor.cpp
+    editor/EditorKeyboardFocus.cpp
     editor/EditorControls.cpp
     editor/Synth2LibraryEditor.cpp)
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    set_source_files_properties(editor/EditorKeyboardFocus.cpp PROPERTIES LANGUAGE OBJCXX)
+endif()
 include(${CMAKE_CURRENT_LIST_DIR}/EditorFonts.cmake)
 if(MINGW AND SYNTH2_IPLUG2_FORMATS STREQUAL "APP")
     include(${CMAKE_CURRENT_LIST_DIR}/MinGWStandalone.cmake)

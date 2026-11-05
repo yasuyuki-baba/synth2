@@ -22,6 +22,7 @@ add_executable(Synth2PatchTests
     tests/OscillatorReadTest.cpp
     tests/PwmPrecisionTest.cpp
     tests/FmPhaseCorrectionTest.cpp
+    tests/EditorKeyboardTest.cpp
     tests/EditorInteractionTest.cpp
     tests/DspBasicsTest.cpp
     tests/BoundedPrecisionTest.cpp

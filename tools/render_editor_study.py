@@ -88,7 +88,10 @@ def render(model):
                 readout = meta["unitDisplay"][max(0,min(127,int(value+.5)))] if meta["unitDisplay"] else f"{value:g}"
                 text(cx,y+25+diameter,readout,10,a["muted"],"middle")
     text(20,818,"No sounds yet. Use Add sounds...",11,a["muted"])
-    text(1260,818,"Click a value to enter it  /  Drag the corner to scale",10,a["muted"],"end")
+    text(1090,818,"Click a value to type  /  Drag corner to scale",10,a["muted"],"end")
+    box(1100,802,160,28,a["control"],4,a["accent"])
+    text(1180,820,"Keyboard",12,a["text"],"middle")
+    text(20,914,"Play: A W S E D F T G Y H U J K O L   /   Octave: Z down, X up",11,a["muted"])
     whites = [note for note in range(36,85) if note%12 not in (1,3,6,8,10)]
     key_width = 1240/len(whites)
     box(20,840,1240,60,"#080b0d",5,"#46505a")

@@ -16,6 +16,23 @@ View transitions invalidate the complete editor, including its background, after
 updating control visibility. Repainting must not invoke parameter edits or sound
 loading actions.
 
+The footer's **Keyboard** toggle opens/closes the software keyboard on every
+view. It starts closed; opening increases the logical editor height from 840 to
+920 while retaining the current display scale. This is an editor control, not a
+sound parameter or a saved patch value.
+
+While open and focused, PC keys `A W S E D F T G Y H U J K O L` play chromatically
+from MIDI note 48 at velocity 127, matching CheapSynth01. `Z`/`X` lower/raise the
+base by an octave within MIDI notes 24–96. Held PC keys are released before an
+octave change; key repeat does not retrigger notes or repeatedly change octaves.
+Ctrl/Command/Alt shortcuts remain available. Text entry releases and suspends PC
+notes. Hiding the keyboard, losing editor focus or closing the editor releases
+its UI notes. Mouse and PC ownership are independent, and releasing UI notes does
+not release externally held MIDI notes of the same pitch. External MIDI timing,
+channels and repeated note behavior remain intact when no UI note owns the pitch.
+UI ownership is published atomically and consumed without allocation at audio
+block boundaries; it never enters patch/session sound state.
+
 Use restrained red accents, warm-white legends and black controls, with subtle
 Nord Lead 2 influence and Synth2's own identity. Prioritize high-use controls,
 especially cutoff; do not invent unsupported instrument features to match a panel.
@@ -50,8 +67,10 @@ with native host parameter registration without depending on ProcessorBridge.
 
 The native adapter is split by responsibility: `Synth2Editor.cpp` coordinates
 layout, page visibility and editor lifetime; `editor/EditorControls` owns drawing
-and control input; `editor/Synth2LibraryEditor.cpp` owns catalog/menu/dialog actions
-and host notification after a successful sound transaction. Shared native tags and
+and control input, including software keyboard mouse ownership; `editor/Synth2LibraryEditor.cpp` owns catalog/menu/dialog actions
+and host notification after a successful sound transaction. The native keyboard
+focus helper checks the editor view on Windows/macOS; `ComputerKeyboard` owns the
+SDK-independent PC key map and release behavior. Shared native tags and
 appearance helpers keep layout and library updates consistent. Catalog, selection
 and dialog lifetime remain owned by Synth2; controls borrow them. Both native
 build paths consume the same editor source list.
