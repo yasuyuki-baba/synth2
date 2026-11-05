@@ -18,9 +18,13 @@ void Synth2::refreshBrowser()
     auto *graphics = GetUI();
     if (!graphics)
         return;
+#ifdef _WIN32
+    std::replace(libraryFilter.bankId.begin(), libraryFilter.bankId.end(), '\\', '/');
+#endif
+    const auto banks = catalog.banks();
     if (catalogLoaded && !libraryFilter.bankId.empty() &&
-        std::none_of(catalog.patches().begin(), catalog.patches().end(),
-                     [&](const auto &p) { return p.bankId == libraryFilter.bankId; }))
+        std::none_of(banks.begin(), banks.end(),
+                     [&](const auto &bank) { return bank.id == libraryFilter.bankId; }))
         libraryFilter.bankId.clear();
     const auto matches = catalog.search(libraryFilter);
     if (catalogLoaded && resultOffset >= matches.size())
@@ -58,10 +62,10 @@ void Synth2::refreshBrowser()
                 : browserStatus);
     setText(librarySearchTag, libraryFilter.query);
     std::string bankLabel = "All banks";
-    for (const auto &patch : catalog.patches())
-        if (patch.bankId == libraryFilter.bankId)
+    for (const auto &bank : banks)
+        if (bank.id == libraryFilter.bankId)
         {
-            bankLabel = patch.bankName;
+            bankLabel = bank.name;
             break;
         }
     setButton(bankFilterTag, bankLabel);
@@ -94,17 +98,11 @@ void Synth2::showPresetMenu(IControl *) { showPage(synth2::editor::editorLibrary
 
 void Synth2::showBankMenu(IControl *caller)
 {
-    std::vector<std::pair<std::string, std::string>> banks;
-    std::set<std::string> seen;
-    for (const auto &p : catalog.patches())
-        if (seen.insert(p.bankId).second)
-            banks.push_back({p.bankId, p.bankName});
-    std::stable_sort(banks.begin(), banks.end(),
-                     [](const auto &a, const auto &b) { return a.second < b.second; });
+    const auto banks = catalog.banks();
     presetMenu = std::make_unique<IPopupMenu>("Banks");
     presetMenu->AddItem("All banks");
     for (const auto &bank : banks)
-        presetMenu->AddItem(bank.second.c_str());
+        presetMenu->AddItem(bank.name.c_str());
     presetMenu->SetFunction(
         [this, banks](IPopupMenu *menu)
         {
@@ -113,7 +111,7 @@ void Synth2::showBankMenu(IControl *caller)
                 return;
             libraryFilter.registeredOnly = false;
             libraryFilter.registeredIds.clear();
-            libraryFilter.bankId = index == 0 ? "" : banks[index - 1].first;
+            libraryFilter.bankId = index == 0 ? "" : banks[index - 1].id;
             resultOffset = 0;
             browserStatus.clear();
             refreshBrowser();

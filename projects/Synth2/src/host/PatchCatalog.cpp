@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -20,6 +21,20 @@ namespace synth2::host {
 namespace {
 namespace fs = std::filesystem;
 std::string utf8(const fs::path& p) { const auto s=p.u8string();return {s.begin(),s.end()}; }
+std::string portablePath(const fs::path& path) {
+    const auto text=path.generic_u8string();return {text.begin(),text.end()};
+}
+std::string filterPath(std::string path) {
+#ifdef _WIN32
+    // Read bank selections saved before portable directory bank IDs.
+    std::replace(path.begin(),path.end(),'\\','/');
+#endif
+    return path;
+}
+bool inBank(const CatalogPatch& patch,const std::string& bank) {
+    return patch.bankId==bank || (!patch.file.empty() &&
+        (bank=="." || patch.bankId.starts_with(bank+"/")));
+}
 std::string lower(std::string s) {
     for(auto& c:s)if(static_cast<unsigned char>(c)<128)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -117,11 +132,19 @@ bool PatchCatalog::reload(std::string& error) {
             for(const auto& item:files.entries()) {
                 if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
                 total+=item.text.size();auto relative=item.file.lexically_relative(fs::weakly_canonical(directory));
-                // Keep existing filter identities while displaying portable path separators.
-                const auto bankId=utf8(relative);
-                const auto displayPath=relative.generic_u8string();
-                const std::string bankName(displayPath.begin(),displayPath.end());
-                next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error});
+                // ZIP entries and loose files share one directory-bank hierarchy.
+                // Sound IDs, original entry names and source program ordinals stay intact.
+                auto bankId=portablePath(relative.parent_path());
+                if(lower(utf8(relative.extension()))==".zip") {
+                    bankId=portablePath(relative);
+                    auto entry=item.archiveEntry;
+                    std::replace(entry.begin(),entry.end(),'\\','/');
+                    const auto slash=entry.find_last_of('/');
+                    if(slash!=std::string::npos && slash>0)bankId+="/"+entry.substr(0,slash);
+                }
+                if(bankId.empty())bankId=".";
+                const auto bankName=bankId=="." ? "Library root" : bankId;
+                next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error,item.location});
             }
         }
         entries.swap(next);error.clear();return true;
@@ -191,12 +214,17 @@ bool PatchCatalog::removePatch(const std::string& id,std::string& error) {
 bool PatchCatalog::removeBank(const std::string& bankId,std::string& error) {
     try {
         requireRoot(directory);
-        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.bankId==bankId;});
+        const auto key=filterPath(bankId);
+        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){
+            return p.file.empty() ? p.bankId==key :
+                portablePath(p.file.lexically_relative(fs::weakly_canonical(directory)))==key;
+        });
         if(found==entries.end())throw std::runtime_error("This bank is no longer in the library.");
         if(!found->file.empty()) {
             if(!fs::remove(found->file))throw std::runtime_error("The bank was already removed. Refresh the library.");
-            std::error_code ignored;for(const auto& p:entries)if(p.bankId==bankId){fs::remove(favorites(directory,p.id),ignored);fs::remove(tagPath(directory,p.id),ignored);}
-            std::erase_if(entries,[&](const auto& p){return p.bankId==bankId;});error.clear();return true;
+            const auto file=found->file;
+            std::error_code ignored;for(const auto& p:entries)if(p.file==file){fs::remove(favorites(directory,p.id),ignored);fs::remove(tagPath(directory,p.id),ignored);}
+            std::erase_if(entries,[&](const auto& p){return p.file==file;});error.clear();return true;
         }
         const auto bank=directory/"banks"/bankId;
         if(!fs::is_directory(fs::symlink_status(bank)))throw std::runtime_error("The bank folder is unavailable.");
@@ -208,16 +236,32 @@ bool PatchCatalog::removeBank(const std::string& bankId,std::string& error) {
         std::erase_if(entries,[&](const auto& p){return p.bankId==bankId;});error.clear();return true;
     } catch(const std::exception& e){error=e.what();return false;}
 }
+std::vector<CatalogBank> PatchCatalog::banks() const {
+    std::map<std::string,std::string> unique;
+    for(const auto& patch:entries) {
+        unique.emplace(patch.bankId,patch.bankName);
+        if(patch.file.empty())continue;
+        for(auto slash=patch.bankId.find('/');slash!=std::string::npos;slash=patch.bankId.find('/',slash+1)) {
+            const auto parent=patch.bankId.substr(0,slash);
+            if(!parent.empty())unique.emplace(parent,parent);
+        }
+    }
+    std::vector<CatalogBank> result;
+    for(const auto& [id,name]:unique)result.push_back({id,name});
+    std::stable_sort(result.begin(),result.end(),[](const auto& a,const auto& b){return a.name<b.name;});
+    return result;
+}
 std::vector<std::size_t> PatchCatalog::search(const CatalogFilter& filter)const {
+    const auto bank=filterPath(filter.bankId);
     std::istringstream input(lower(filter.query));std::vector<std::string> terms;
     for(std::string term;input>>term;)terms.push_back(std::move(term));
     std::vector<std::size_t> result;
     for(std::size_t i=0;i<entries.size();++i) {
         const auto& p=entries[i];
         if(filter.registeredOnly && std::find(filter.registeredIds.begin(),filter.registeredIds.end(),p.id)==filter.registeredIds.end())continue;
-        if((!filter.bankId.empty() && p.bankId!=filter.bankId) || (filter.favoritesOnly && !p.favorite))continue;
+        if((!bank.empty() && !inBank(p,bank)) || (filter.favoritesOnly && !p.favorite))continue;
         if(!filter.tag.empty() && std::none_of(p.tags.begin(),p.tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
-        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.archiveEntry+" "+tagText(p.tags));
+        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.location+" "+p.archiveEntry+" "+tagText(p.tags));
         if(std::all_of(terms.begin(),terms.end(),[&](const auto& term){return haystack.find(term)!=std::string::npos;}))result.push_back(i);
     }
     return result;
