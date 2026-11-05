@@ -74,3 +74,8 @@ and [native APP capture](../validation/manual-platform.md#native-windows-app-cap
 
 The generated layout study and interactive preview are presentation aids governed
 by this contract, not audio/DAW validation.
+
+Momentary editor actions use the shared native ActionButtonControl, which starts
+the SDK completion animation before invoking application code. Click feedback
+must return to idle even when a menu or dialog captures the release event.
+Tab and source-selection controls retain their independent selected-state behavior.

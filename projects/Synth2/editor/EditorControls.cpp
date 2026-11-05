@@ -10,6 +10,18 @@
 
 namespace synth2::editor::native
 {
+ActionButtonControl::ActionButtonControl(const IRECT& bounds, IActionFunction action,
+                                         const char* label, const IVStyle& style)
+    : IVButtonControl(bounds, [action=std::move(action)](IControl* caller) {
+        // The base button sets its value to 1 on mouse-down and clears it only
+        // at animation completion. A custom action must retain that lifecycle,
+        // including when it opens a menu/dialog and no mouse-up reaches us.
+        DefaultClickActionFunc(caller);
+        if(action)action(caller);
+    },label,style)
+{
+}
+
 HeaderControl::HeaderControl() : IControl(IRECT(0,0,1280,118)) { mIgnoreMouse=true; }
 
 void HeaderControl::Draw(IGraphics& g) {

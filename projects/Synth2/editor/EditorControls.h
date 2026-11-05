@@ -12,6 +12,14 @@ namespace synth2::editor::native
 using namespace iplug;
 using namespace iplug::igraphics;
 
+// Compose the SDK momentary-button lifecycle with application callbacks.
+class ActionButtonControl final : public IVButtonControl
+{
+public:
+    ActionButtonControl(const IRECT& bounds, IActionFunction action, const char* label,
+                        const IVStyle& style);
+};
+
 class HeaderControl final : public IControl
 {
 public:

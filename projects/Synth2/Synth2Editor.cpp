@@ -36,19 +36,19 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
     graphics->AttachControl(new ITextControl(IRECT(266,82,644,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(654,82,744,112),[this](IControl*) { showPage(synth2::editor::editorLibraryView); },"Library",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(654,82,744,112),[this](IControl*) { showPage(synth2::editor::editorLibraryView); },"Library",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new ITextControl(IRECT(20,82,66,112),"Find",text.WithSize(12.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new SearchControl(IRECT(68,82,248,112),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
     }),searchTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
         .WithLabelText(text.WithFont("Synth2Mono").WithSize(16.f).WithFGColor(color(appearance.displayText)))),presetTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(890,20,934,66),[this](IControl*) { stepPatch(-1); },"<",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(944,20,988,66),[this](IControl*) { stepPatch(1); },">",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(890,20,934,66),[this](IControl*) { stepPatch(-1); },"<",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(944,20,988,66),[this](IControl*) { stepPatch(1); },">",style));
 
     std::vector<const char*> labels(synth2::editor::editorViews.begin(),synth2::editor::editorViews.end());
     auto* tabs = new IVTabSwitchControl(IRECT(900,82,1260,112),[this](IControl* control) {
@@ -101,13 +101,13 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new SearchControl(IRECT(20,136,430,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
     }),librarySearchTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(442,136,650,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(662,136,868,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(442,136,650,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(662,136,868,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
         libraryFilter.favoritesOnly=!libraryFilter.favoritesOnly;resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Favorites: off",style),favoritesTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
-    graphics->AttachControl(new IVButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
+    graphics->AttachControl(new ActionButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
     graphics->AttachControl(new ITextControl(IRECT(20,180,1260,200),"Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the list.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
@@ -133,10 +133,10 @@ void Synth2::layoutEditor(IGraphics* graphics)
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
         resultOffset=resultOffset>=visibleRows ? resultOffset-visibleRows : 0;refreshBrowser();
     },"Page <",style),4014);
-    graphics->AttachControl(new IVButtonControl(IRECT(1164,742,1260,778),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1164,742,1260,778),[this](IControl*) {
         if(resultOffset+visibleRows<catalog.search(libraryFilter).size())resultOffset+=visibleRows;refreshBrowser();
     },"Page >",style),4015);
     graphics->AttachControl(new ITextControl(IRECT(20,780,1260,798),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
