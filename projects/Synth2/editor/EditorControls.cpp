@@ -152,7 +152,7 @@ void CatalogListControl::Draw(IGraphics& g) {
         const auto label=item.patch.name+(item.error.empty() ? "" : " [Cannot load]");
         const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
         g.DrawText(titleText,label.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),(item.bankName+(item.archiveEntry.empty() ? "" : " / "+item.archiveEntry)).c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
+        g.DrawText(text.WithSize(11.f).WithFGColor(muted),item.bankName.c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
         const auto tags=synth2::host::PatchCatalog::tagText(item.tags);
         g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-8,y+40));
     }

@@ -28,9 +28,17 @@ other files from appearing. Selecting an invalid row preserves the current sound
 Add a file or folder from **Add...**, or drop it on the list. Registration copies
 actual `.sy1` and ZIP files and leaves the source intact. Folder names and internal
 hierarchy are retained. Already stored files are referenced without copying. A
-relative file-based bank display name uses forward slashes on every platform;
-existing bank filter identities remain unchanged. A
-physical filename conflict offers Replace, Keep both (numbered suffix), or Skip,
+bank is a directory: loose `.sy1` files in the same folder share a bank, and
+ZIP entry subdirectories form banks under the archive's relative filename.
+For example, `Pads/Collection.zip/Analog/Soft` is distinct from
+`Leads/Collection.zip/Analog/Soft`. The bank menu includes ancestor directories,
+even when they contain no sounds directly. Selecting a parent includes all its
+subdirectories and nested archives; selecting the ZIP itself still shows its
+entire collection. Files directly in the library root use `Library root`.
+Bank paths use forward slashes on every platform. Empty folders are omitted.
+Grouping leaves sound IDs, tags, favorites, source text and original ZIP program
+ordinals unchanged. ZIP directory grouping never expands or rewrites the archive.
+A physical filename conflict offers Replace, Keep both (numbered suffix), or Skip,
 with an apply-to-all option. Source text and sound titles do not determine
 collisions. Two different filenames may intentionally contain identical sounds.
 
@@ -106,7 +114,8 @@ state and the sounding patch are instance-owned.
 ## Verification boundary
 
 `PatchCatalogTest.cpp` checks file-backed accumulation, metadata, exact registration
-filters, source-bank ordinals, legacy managed-bank readability and removal without
+filters, recursive directory/ZIP banks, ancestor selection, unchanged source-bank
+ordinals and metadata identities, legacy managed-bank readability and removal without
 changing sound recall. `PresetFilesTest.cpp` checks recursive/ZIP scanning, physical
 file conflicts, confined saves, fractional `ver=200` round trips, independent edit
 baselines and transactional wrapper-v1/v2 recall. Other loading/state/patch-format

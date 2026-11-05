@@ -12,8 +12,9 @@ struct CatalogPatch {
     bool favorite = false;
     std::vector<std::string> tags;
     std::filesystem::path file;
-    std::string archiveEntry, error;
+    std::string archiveEntry, error, location;
 };
+struct CatalogBank { std::string id, name; };
 struct CatalogFilter {
     std::string query, bankId, tag;
     bool favoritesOnly = false;
@@ -42,6 +43,7 @@ public:
     bool removeBank(const std::string& bankId, std::string& error);
     const std::vector<CatalogPatch>& patches() const noexcept { return entries; }
     const std::filesystem::path& root() const noexcept { return directory; }
+    std::vector<CatalogBank> banks() const;
     std::vector<std::size_t> search(const CatalogFilter& filter) const;
 private:
     std::filesystem::path directory;
