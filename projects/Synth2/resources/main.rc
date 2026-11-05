@@ -213,7 +213,7 @@ BEGIN
             VALUE "FileDescription", "Synth2"
             VALUE "InternalName", "Synth2"
             VALUE "ProductName", "Synth2"
-            VALUE "CompanyName", "baba"
+            VALUE "CompanyName", "babab"
             VALUE "LegalCopyright", "Copyright 2026 Synth2 contributors"
             VALUE "LegalTrademarks", "VST is a trademark of Steinberg Media Technologies GmbH, Audio Unit is a trademark of Apple, Inc."
         END
