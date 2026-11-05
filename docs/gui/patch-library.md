@@ -5,7 +5,7 @@ words match independently against the title, relative file/ZIP entry location an
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
 bytes. The bounded result page and mouse wheel browse results; previous/next selects
 within that filter. Only explicit sound selection loads a sound. Registration,
-refresh, filtering, metadata edits and removal preserve the sounding processor.
+refresh, filtering and metadata edits preserve the sounding processor.
 The processor starts with Init and the library starts empty; no factory bank is
 bundled, privileged or automatically added.
 
@@ -71,10 +71,9 @@ to avoid duplicates. Ordinary ZIP/`.sy1` files are discovered even under `banks`
 **Add... → Open library folder** reveals this folder. **Choose library folder...**
 changes the shared root without moving files. Other instances adopt the configured
 root on editor reopen. Back up the complete directory to retain metadata.
-Individual loose files can be removed; ZIP-contained sounds require removal of
-the containing bank rather than ZIP rewriting. Removal requires confirmation,
-clears the corresponding metadata, and preserves original imports and saved sound
-state. Separate instances see committed file/metadata changes on refresh.
+Delete or rename files through the file manager opened by **Open library folder**,
+then Refresh to update the browser. The editor has no per-sound or per-bank Remove
+buttons. File deletion does not replace the sounding patch or saved project state. Separate instances see committed file/metadata changes on refresh.
 
 Per-file and per-ZIP PatchLibrary limits still apply. The catalog retains its
 100,000-sound/512-MiB source limit; bank/display names remain bounded to 16 KiB.

@@ -108,11 +108,10 @@ CatalogListControl::CatalogListControl(const IRECT& bounds,const synth2::host::P
                    const std::string& selected,
                    std::function<void(std::size_t)> load,
                    std::function<void(const std::string&,bool)> favorite,
-                   std::function<void(const std::string&)> remove,
                    std::function<void(int)> scroll,
                    std::function<void(const char*)> import)
     : IControl(bounds),catalog(catalog),selected(selected),load(std::move(load)),
-      favorite(std::move(favorite)),remove(std::move(remove)),scroll(std::move(scroll)),import(std::move(import)) {
+      favorite(std::move(favorite)),scroll(std::move(scroll)),import(std::move(import)) {
     SetTooltip("Click a sound to audition. Click + / - to favorite. Scroll to change pages.");
 }
 
@@ -138,8 +137,7 @@ void CatalogListControl::Draw(IGraphics& g) {
         g.DrawText(text,label.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
         g.DrawText(text.WithSize(11.f).WithFGColor(muted),(item.bankName+(item.archiveEntry.empty() ? "" : " / "+item.archiveEntry)).c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
         const auto tags=synth2::host::PatchCatalog::tagText(item.tags);
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-86,y+40));
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),"Remove",IRECT(mRECT.R-70,y,mRECT.R-8,y+40));
+        g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-8,y+40));
     }
 }
 
@@ -148,7 +146,6 @@ void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
     if(row>=visibleRows || offset+row>=matches.size())return;
     const auto index=matches[offset+row];const auto item=catalog.patches()[index];
     if(x<mRECT.L+32)favorite(item.id,!item.favorite);
-    else if(x>mRECT.R-80)remove(item.id);
     else load(index);
 }
 

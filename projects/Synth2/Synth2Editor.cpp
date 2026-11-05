@@ -119,7 +119,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](const std::string& id,bool favorite) {
             std::string error;if(!catalog.setFavorite(id,favorite,error))browserStatus=error;
             else browserStatus.clear();refreshBrowser();
-        },[this](const std::string& id) { removeLibraryPatch(id); },
+        },
         [this](int direction) {
             const auto count=catalog.search(libraryFilter).size();
             if(direction>0 && resultOffset+visibleRows<count)resultOffset+=visibleRows;
@@ -127,19 +127,18 @@ void Synth2::layoutEditor(IGraphics* graphics)
             refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
     graphics->AttachControl(new ITextControl(IRECT(20,712,1020,736),"Select a sound to edit its tags",text.WithSize(12.f).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(20,742,940,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new SearchControl(IRECT(20,742,1048,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(950,742,1048,778),[this](IControl*) {
+    graphics->AttachControl(new IVButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
         resultOffset=resultOffset>=visibleRows ? resultOffset-visibleRows : 0;refreshBrowser();
     },"Page <",style),4014);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
+    graphics->AttachControl(new IVButtonControl(IRECT(1164,742,1260,778),[this](IControl*) {
         if(resultOffset+visibleRows<catalog.search(libraryFilter).size())resultOffset+=visibleRows;refreshBrowser();
     },"Page >",style),4015);
-    graphics->AttachControl(new IVButtonControl(IRECT(1164,742,1260,778),[this](IControl*) { removeLibraryBank(); },"Remove bank",style),4016);
     graphics->AttachControl(new ITextControl(IRECT(20,780,1260,798),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
     if(!catalogLoaded)reloadCatalog();
     showPage(page);

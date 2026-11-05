@@ -61,7 +61,6 @@ public:
     CatalogListControl(const IRECT& bounds,const host::PatchCatalog& catalog,
         const std::string& selected,std::function<void(std::size_t)> load,
         std::function<void(const std::string&,bool)> favorite,
-        std::function<void(const std::string&)> remove,
         std::function<void(int)> scroll,std::function<void(const char*)> import);
     void setResults(std::vector<std::size_t> results,std::size_t start);
     void Draw(IGraphics& graphics) override;
@@ -76,7 +75,6 @@ private:
     std::size_t offset=0;
     std::function<void(std::size_t)> load;
     std::function<void(const std::string&,bool)> favorite;
-    std::function<void(const std::string&)> remove;
     std::function<void(int)> scroll;
     std::function<void(const char*)> import;
 };

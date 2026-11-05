@@ -38,8 +38,6 @@ private:
     void reloadCatalog(bool queueIfBusy = false);
     void showBankMenu(iplug::igraphics::IControl* caller);
     void showTagMenu(iplug::igraphics::IControl* caller);
-    void removeLibraryPatch(const std::string& id);
-    void removeLibraryBank();
     void changeFilter(const char* query);
     void loadLibraryPatch(std::size_t index);
     void stepPatch(int direction);

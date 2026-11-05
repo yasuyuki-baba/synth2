@@ -71,8 +71,6 @@ void Synth2::refreshBrowser()
     setText(tagsEditTag, canEdit ? synth2::host::PatchCatalog::tagText(selected->tags) : "");
     if (auto *c = graphics->GetControlWithTag(tagsEditTag))
         c->SetDisabled(!canEdit);
-    if (auto *c = graphics->GetControlWithTag(4016))
-        c->SetDisabled(libraryFilter.bankId.empty());
     const auto first = matches.empty() ? 0 : resultOffset + 1;
     setText(resultsTag, std::to_string(first) + " - " +
                             std::to_string(std::min(resultOffset + visibleRows, matches.size())) + " of " +
@@ -368,57 +366,6 @@ void Synth2::promptForBank()
                                 importBank(chosen.Get());
                             });
 }
-void Synth2::removeLibraryPatch(const std::string &id)
-{
-    auto *graphics = GetUI();
-    if (!graphics)
-        return;
-    const auto found = std::find_if(catalog.patches().begin(), catalog.patches().end(),
-                                    [&](const auto &p) { return p.id == id; });
-    if (found == catalog.patches().end())
-        return;
-    const auto message = "Remove " + found->patch.name +
-                         " from the library? The current sound and saved DAW projects are preserved.";
-    const std::weak_ptr<int> lifetime = dialogLifetime;
-    graphics->ShowMessageBox(message.c_str(), "Remove sound", kMB_YESNO,
-                             [this, lifetime, id](EMsgBoxResult result)
-                             {
-                                 if (lifetime.expired() || result != kYES)
-                                     return;
-                                 std::string error;
-                                 if (!catalog.removePatch(id, error))
-                                     browserStatus = error;
-                                 else
-                                     browserStatus = "Sound removed from library.";
-                                 refreshBrowser();
-                             });
-}
-void Synth2::removeLibraryBank()
-{
-    auto *graphics = GetUI();
-    if (!graphics || libraryFilter.bankId.empty())
-        return;
-    const auto id = libraryFilter.bankId;
-    const std::weak_ptr<int> lifetime = dialogLifetime;
-    graphics->ShowMessageBox("Remove the selected bank from the library? The original file, current sound "
-                             "and saved DAW projects are preserved.",
-                             "Remove bank", kMB_YESNO,
-                             [this, lifetime, id](EMsgBoxResult result)
-                             {
-                                 if (lifetime.expired() || result != kYES)
-                                     return;
-                                 std::string error;
-                                 if (!catalog.removeBank(id, error))
-                                     browserStatus = error;
-                                 else
-                                 {
-                                     libraryFilter.bankId.clear();
-                                     browserStatus = "Bank removed from library.";
-                                 }
-                                 refreshBrowser();
-                             });
-}
-
 void Synth2::savePreset(bool saveAs)
 {
     if (libraryJob.valid())
