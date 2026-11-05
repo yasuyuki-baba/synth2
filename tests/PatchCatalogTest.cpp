@@ -179,6 +179,18 @@ TEST(PatchCatalog, LegacyManagedBanksAndMetadataRemainReadableAlongsideFiles) {
     EXPECT_EQ(catalog.patches()[matches[0]].id,"bank-legacy/0002");EXPECT_EQ(catalog.patches()[matches[0]].program,2);
 }
 
+TEST(PatchCatalog, FiveDigitLegacyManagedOrdinalsKeepTheirIdentity) {
+    CatalogFiles files;const auto root=files.dir/"Library",bank=root/"banks/bank-legacy";
+    fs::create_directories(bank);std::ofstream(bank/"name")<<"Existing bank";
+    std::ofstream(bank/"10000.sy1")<<warm;std::ofstream(bank/"10000.name")<<"Existing high ordinal";
+    ASSERT_TRUE(PresetFiles::isManagedPatch(root,bank/"10000.sy1"));
+    PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;
+    ASSERT_EQ(catalog.patches().size(),1u);EXPECT_EQ(catalog.patches()[0].id,"bank-legacy/10000");
+    EXPECT_EQ(catalog.patches()[0].program,10000);
+    ASSERT_TRUE(catalog.setFavorite(catalog.patches()[0].id,true,error))<<error;
+    ASSERT_TRUE(catalog.reload(error))<<error;EXPECT_TRUE(catalog.patches()[0].favorite);
+}
+
 TEST(PatchCatalog, RegistrationFilterTracksExactFilesAndRetainsZipAsOneFile) {
     CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;
     const auto zip=files.bank("Owned.zip",{{"1.sy1",warm},{"2.sy1",bass}});
@@ -231,4 +243,21 @@ TEST(PatchCatalog, UnrelatedFileNamedBanksDoesNotBlockDroppedZipDiscovery) {
     const auto source=files.bank("External.zip",{{"1.sy1",warm}});fs::copy_file(source,root/"Added.zip");
     PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;ASSERT_EQ(catalog.patches().size(),1u);
     EXPECT_EQ(catalog.patches()[0].patch.text,warm);
+}
+
+TEST(PatchCatalog, FiveDigitProgramOrdinalsImportAndReloadWithoutTruncation) {
+    CatalogFiles files;std::vector<std::pair<std::string,std::string>> patches;
+    for(int i=0;i<=10000;++i)
+        patches.emplace_back(std::to_string(i)+".sy1","Owned sound "+std::to_string(i)+"\nver=113\n19,97\n29,87\n");
+    patches.back().second+="2,135\n";
+    const auto bank=files.bank("Large.zip",patches);
+    PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+    ASSERT_TRUE(catalog.importFile(bank.string(),result,error))<<error;
+    EXPECT_EQ(result.added,10001u);EXPECT_EQ(result.duplicates,0u);
+    fs::remove(bank);PatchCatalog reopened(files.dir/"Library");
+    ASSERT_TRUE(reopened.reload(error))<<error;ASSERT_EQ(reopened.patches().size(),10001u);
+    const auto matches=reopened.search({"Owned sound 10000"});ASSERT_EQ(matches.size(),1u);
+    const auto& last=reopened.patches()[matches[0]];EXPECT_EQ(last.program,10000);
+    ProcessorBridge selected;ASSERT_TRUE(selected.loadProgram(last.patch.text,last.program,error,last.patch.name))<<error;
+    EXPECT_EQ(selected.currentProgram(),10000);
 }

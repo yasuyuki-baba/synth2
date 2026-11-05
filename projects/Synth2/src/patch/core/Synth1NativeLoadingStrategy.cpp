@@ -17,7 +17,9 @@ namespace synth1::patch
             int convertValue(int index,int value,const std::array<int,99>& source) const override
             {
                 if(value==128 && index==21)return extendedFilterDepth();
-                if(value==128 && index==2)return 128;
+                // OSC2 coarse source/getter words are retained even outside the
+                // host knob range. The pitch receiver applies its own limits.
+                if(index==2 && value>=-1 && value<=255)return value;
                 const int mode=source[38]==0 ? 0 : 1;
                 const auto& curve=detail::nativeLoadingCurves[detail::nativeLoadingCurveIds[sourceVersion-104][mode][index]];
                 if(index==9 && value>=-24 && value<=24)return value;

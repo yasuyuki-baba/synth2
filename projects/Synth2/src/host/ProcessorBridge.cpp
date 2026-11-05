@@ -1,4 +1,5 @@
 #include "ProcessorBridge.h"
+#include "PatchLibrary.h"
 #include "ProcessorState.h"
 #include "SynthEngine.h"
 #include "patch/PatchLoader.h"
@@ -415,7 +416,7 @@ bool ProcessorBridge::loadPatch(const std::string& text,std::string& error){retu
 std::string ProcessorBridge::savePatch()const{return impl->savePatch();}
 bool ProcessorBridge::loadProgram(const std::string& text,int index,std::string& error,const std::string& displayName)
 {
-    if(index<0 || index>=4096){error="The selected patch is outside the supported bank range.";return false;}
+    if(index<0 || static_cast<size_t>(index)>=PatchLibrary::maximumPatches){error="The selected patch is outside the supported bank range.";return false;}
     if(!impl->load(text,error))return false;
     impl->program=index;if(!displayName.empty())impl->patchName=displayName;return true;
 }

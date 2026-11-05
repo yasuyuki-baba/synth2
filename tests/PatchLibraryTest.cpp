@@ -73,3 +73,10 @@ TEST(PatchLibrary, LongZipFilenameIsNotTruncated) {
 TEST(EditorPages, SoundParametersAppearOnceAndMetadataIsHidden) {
     std::array<int,128> seen{};for(const auto& page:synth2::editor::editorPages()){EXPECT_FALSE(page.parameters.empty());EXPECT_LE(page.parameters.size(),30u);for(int i:page.parameters){ASSERT_GE(i,0);ASSERT_LT(i,128);++seen[i];}}for(int i=0;i<128;++i)EXPECT_EQ(seen[i],i<99 ? 1 : 0)<<i;
 }
+
+TEST(PatchLibrary, CommaTitleIsDisplayedAndSearchable) {
+    TemporaryFile file(".sy1");ASSERT_TRUE(file.write("Owned lead (wheel,aftertouch)\ncolor=blue\nver=112\n19,91\n"));
+    PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(file.path.string(),error))<<error;
+    EXPECT_TRUE(library.patches()[0].name.ends_with("  -  Owned lead (wheel,aftertouch)"));
+    EXPECT_EQ(library.search("wheel,aftertouch"),(std::vector<size_t>{0}));
+}

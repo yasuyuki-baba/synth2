@@ -42,12 +42,64 @@ TEST(LoadingBehavior, NamedUnversionedAndCommentedSourcesRetainSubmittedFields)
     EXPECT_EQ(stateinspection::raw(source, 19), 91);
 }
 
+TEST(LoadingBehavior, CommasInTitlesRemainNamesWithOrWithoutVersionHeaders)
+{
+    for(const std::string title:{"Owned lead (wheel,aftertouch)","--BRASS, lead"})
+    for(const std::string header:{"", "color=blue\r\nver=112\r\n"})
+    {
+        const std::string text=title+"\r\n"+header+"19,91\r\n29,73\r\n";
+        EXPECT_TRUE(synth2::hasPatchTitle(text));
+        const auto document=synth2::parsePatchDocument(text);
+        EXPECT_EQ(document.name,title);
+        ProcessorBridge source,recalled;std::string error;
+        ASSERT_TRUE(source.loadPatch(text,error))<<error;
+        EXPECT_EQ(stateinspection::raw(source,126),header.empty() ? 100 : 112);
+        EXPECT_EQ(stateinspection::raw(source,19),91);
+        const auto state=source.saveState();
+        recalled.restoreState(state.data(),static_cast<int>(state.size()));
+        EXPECT_EQ(recalled.saveState(),state);
+    }
+    for(const std::string text:{"19,91\n29,73\n","19x,91\n29,73\n",",91\n29,73\n"})
+        EXPECT_FALSE(synth2::hasPatchTitle(text));
+    ProcessorBridge source;std::string error;
+    ASSERT_TRUE(source.loadPatch("19,91\n29,73\n",error))<<error;
+    const auto before=source.saveState();
+    for(const std::string text:{"19x,91\n29,73\n",",91\n29,73\n"})
+    {EXPECT_FALSE(source.loadPatch(text,error));EXPECT_EQ(source.saveState(),before);}
+}
+
+TEST(LoadingBehavior, ExtendedCoarseWordsRetainNativeControlsAndStateWithoutChangingHostRanges)
+{
+    for(int version:{100,104,105,106,107,108,109,110,111,112,113})
+    for(int coarse:{-1,127,135,255})
+    {
+        SCOPED_TRACE(std::to_string(version)+"/"+std::to_string(coarse));
+        const auto text="Owned extended coarse\nver="+std::to_string(version)+"\n2,"+std::to_string(coarse)+"\n19,91\n29,73\n";
+        ProcessorBridge source,recalled;std::string error;
+        ASSERT_TRUE(source.loadProgram(text,22000,error))<<error;
+        EXPECT_EQ(source.parameter(2).minimum,0);EXPECT_EQ(source.parameter(2).maximum,127);
+        source.prepare(44100,64);
+        std::array<float,64> l{},r{};ASSERT_TRUE(source.process(l.data(),r.data(),64,120));
+        std::array<int,99> controls{};ASSERT_TRUE(source.readNativeControls(controls));
+        EXPECT_EQ(controls[2],coarse);
+        const auto state=source.saveState();recalled.restoreState(state.data(),static_cast<int>(state.size()));
+        EXPECT_EQ(recalled.saveState(),state);EXPECT_EQ(recalled.currentProgram(),22000);
+        recalled.prepare(44100,64);ASSERT_TRUE(recalled.process(l.data(),r.data(),64,120));
+        ASSERT_TRUE(recalled.readNativeControls(controls));EXPECT_EQ(controls[2],coarse);
+    }
+}
+
 TEST(LoadingBehavior, UnsupportedVersionsAndMalformedTokensPreserveSelectedState)
 {
     ProcessorBridge source;
     std::string error;
     ASSERT_TRUE(source.loadProgram("Valid\nver=113\n19,91\n29,73\n", 7, error));
     const auto before = source.saveState();
+    for(int coarse:{-2,256})
+    {
+        EXPECT_FALSE(source.loadProgram("Outside coarse domain\nver=106\n2,"+std::to_string(coarse)+"\n",3,error));
+        EXPECT_EQ(source.saveState(),before);
+    }
     for (int version : {-1,0,114,999})
     {
         SCOPED_TRACE(version);

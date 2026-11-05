@@ -29,8 +29,8 @@ namespace synth1::patch
         for(const auto& entry:document.entries)
         {
             const int index=entry.index,value=entry.rawValue;
-            const int minimum=index==9 ? -24 : index>=86 && index<=89 ? -1 : 0;
-            const int maximum=index==9 ? 24 : index>=86 && index<=89 ? 65535 : index==2 || index==21 ? 128 : 127;
+            const int minimum=index==2 ? -1 : index==9 ? -24 : index>=86 && index<=89 ? -1 : 0;
+            const int maximum=index==2 ? 255 : index==9 ? 24 : index>=86 && index<=89 ? 65535 : index==21 ? 128 : 127;
             const bool discardedMidi=strategy.discardsMidiAssignments() && index>=86 && index<=89;
             if(index<0 || index>=126 || (!discardedMidi && (value<minimum || value>maximum)))
                 throw std::invalid_argument("Invalid native patch source value");
