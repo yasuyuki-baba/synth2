@@ -113,6 +113,9 @@
   unbiased fractional integration. PWM interpolates compatible base/control knots
   and shares real-offset reads across ordinary/stack oscillators, retaining each
   path's phase lookup and gain rules. See the audio contract.
+- Preserve real-valued VCA Attack targets. Do not restore integer Attack
+  truncation to reduce distortion-sensitive reference errors; keep audio
+  comparisons and their unresolved bounds separate from the precision choice.
 - Every Voice uses its physical-core VCA, including direct callers. Keep one
   absolute gain/velocity configuration and aligned per-core gain block; do not
   restore a sample-clocked amplitude envelope, separate release clock or an

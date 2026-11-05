@@ -38,10 +38,14 @@ namespace synth2::dsp {
                 f1=ModulationEnvelope::pitchFrequency(f1,pitch1Control);
                 f2=ModulationEnvelope::pitchFrequency(f2,pitch2Control);
             }
+            // The fixed VCO ceiling also applies without an active pitch receiver.
+            // Limit after modulation, before table selection and phase advancement.
+            f1=std::min(f1,22000.0f);
+            f2=std::min(f2,22000.0f);
             const bool nativeStack=std::lround(stackDial)>0 && bank != nullptr;
             uint32_t p1Old = osc1.getPhaseFixed27();
-            osc1.updatePhaseIncrement(nativeStack ? std::min(f1,22000.0f) : f1);
-            osc2.updatePhaseIncrement(nativeStack ? std::min(f2,22000.0f) : f2);
+            osc1.updatePhaseIncrement(f1);
+            osc2.updatePhaseIncrement(f2);
             float s2=osc2.renderSample(params.osc2Wave,pw,0,bank,pulseBins);
 
             // FM amount is in 27-bit phase-increment units.

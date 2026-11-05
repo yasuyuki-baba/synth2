@@ -29,6 +29,14 @@ resolved source dial, including fractional edits. Do not restore a separate
 Voice exponential frequency glide or tuning-selection flags. MIDI note and
 semitone group selection remain discrete; fine controls retain fractional cents.
 
+Both oscillator frequencies have a fixed 22,000 Hz ceiling after pitch
+modulation, before table selection and phase-increment calculation. Apply it on
+ordinary scalar, FM, Ring and Sync paths as well as stacked/modulated paths. It
+is independent of sample rate and source format; it is not a sample-rate/2
+formula. Preserve frequencies below the ceiling and its exact endpoint. A
+negative pitch offset must act before limiting, so a 40 kHz base shifted down
+one octave produces 20 kHz.
+
 Output processing applies nonlinear MultiFX/Phaser and Tone/effect processing,
 then global balance or Pan LFO, then native Delay and Chorus, then startup gain.
 Wet processing uses EffectPair for every source/state route when effects are
@@ -55,6 +63,9 @@ Deterministic amplitude LFOs share the clock, receiver knots and VCA target/ramp
 processing across formats. A slot consumed by the VCA is skipped individually in
 the direct modulation router; another nonadmitted slot must retain its modulation.
 Keep fractional phase interpolation and the existing real envelope levels.
+VCA Attack targets retain fractional levels rather than truncating to integer
+steps. Distortion-sensitive reference errors must not select an integer Attack
+path or a different amplitude algorithm.
 
 ## Filter implementation selection
 
