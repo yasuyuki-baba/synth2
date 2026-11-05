@@ -141,8 +141,13 @@ TEST(PatchCatalog, FolderImportPreservesRelativeNamesAndNaturalOrder) {
     PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
     ASSERT_TRUE(catalog.importFile(folder.string()+"/",result,error))<<error;EXPECT_EQ(result.added,2u);
     const auto i=imported(catalog);EXPECT_EQ(catalog.patches()[i].patch.text,warm);
-    EXPECT_TRUE(catalog.patches()[i].bankName=="OwnedFolder/Nested/2.sy1");
+    EXPECT_EQ(catalog.patches()[i].bankName,"OwnedFolder/Nested/2.sy1");
+    EXPECT_EQ(catalog.search({"OwnedFolder/Nested/2.sy1"}),(std::vector<std::size_t>{i}));
+    const auto bankId=catalog.patches()[i].bankId;
+    EXPECT_EQ(catalog.search({"",bankId}),(std::vector<std::size_t>{i}));
     fs::remove_all(folder);ASSERT_TRUE(catalog.reload(error));
+    EXPECT_EQ(catalog.patches()[i].bankName,"OwnedFolder/Nested/2.sy1");
+    EXPECT_EQ(catalog.patches()[i].bankId,bankId);
     EXPECT_EQ(catalog.search({"OwnedFolder"}).size(),2u);
 }
 

@@ -117,7 +117,10 @@ bool PatchCatalog::reload(std::string& error) {
             for(const auto& item:files.entries()) {
                 if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
                 total+=item.text.size();auto relative=item.file.lexically_relative(fs::weakly_canonical(directory));
-                const auto bankId=utf8(relative),bankName=bankId;
+                // Keep existing filter identities while displaying portable path separators.
+                const auto bankId=utf8(relative);
+                const auto displayPath=relative.generic_u8string();
+                const std::string bankName(displayPath.begin(),displayPath.end());
                 next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error});
             }
         }

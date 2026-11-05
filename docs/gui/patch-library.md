@@ -28,6 +28,8 @@ other files from appearing. Selecting an invalid row preserves the current sound
 Add a file or folder from **Add...**, or drop it on the list. Registration copies
 actual `.sy1` and ZIP files and leaves the source intact. Folder names and internal
 hierarchy are retained. Already stored files are referenced without copying. A
+relative file-based bank display name uses forward slashes on every platform;
+existing bank filter identities remain unchanged. A
 physical filename conflict offers Replace, Keep both (numbered suffix), or Skip,
 with an apply-to-all option. Source text and sound titles do not determine
 collisions. Two different filenames may intentionally contain identical sounds.
