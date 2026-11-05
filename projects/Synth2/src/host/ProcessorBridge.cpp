@@ -92,7 +92,8 @@ struct ProcessorBridge::Impl
     std::array<Event,midiCapacity> events{};
     size_t eventCount=0;uint64_t drops=0;bool overflow=false;int capacity=0;
     audio::AudioBuffer<float> scratch;
-    audio::MidiBuffer midi;
+    audio::MidiBuffer midi,incoming;
+    EditorMidiInput editorMidi;
     Impl()
     {
         parameterMapper->setContinuousControls(continuousControls);
@@ -367,11 +368,19 @@ struct ProcessorBridge::Impl
             if(left && frames>0)std::fill_n(left,frames,Sample{});if(right && frames>0)std::fill_n(right,frames,Sample{});
             eventCount=0;overflow=false;midi.clear();return false;
         }
-        midi.clear();
-        if(overflow)for(int c=1;c<=16;++c)midi.addEvent(audio::MidiMessage::allSoundOff(c),0);
+        midi.clear();incoming.clear();
+        if(overflow)for(int c=1;c<=16;++c)incoming.addEvent(audio::MidiMessage::allSoundOff(c),0);
         else for(size_t i=0;i<eventCount;++i)
-        {const auto& e=events[i];if(e.offset>=frames){++drops;continue;}midi.addEvent(audio::MidiMessage(e.status,e.data1,e.data2),e.offset);}
+        {const auto& e=events[i];if(e.offset>=frames){++drops;continue;}incoming.addEvent(audio::MidiMessage(e.status,e.data1,e.data2),e.offset);}
         eventCount=0;overflow=false;
+        bool editorOverflow=false;
+        editorMidi.consume([&](const auto& message){if(!midi.addEvent(message,0))editorOverflow=true;});
+        for(const auto& event:incoming)
+            editorMidi.host(event.message,[&](const auto& message){if(!midi.addEvent(message,event.samplePosition))editorOverflow=true;});
+        if(editorOverflow) {
+            ++drops;midi.clear();editorMidi.resetAudio();
+            for(int c=1;c<=16;++c)midi.addEvent(audio::MidiMessage::allSoundOff(c),0);
+        }
         float* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<float> buffer(pointers,2,frames);buffer.clear();
         const NoDenormals noDenormals;
         bpm=std::isfinite(bpm) && bpm>0 && bpm<=1000 ? bpm : 120;
@@ -399,9 +408,12 @@ void ProcessorBridge::prepare(double rate,int frames)
     if(!std::isfinite(rate) || rate<=0 || frames<=0)throw std::invalid_argument("Invalid Synth2 playback configuration");
     impl->scratch.setSize(2,frames);impl->eventCount=0;impl->overflow=false;impl->midi.clear();
     impl->flushNativeLfoHistory();if(rate!=44100. || frames!=64)impl->engine.invalidateNativeRandomHistory();
-    impl->engine.prepareToPlay(rate,frames);impl->capacity=frames;
+    impl->engine.prepareToPlay(rate,frames);impl->editorMidi.resetAudio();impl->capacity=frames;
 }
 void ProcessorBridge::release(){impl->engine.releaseResources();impl->capacity=0;impl->eventCount=0;impl->overflow=false;impl->midi.clear();}
+void ProcessorBridge::setEditorNote(int note,int velocity,EditorNoteSource source)noexcept {impl->editorMidi.set(note,velocity,source);}
+void ProcessorBridge::releaseEditorNotes()noexcept {impl->editorMidi.release();}
+bool ProcessorBridge::editorNotePressed(int note)const noexcept {return impl->editorMidi.pressed(note);}
 bool ProcessorBridge::enqueueMidi(int offset,uint8_t status,uint8_t first,uint8_t second)noexcept
 {
     if(offset<0 || status<0x80 || status>=0xf0 || first>127 || second>127){++impl->drops;return false;}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParameterInfo.h"
+#include "EditorMidiInput.h"
 
 #include <cstddef>
 #include <array>
@@ -35,6 +36,10 @@ public:
     void prepare(double sampleRate, int maximumFrames);
     void release();
     // Channel messages only; status includes the zero-based MIDI channel nibble.
+    // Editor thread only; audio applies desired UI ownership at block boundaries.
+    void setEditorNote(int note, int velocity, EditorNoteSource source) noexcept;
+    void releaseEditorNotes() noexcept;
+    bool editorNotePressed(int note) const noexcept;
     bool enqueueMidi(int offset, uint8_t status, uint8_t data1, uint8_t data2) noexcept;
     // Stereo non-interleaved output. Frames must fit the prepared capacity.
     // Invalid blocks are silenced without resizing or splitting the DSP callback.

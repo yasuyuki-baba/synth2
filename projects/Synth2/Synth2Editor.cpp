@@ -4,7 +4,8 @@
 #include "editor/EditorStyle.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorFonts.h"
-#include "IVKeyboardControl.h"
+#include "editor/EditorKeyboardControl.h"
+#include "editor/EditorKeyboardFocus.h"
 #include <algorithm>
 
 using namespace iplug;
@@ -86,12 +87,27 @@ void Synth2::layoutEditor(IGraphics* graphics)
         }
     }
     graphics->AttachControl(new ITextControl(IRECT(20,802,700,826),"",text.WithFGColor(muted).WithSize(12.f).WithAlign(EAlign::Near)),statusTag);
-    graphics->AttachControl(new ITextControl(IRECT(720,802,1260,826),"Click a value to enter it  /  Drag the corner to scale",
+    graphics->AttachControl(new ITextControl(IRECT(720,802,1090,826),"Click a value to type  /  Drag corner to scale",
         text.WithFGColor(muted).WithSize(11.f).WithAlign(EAlign::Far)));
-    auto* keyboard=new IVKeyboardControl(IRECT(20,840,1260,900),36,84,false,
-        IColor(255,218,215,205),color(appearance.control),accent,color(appearance.border),ink);
+    auto* keyboard=new EditorKeyboardControl(IRECT(20,840,1260,900),processor);
     keyboard->SetText(text);
-    graphics->AttachControl(keyboard);
+    graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
+    graphics->AttachControl(new IVToggleControl(IRECT(1100,802,1260,830),[this](IControl* control) {
+        setKeyboardVisible(control->GetValue()>.5);
+    },"",style,"Keyboard","Keyboard"),keyboardToggleTag);
+    graphics->AttachControl(new ITextControl(IRECT(20,902,1260,918),
+        "Play: A W S E D F T G Y H U J K O L   /   Octave: Z down, X up",
+        text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),keyboardHelpTag)->Hide(!keyboardVisible);
+    graphics->SetKeyHandlerFunc([this,graphics](const IKeyPress& key,bool up) {
+        if(!keyboardVisible || graphics->GetControlInTextEntry() || !editorKeyboardHasFocus(graphics->GetWindow())) {
+            releaseComputerNotes();return false;
+        }
+        const bool handled=computerKeyboard.key(key.VK,up,key.C || key.A,[this](int note,int velocity) {
+            processor.setEditorNote(note,velocity,synth2::host::EditorNoteSource::computer);
+        });
+        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->refresh();
+        return handled;
+    });
     // A supplementary browser keeps sound-design controls on the main surface.
     graphics->AttachControl(new SearchControl(IRECT(20,136,430,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
@@ -168,6 +184,7 @@ void Synth2::showPage(int next)
 
 void Synth2::OnIdle()
 {
+    updateKeyboardInput();
     if (importPrompt && !conflictShown && GetUI())
     {
         std::unique_lock lock(importPrompt->mutex);
@@ -245,8 +262,10 @@ void Synth2::OnIdle()
 }
 void Synth2::OnUIOpen()
 {
+    releaseKeyboardNotes();
     dialogLifetime=std::make_shared<int>(0);
     iplug::Plugin::OnUIOpen();
+    setKeyboardVisible(keyboardVisible);
     if(!libraryJob.valid()) {
         auto root=synth2::host::PatchCatalog::userDirectory();
         if(!root.empty() && root!=catalog.root()){catalog=synth2::host::PatchCatalog(root);catalogLoaded=false;libraryFilter={};selectedPatchId.clear();resultOffset=0;}
@@ -255,8 +274,47 @@ void Synth2::OnUIOpen()
 }
 void Synth2::OnUIClose()
 {
+    releaseKeyboardNotes();
+    keyboardVisible=false;
     dialogLifetime.reset();
     if(importPrompt){{std::lock_guard lock(importPrompt->mutex);importPrompt->alive=false;}importPrompt->changed.notify_all();}
     conflictShown=false;
     iplug::Plugin::OnUIClose();
+}
+
+
+void Synth2::setKeyboardVisible(bool visible)
+{
+    if(!visible)releaseKeyboardNotes();
+    keyboardVisible=visible;
+    if(auto* graphics=GetUI()) {
+        for(int tag:{keyboardTag,keyboardHelpTag})
+            if(auto* control=graphics->GetControlWithTag(tag))control->Hide(!visible);
+        if(auto* toggle=graphics->GetControlWithTag(keyboardToggleTag)) {
+            toggle->SetValue(visible ? 1. : 0.);toggle->SetDirty(false);
+        }
+        graphics->Resize(PLUG_WIDTH,visible ? 920 : PLUG_HEIGHT,graphics->GetDrawScale());
+        graphics->SetAllControlsDirty();
+    }
+}
+void Synth2::releaseComputerNotes()
+{
+    computerKeyboard.release([this](int note,int velocity) {
+        processor.setEditorNote(note,velocity,synth2::host::EditorNoteSource::computer);
+    });
+}
+void Synth2::releaseKeyboardNotes()
+{
+    releaseComputerNotes();
+    processor.releaseEditorNotes();
+    if(auto* graphics=GetUI())
+        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->releaseMouse();
+}
+void Synth2::updateKeyboardInput()
+{
+    auto* graphics=GetUI();
+    if(!graphics || !keyboardVisible)return;
+    if(!editorKeyboardHasFocus(graphics->GetWindow()))releaseKeyboardNotes();
+    else if(graphics->GetControlInTextEntry())releaseComputerNotes();
+    if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->refresh();
 }

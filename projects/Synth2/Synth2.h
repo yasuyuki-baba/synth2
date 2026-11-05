@@ -2,6 +2,7 @@
 #include "IPlug_include_in_plug_hdr.h"
 #include "ProcessorBridge.h"
 #include "PatchCatalog.h"
+#include "editor/ComputerKeyboard.h"
 #include <atomic>
 #include <memory>
 #include <future>
@@ -29,6 +30,12 @@ private:
     void syncParametersFromProcessor();
     void layoutEditor(iplug::igraphics::IGraphics* graphics);
     void showPage(int page);
+    void setKeyboardVisible(bool visible);
+    void releaseComputerNotes();
+    void releaseKeyboardNotes();
+    void updateKeyboardInput();
+    synth2::editor::ComputerKeyboard computerKeyboard;
+    bool keyboardVisible = false;
     void refreshBrowser();
     void showPresetMenu(iplug::igraphics::IControl* caller);
     void promptForBank();
