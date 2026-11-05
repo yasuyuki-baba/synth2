@@ -95,3 +95,8 @@ require platform checks.
 Legacy loading resolves compatible integer parameters, including defaults and
 source-version conversion, before exact promotion to floating-point dials.
 Subsequent fractional edits must not undergo legacy conversion again.
+
+The native wrapper's v2 envelope adds instance browser state and a load/save edit
+baseline around the existing processor state. It accepts wrapper v1. Both payloads
+are validated before committing a recall; library paths are never needed to restore
+the sounding processor. See [library/session behavior](../gui/patch-library.md).

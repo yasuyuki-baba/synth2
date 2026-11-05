@@ -80,3 +80,21 @@ focused-test, sanitizer and SDK commands in the [test guide](../../tests/README.
 architecture constraints in the relevant design/contract, and dated results in
 validation records. Add self-authored regression cases without weakening the
 requirement, and keep manual-only activities outside the automated inventory.
+
+## File-backed preset management
+
+`EditorLayoutTest.cpp` checks the current-preset header's bank/name formatting,
+missing-bank fallback, UTF-8 text and edited marker. Native selected-row colors,
+accent stripe and bold title remain platform presentation checks.
+
+`PresetFilesTest.cpp` covers recursive loose/ZIP discovery with invalid rows,
+registration identity, keep/replace/skip and apply-to-all, contained staged saving,
+current-format fractional/master-gain preservation, independent baselines and
+transactional wrapper-v1/v2 recall. `PatchCatalogTest.cpp` retains metadata and
+source-bank ordinal checks and adds exact registration filters and compatibility
+with existing managed-bank storage. Native adapters preserve these boundaries;
+actual SDK dialogs and standalone teardown are platform interactions.
+
+Dropped-ZIP refresh regressions cover ordinary folders, legacy storage folder
+names, mixed managed/loose sources, and unrelated files named `banks`. Managed
+IDs and metadata remain stable without suppressing newly copied source files.

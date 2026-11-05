@@ -9,6 +9,7 @@ struct LibraryPatch
 {
     std::string name;
     std::string text;
+    std::string entry;
 };
 
 // UI-side, immutable-after-open snapshot. No SDK types or paths are needed by

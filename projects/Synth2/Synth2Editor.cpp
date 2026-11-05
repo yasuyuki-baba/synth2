@@ -35,19 +35,15 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,16,214,65),"SYNTH2",text.WithFont("Synth2UIBold").WithSize(29.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
-    graphics->AttachControl(new ITextControl(IRECT(266,82,644,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(654,82,744,112),[this](IControl*) { showPage(synth2::editor::editorLibraryView); },"Library",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(756,82,878,112),[this](IControl* caller) { showImportMenu(caller); },"Add sounds...",style));
-    graphics->AttachControl(new ITextControl(IRECT(20,82,66,112),"Find",text.WithSize(12.f).WithAlign(EAlign::Near)));
-    graphics->AttachControl(new SearchControl(IRECT(68,82,248,112),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
-        changeFilter(query);
-    }),searchTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
+    graphics->AttachControl(new ITextControl(IRECT(20,82,744,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
         .WithLabelText(text.WithFont("Synth2Mono").WithSize(16.f).WithFGColor(color(appearance.displayText)))),presetTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(890,20,934,66),[this](IControl*) { stepPatch(-1); },"<",style));
-    graphics->AttachControl(new IVButtonControl(IRECT(944,20,988,66),[this](IControl*) { stepPatch(1); },">",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(890,20,934,66),[this](IControl*) { stepPatch(-1); },"<",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(944,20,988,66),[this](IControl*) { stepPatch(1); },">",style));
 
     std::vector<const char*> labels(synth2::editor::editorViews.begin(),synth2::editor::editorViews.end());
     auto* tabs = new IVTabSwitchControl(IRECT(900,82,1260,112),[this](IControl* control) {
@@ -100,13 +96,13 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new SearchControl(IRECT(20,136,430,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
     }),librarySearchTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(442,136,650,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(662,136,868,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(442,136,650,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(662,136,868,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
         libraryFilter.favoritesOnly=!libraryFilter.favoritesOnly;resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Favorites: off",style),favoritesTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(); },"Refresh",style),4008);
-    graphics->AttachControl(new IVButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
+    graphics->AttachControl(new ActionButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
     graphics->AttachControl(new ITextControl(IRECT(20,180,1260,200),"Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the list.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
@@ -118,7 +114,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](const std::string& id,bool favorite) {
             std::string error;if(!catalog.setFavorite(id,favorite,error))browserStatus=error;
             else browserStatus.clear();refreshBrowser();
-        },[this](const std::string& id) { removeLibraryPatch(id); },
+        },
         [this](int direction) {
             const auto count=catalog.search(libraryFilter).size();
             if(direction>0 && resultOffset+visibleRows<count)resultOffset+=visibleRows;
@@ -126,19 +122,18 @@ void Synth2::layoutEditor(IGraphics* graphics)
             refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
     graphics->AttachControl(new ITextControl(IRECT(20,712,1020,736),"Select a sound to edit its tags",text.WithSize(12.f).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(20,742,940,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new SearchControl(IRECT(20,742,1048,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
-    graphics->AttachControl(new IVButtonControl(IRECT(950,742,1048,778),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
         resultOffset=resultOffset>=visibleRows ? resultOffset-visibleRows : 0;refreshBrowser();
     },"Page <",style),4014);
-    graphics->AttachControl(new IVButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1164,742,1260,778),[this](IControl*) {
         if(resultOffset+visibleRows<catalog.search(libraryFilter).size())resultOffset+=visibleRows;refreshBrowser();
     },"Page >",style),4015);
-    graphics->AttachControl(new IVButtonControl(IRECT(1164,742,1260,778),[this](IControl*) { removeLibraryBank(); },"Remove bank",style),4016);
     graphics->AttachControl(new ITextControl(IRECT(20,780,1260,798),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
     if(!catalogLoaded)reloadCatalog();
     showPage(page);
@@ -164,24 +159,104 @@ void Synth2::showPage(int next)
         for (std::size_t group=5;group<pages.size();++group)
             for (int index:pages[group].parameters)
                 if (auto* control=graphics->GetControlWithTag(parameterTag+index)) control->Hide(page!=static_cast<int>(group)-4);
+        // Invalidate the background as well as the newly visible controls so a
+        // page transition clears the entire previous surface in one redraw.
+        // Do not push parameter values or invoke control actions while repainting.
+        graphics->SetAllControlsDirty();
     }
 }
 
 void Synth2::OnIdle()
 {
+    if (importPrompt && !conflictShown && GetUI())
+    {
+        std::unique_lock lock(importPrompt->mutex);
+        if (importPrompt->alive && importPrompt->pending && !importPrompt->answered)
+        {
+            conflictShown = true;
+            auto prompt = importPrompt;
+            auto filename = prompt->path.filename().u8string();
+            lock.unlock();
+            browserStatus = "File already exists: " + std::string(filename.begin(), filename.end());
+            conflictMenu = std::make_unique<IPopupMenu>("File already exists");
+            for (auto text : {"Replace", "Keep both", "Skip", "Replace all", "Keep both for all", "Skip all"})
+                conflictMenu->AddItem(text);
+            conflictMenu->SetFunction(
+                [this, prompt](IPopupMenu *menu)
+                {
+                    int i = menu->GetChosenItemIdx();
+                    {
+                        std::lock_guard lock(prompt->mutex);
+                        prompt->choice = {i < 0 ? synth2::host::FileConflict::skip
+                                                : static_cast<synth2::host::FileConflict>(i % 3),
+                                          i < 0 || i >= 3};
+                        prompt->answered = true;
+                        prompt->pending = false;
+                    }
+                    prompt->changed.notify_all();
+                    conflictShown = false;
+                });
+            if (auto *caller = GetUI()->GetControlWithTag(bankTag))
+                GetUI()->CreatePopupMenu(*caller, *conflictMenu, caller->GetRECT());
+            refreshBrowser();
+        }
+    }
+    if (libraryJob.valid() && libraryJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    {
+        try
+        {
+            auto result=libraryJob.get();
+            if(result.error.empty() && (!result.importing || result.imported.catalogReady)){catalog=std::move(result.catalog);catalogLoaded=true;}
+            if(result.generation==browserGeneration.load() && result.saving && result.error.empty()) {
+                selectedPatchId=result.savedId;currentPatch=result.savedName;browser.baseline=result.savedBaseline;
+                libraryFilter={};resultOffset=0;browserStatus="Preset saved.";
+                const auto matches=catalog.search(libraryFilter);for(std::size_t n=0;n<matches.size();++n)if(catalog.patches()[matches[n]].id==selectedPatchId)resultOffset=(n/visibleRows)*visibleRows;
+                showPage(synth2::editor::editorLibraryView);
+            } else if(result.generation==browserGeneration.load() && result.importing) {
+                libraryFilter={};libraryFilter.registeredOnly=true;libraryFilter.registeredIds=std::move(result.imported.ids);resultOffset=0;
+                browserStatus=std::to_string(result.imported.imported)+" files registered, "+std::to_string(result.imported.skipped)+" skipped, "+std::to_string(result.imported.errors.size())+" errors";
+                if(!result.imported.errors.empty())browserStatus+=" / "+result.imported.errors.front();
+            }else browserStatus=result.error;
+            refreshBrowser();
+        }
+        catch (const std::exception &e)
+        {
+            browserStatus = e.what();
+            refreshBrowser();
+        }
+    }
+    if(catalogReloadPending && !libraryJob.valid())
+    {
+        catalogReloadPending=false;
+        reloadCatalog();
+    }
+    const bool modified = browser.modified(processor);
     if (stateRestored.exchange(false))
     {
-        selectedPatchId.clear(); currentPatch=processor.currentPatchName(); browserStatus.clear(); refreshBrowser();
+        showPage(page);
+        reloadCatalog();
+        refreshBrowser();
+    }
+    if (modified != lastModified)
+    {
+        lastModified = modified;
+        refreshBrowser();
     }
 }
 void Synth2::OnUIOpen()
 {
     dialogLifetime=std::make_shared<int>(0);
     iplug::Plugin::OnUIOpen();
+    if(!libraryJob.valid()) {
+        auto root=synth2::host::PatchCatalog::userDirectory();
+        if(!root.empty() && root!=catalog.root()){catalog=synth2::host::PatchCatalog(root);catalogLoaded=false;libraryFilter={};selectedPatchId.clear();resultOffset=0;}
+    }
     reloadCatalog();
 }
 void Synth2::OnUIClose()
 {
     dialogLifetime.reset();
+    if(importPrompt){{std::lock_guard lock(importPrompt->mutex);importPrompt->alive=false;}importPrompt->changed.notify_all();}
+    conflictShown=false;
     iplug::Plugin::OnUIClose();
 }

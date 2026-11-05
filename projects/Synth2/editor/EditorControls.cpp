@@ -10,6 +10,18 @@
 
 namespace synth2::editor::native
 {
+ActionButtonControl::ActionButtonControl(const IRECT& bounds, IActionFunction action,
+                                         const char* label, const IVStyle& style)
+    : IVButtonControl(bounds, [action=std::move(action)](IControl* caller) {
+        // The base button sets its value to 1 on mouse-down and clears it only
+        // at animation completion. A custom action must retain that lifecycle,
+        // including when it opens a menu/dialog and no mouse-up reaches us.
+        DefaultClickActionFunc(caller);
+        if(action)action(caller);
+    },label,style)
+{
+}
+
 HeaderControl::HeaderControl() : IControl(IRECT(0,0,1280,118)) { mIgnoreMouse=true; }
 
 void HeaderControl::Draw(IGraphics& g) {
@@ -108,11 +120,10 @@ CatalogListControl::CatalogListControl(const IRECT& bounds,const synth2::host::P
                    const std::string& selected,
                    std::function<void(std::size_t)> load,
                    std::function<void(const std::string&,bool)> favorite,
-                   std::function<void(const std::string&)> remove,
                    std::function<void(int)> scroll,
                    std::function<void(const char*)> import)
     : IControl(bounds),catalog(catalog),selected(selected),load(std::move(load)),
-      favorite(std::move(favorite)),remove(std::move(remove)),scroll(std::move(scroll)),import(std::move(import)) {
+      favorite(std::move(favorite)),scroll(std::move(scroll)),import(std::move(import)) {
     SetTooltip("Click a sound to audition. Click + / - to favorite. Scroll to change pages.");
 }
 
@@ -130,15 +141,20 @@ void CatalogListControl::Draw(IGraphics& g) {
         const auto& item=catalog.patches()[matches[offset+row]];
         const auto y=mRECT.T+row*40.f;
         const IRECT bounds(mRECT.L,y,mRECT.R,y+40.f);
-        if(item.id==selected)g.FillRect(color(appearance.display),bounds);
+        const bool isSelected=item.id==selected;
+        if(isSelected) {
+            g.FillRect(color(appearance.selectedRow),bounds);
+            g.FillRect(accent,IRECT(mRECT.L,y,mRECT.L+4,y+40.f));
+        }
         else if(row%2==1)g.FillRect(background,bounds);
         const IText text(13.f,ink,"Synth2UI",EAlign::Near);
         g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+40));
-        g.DrawText(text,item.patch.name.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),item.bankName.c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
+        const auto label=item.patch.name+(item.error.empty() ? "" : " [Cannot load]");
+        const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
+        g.DrawText(titleText,label.c_str(),IRECT(mRECT.L+38,y,mRECT.L+565,y+40));
+        g.DrawText(text.WithSize(11.f).WithFGColor(muted),(item.bankName+(item.archiveEntry.empty() ? "" : " / "+item.archiveEntry)).c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
         const auto tags=synth2::host::PatchCatalog::tagText(item.tags);
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-86,y+40));
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),"Remove",IRECT(mRECT.R-70,y,mRECT.R-8,y+40));
+        g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-8,y+40));
     }
 }
 
@@ -147,7 +163,6 @@ void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
     if(row>=visibleRows || offset+row>=matches.size())return;
     const auto index=matches[offset+row];const auto item=catalog.patches()[index];
     if(x<mRECT.L+32)favorite(item.id,!item.favorite);
-    else if(x>mRECT.R-80)remove(item.id);
     else load(index);
 }
 

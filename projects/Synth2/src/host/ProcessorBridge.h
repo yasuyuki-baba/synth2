@@ -54,6 +54,7 @@ public:
     std::string currentPatchName() const;
     std::vector<uint8_t> saveState() const;
     void restoreState(const void* data, int size);
+    bool tryRestoreState(const void* data, int size);
 
     // Stopped/offline inspection only; serialize these calls with rendering.
     const synth2::SynthEngine& engineForInspection() const noexcept;

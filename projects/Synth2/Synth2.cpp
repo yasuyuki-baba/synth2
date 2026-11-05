@@ -15,7 +15,11 @@ Synth2::Synth2(const InstanceInfo& info)
     {
         synth2::host::initializeHostParameter(*GetParam(index),index,processor.parameter(index));
     }
-    syncParametersFromProcessor();
+    syncParametersFromProcessor();browser.capture(processor);
+#if defined(APP_API)
+    const auto session=synth2::host::PresetFiles::loadStandaloneState();
+    if(!session.empty()){IByteChunk chunk;chunk.PutBytes(session.data(),session.size());UnserializeState(chunk,0);}
+#endif
 #if IPLUG_EDITOR
     mMakeGraphicsFunc = [this]() {
         return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS,
@@ -63,28 +67,35 @@ void Synth2::ProcessBlock(sample**, sample** outputs, int frames)
     processor.process(outputs ? outputs[0] : nullptr, outputs ? outputs[1] : nullptr, frames, GetTempo());
 }
 
+synth2::host::PresetBrowserState Synth2::captureBrowser() const
+{
+    auto state=browser;state.query=libraryFilter.query;state.bankId=libraryFilter.bankId;state.tag=libraryFilter.tag;
+    state.favoritesOnly=libraryFilter.favoritesOnly;state.restricted=libraryFilter.registeredOnly;
+    state.importedIds=libraryFilter.registeredIds;state.selectedId=selectedPatchId;state.patchName=currentPatch;
+    state.scroll=static_cast<int>(resultOffset);state.page=page;return state;
+}
+void Synth2::restoreBrowser()
+{
+    libraryFilter.query=browser.query;libraryFilter.bankId=browser.bankId;libraryFilter.tag=browser.tag;
+    libraryFilter.favoritesOnly=browser.favoritesOnly;libraryFilter.registeredOnly=browser.restricted;
+    libraryFilter.registeredIds=browser.importedIds;selectedPatchId=browser.selectedId;currentPatch=browser.patchName;
+    resultOffset=browser.scroll;page=browser.page;
+}
+Synth2::~Synth2()
+{
+    if(importPrompt){{std::lock_guard lock(importPrompt->mutex);importPrompt->alive=false;}importPrompt->changed.notify_all();}
+#if defined(APP_API)
+    try {std::string error;synth2::host::PresetFiles::saveStandaloneState(synth2::host::savePresetSession(processor,captureBrowser()),error);}catch(const std::exception&){}
+#endif
+}
 bool Synth2::SerializeState(IByteChunk& chunk) const
 {
-    const auto bytes = processor.saveState();
-    const uint32_t magic = 0x32504953; // SIP2, format version 1
-    const uint32_t version = 1;
-    const uint32_t size = static_cast<uint32_t>(bytes.size());
-    chunk.Put(&magic); chunk.Put(&version); chunk.Put(&size);
-    chunk.PutBytes(bytes.data(), static_cast<int>(size));
-    return true;
+    const auto bytes=synth2::host::savePresetSession(processor,captureBrowser());chunk.PutBytes(bytes.data(),bytes.size());return true;
 }
-int Synth2::UnserializeState(const IByteChunk& chunk, int start)
+int Synth2::UnserializeState(const IByteChunk& chunk,int start)
 {
-    uint32_t magic=0, version=0, size=0;
-    int position = chunk.Get(&magic, start);
-    if (position < 0) return -1;
-    position = chunk.Get(&version, position);
-    if (position < 0) return -1;
-    position = chunk.Get(&size, position);
-    if (position < 0 || magic != 0x32504953 || version != 1 || size == 0 || size > 4*1024*1024
-        || position > chunk.Size() || size > static_cast<uint32_t>(chunk.Size()-position)) return -1;
-    processor.restoreState(chunk.GetData()+position, static_cast<int>(size));
-    syncParametersFromProcessor();
-    stateRestored.store(true);
-    return position + static_cast<int>(size);
+    if(start<0 || start>chunk.Size())return -1;
+    const int n=synth2::host::restorePresetSession(chunk.GetData()+start,chunk.Size()-start,processor,browser);
+    if(n<0)return -1;
+    browserGeneration.fetch_add(1);restoreBrowser();syncParametersFromProcessor();stateRestored.store(true);return start+n;
 }
