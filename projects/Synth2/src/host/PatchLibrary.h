@@ -19,7 +19,7 @@ class PatchLibrary
 public:
     static constexpr std::size_t maximumPatchBytes = 4 * 1024 * 1024;
     static constexpr std::size_t maximumBankBytes = 64 * 1024 * 1024;
-    static constexpr std::size_t maximumPatches = 4096;
+    static constexpr std::size_t maximumPatches = 65536;
 
     bool openDirectory(const std::string& utf8Path, std::string& error);
     bool openFile(const std::string& utf8Path, std::string& error);

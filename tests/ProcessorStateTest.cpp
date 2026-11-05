@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "host/PatchLibrary.h"
 #include "support/PortableHost.h"
 #include "support/StateDocument.h"
 #include "patch/PatchLoader.h"
@@ -108,7 +109,7 @@ TEST(ProcessorState, ProgramLoadsAndRejectedTransactionsPreserveTheSelectedState
     // Processor transactions retain the sound and index after invalid input.
     EXPECT_FALSE(p->loadProgram("Invalid\nver=999\n",0,error));EXPECT_EQ(bytes,save(*p));
     EXPECT_FALSE(p->loadProgram(programs[0],-1,error));EXPECT_EQ(bytes,save(*p));
-    EXPECT_FALSE(p->loadProgram(programs[0],4096,error));EXPECT_EQ(bytes,save(*p));
+    EXPECT_FALSE(p->loadProgram(programs[0],static_cast<int>(synth2::host::PatchLibrary::maximumPatches),error));EXPECT_EQ(bytes,save(*p));
 }
 
 TEST(HostTempo, TempoChangesReachSyncedLfoAndInvalidTempoUsesFallback)

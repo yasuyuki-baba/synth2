@@ -208,7 +208,7 @@ bool PresetFiles::isManagedPatch(const fs::path &directory, const fs::path &file
     if (!isManagedBank(directory, bank))
         return false;
     const auto key = utf8(file.stem());
-    if (key.empty() || key.size() > 4 || key.find_first_not_of("0123456789") != std::string::npos ||
+    if (key.empty() || key.size() > std::to_string(PatchLibrary::maximumPatches - 1).size() || key.find_first_not_of("0123456789") != std::string::npos ||
         std::stoi(key) >= static_cast<int>(PatchLibrary::maximumPatches))
         return false;
     return fs::is_regular_file(fs::symlink_status(bank / (key + ".name")));

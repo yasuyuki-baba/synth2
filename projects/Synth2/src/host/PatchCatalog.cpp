@@ -102,7 +102,7 @@ bool PatchCatalog::reload(std::string& error) {
                 std::sort(patches.begin(),patches.end());
                 for(const auto& file:patches) {
                     const auto key=utf8(file.stem());
-                    if(key.empty() || key.size()>4 || key.find_first_not_of("0123456789")!=std::string::npos)continue;
+                    if(key.empty() || key.size()>std::to_string(PatchLibrary::maximumPatches-1).size() || key.find_first_not_of("0123456789")!=std::string::npos)continue;
                     const auto ordinal=std::stoi(key);if(ordinal>=static_cast<int>(PatchLibrary::maximumPatches))continue;
                     auto text=read(file,PatchLibrary::maximumPatchBytes);
                     if(text.empty())throw std::runtime_error("The library contains an empty patch.");

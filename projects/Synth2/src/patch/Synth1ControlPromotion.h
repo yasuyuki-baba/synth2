@@ -19,8 +19,9 @@ namespace synth2
         const synth1::patch::NativePatchControls& compatible) noexcept
     {
         PromotedControlState result;
-        // Admitted source words (including packed MIDI words) fit exactly in
-        // float. Do not clamp them to host ranges or normalize and re-integerize.
+        // Admitted source words (including extended coarse and packed MIDI
+        // words) fit exactly in float. The receiver applies its own limits;
+        // do not clamp source words to host presentation ranges.
         for(std::size_t i=0;i<result.dials.size();++i)
             result.dials[i]=static_cast<float>(compatible.values[i]);
         return result;

@@ -8,7 +8,8 @@ This includes 99 and 101–103 through the legacy conversion path. The independe
 observed native conversion paths cover 100 and 104–113, including 112; that
 evidence range is not an input whitelist. Acceptance of other versions does not
 establish original-instrument equivalence. Reject versions outside 1–113 and 200 and
-malformed sources before replacing the current patch. Preserve original source integers and field presence;
+malformed sources before replacing the current patch. Textual patch titles may
+contain commas; do not interpret those as parameter entries. Preserve original source integers and field presence;
 an omitted field and an explicitly supplied zero are different inputs.
 
 Version 200 is a complete snapshot of resolved host dials, retaining fractional
@@ -25,6 +26,11 @@ shared `Synth1PatchMapper`. Source 100/unversioned conversion uses the pre-105 a
 Source 105–108 discards legacy MIDI assignment words. Versions retain their own
 extended-value rules, including p21=128 and 16-bit MIDI destination words.
 Keep serialized source limits separate from host automation ranges and DSP limits.
+Accept native OSC2 coarse (p2) source/getter words from -1 through 255, including
+values outside the host knob's 0–127 range. Preserve that word in resolved native
+controls and source-aware state; host presentation and the pitch receiver retain
+their existing limits. Do not reject or rewrite the whole source for an extended
+coarse word.
 
 For a sparse version 113 source, omitted controls use the native file-loading
 source defaults, including filter decay/release 64, filter envelope depth 128,
@@ -49,6 +55,13 @@ library, selected source and processor state. State recall must not require the
 original external bank file. File and ZIP access occurs outside audio callbacks.
 The processor starts with Init independently of the library. The library starts
 empty, contains only explicitly imported sounds and has no privileged bank type.
+
+Accept nested ZIP collections containing up to 65,536 patches. Ignore macOS
+`__MACOSX` path components and AppleDouble `._` entries before counting or reading
+patches. Preserve natural path ordering and allow selection and state recall of
+every accepted ordinal. Compressed input and total expanded patch bytes remain
+limited to 64 MiB, with at most 4 MiB per patch; exceeding a limit rejects the
+whole bank without replacing the current library.
 
 ## Verification
 

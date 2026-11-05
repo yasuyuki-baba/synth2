@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "support/BankFiles.h"
 #include "host/PatchLibrary.h"
+#include "host/ProcessorBridge.h"
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
@@ -78,6 +79,32 @@ TEST(BankBoundary, ExactEntryLimitLoadsAndOneExtraPreservesTheFullSnapshot)
         ASSERT_EQ(library.patches()[i].text,patch);
         ASSERT_TRUE(library.patches()[i].name.starts_with(std::to_string(i)+".sy1  -  "));
     }
+}
+
+TEST(BankBoundary, LargeNestedCollectionIgnoresMacMetadataAndRecallsLateSelection)
+{
+    testfiles::Directory directory;const auto file=directory.path/"collection.zip";
+    mz_zip_archive zip{};ASSERT_TRUE(mz_zip_writer_init_file(&zip,file.string().c_str(),0));
+    for(size_t i=0;i<25000;++i)
+    {
+        const auto name="Patches/Bank"+std::to_string(i/128)+"/"+std::to_string(i)+".sy1";
+        ASSERT_TRUE(mz_zip_writer_add_mem(&zip,name.c_str(),patch.data(),patch.size(),MZ_BEST_COMPRESSION));
+    }
+    // Resource forks are not patches, even when empty or under nested paths.
+    for(const char* name:{"__MACOSX/Patches/._0.sy1","Patches/Bank0/._0.sy1",
+                          "Patches/__MACOSX/fake.sy1","Patches\\__MACOSX\\fake.sy1"})
+        ASSERT_TRUE(mz_zip_writer_add_mem(&zip,name,"",0,MZ_BEST_COMPRESSION));
+    ASSERT_TRUE(mz_zip_writer_finalize_archive(&zip));ASSERT_TRUE(mz_zip_writer_end(&zip));
+    PatchLibrary library;std::string error;
+    ASSERT_TRUE(library.openFile(file.string(),error))<<error;
+    ASSERT_EQ(library.patches().size(),25000u);
+    EXPECT_EQ(library.patches().back().name,"Patches/Bank195/24999.sy1  -  Owned boundary");
+    synth2::host::ProcessorBridge selected,recalled;
+    ASSERT_TRUE(selected.loadProgram(library.patches()[24999].text,24999,error))<<error;
+    EXPECT_EQ(selected.currentProgram(),24999);
+    const auto state=selected.saveState();ASSERT_TRUE(std::filesystem::remove(file));
+    recalled.restoreState(state.data(),static_cast<int>(state.size()));
+    EXPECT_EQ(recalled.currentProgram(),24999);EXPECT_EQ(recalled.saveState(),state);
 }
 
 TEST(BankBoundary, ExactExpandedByteLimitsLoadAndOneExtraByteIsRejectedAtomically)

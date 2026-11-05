@@ -14,6 +14,18 @@ namespace synth2::host
 namespace
 {
 std::string lower(std::string s){for(auto& c:s)if(static_cast<unsigned char>(c)<128)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));return s;}
+bool isMacMetadata(const std::string& filename)
+{
+    for(size_t start=0;start<filename.size();)
+    {
+        const auto end=filename.find_first_of("/\\",start);
+        const auto component=filename.substr(start,end==std::string::npos ? end : end-start);
+        if(component=="__MACOSX" || component.starts_with("._"))return true;
+        if(end==std::string::npos)break;
+        start=end+1;
+    }
+    return false;
+}
 std::string title(const std::string& text,const std::string& filename)
 {
     if(isContinuousPatch(text))
@@ -25,7 +37,7 @@ std::string title(const std::string& text,const std::string& filename)
     while(std::getline(lines,line))
     {
         line=trimPatchLine(line);if(line.empty())continue;
-        if(line.compare(0,4,"ver=")!=0 && line.find(',')==std::string::npos)return filename+"  -  "+line;
+        if(hasPatchTitle(text))return filename+"  -  "+line;
         break;
     }
     return filename;
@@ -111,7 +123,7 @@ bool PatchLibrary::openZip(const void* bytes,size_t size,const std::string& name
         if(mz_zip_reader_get_filename(&zip,i,filename.data(),filenameBytes)!=filenameBytes){error="The ZIP filename is invalid.";return false;}
         filename.resize(filenameBytes-1);
         const auto mode=(entry.m_external_attr>>16)&0170000;
-        if(entry.m_is_directory || mode==0120000 || filename.size()<4 || lower(filename.substr(filename.size()-4))!=".sy1")continue;
+        if(entry.m_is_directory || mode==0120000 || isMacMetadata(filename) || filename.size()<4 || lower(filename.substr(filename.size()-4))!=".sy1")continue;
         if(entry.m_uncomp_size==0 || entry.m_uncomp_size>maximumPatchBytes || entry.m_uncomp_size>maximumBankBytes-total || order.size()==maximumPatches)
         {error="The bank contains an empty patch or exceeds the bank size limits.";return false;}
         total+=static_cast<size_t>(entry.m_uncomp_size);order.push_back({i,filename,static_cast<size_t>(entry.m_uncomp_size)});
