@@ -128,7 +128,7 @@ bool PatchCatalog::reload(std::string& error) {
 bool PatchCatalog::registerFiles(const std::string& path,const ResolveConflict& resolve,PresetImportResult& result) {
     try {
         requireRoot(directory);PresetFiles files(directory);result=files.import(fs::path(std::u8string(path.begin(),path.end())),resolve);
-        std::string error;if(!reload(error))result.errors.push_back(error);
+        std::string error;result.catalogReady=reload(error);if(!result.catalogReady)result.errors.push_back(error);
         return result.errors.empty();
     }catch(const std::exception& e){result={};result.errors.push_back(e.what());return false;}
 }

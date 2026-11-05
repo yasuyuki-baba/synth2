@@ -31,6 +31,7 @@ struct PresetImportResult
     std::vector<std::string> ids;
     std::vector<std::string> errors;
     std::size_t imported = 0, skipped = 0;
+    bool catalogReady = false;
 };
 // File operations are non-RT. ZIPs remain intact and are never extracted.
 class PresetFiles

@@ -208,7 +208,7 @@ void Synth2::OnIdle()
         try
         {
             auto result=libraryJob.get();
-            if(result.error.empty()){catalog=std::move(result.catalog);catalogLoaded=true;}
+            if(result.error.empty() && (!result.importing || result.imported.catalogReady)){catalog=std::move(result.catalog);catalogLoaded=true;}
             if(result.generation==browserGeneration.load() && result.saving && result.error.empty()) {
                 selectedPatchId=result.savedId;currentPatch=result.savedName;browser.baseline=result.savedBaseline;
                 libraryFilter={};resultOffset=0;browserStatus="Preset saved.";

@@ -183,3 +183,12 @@ TEST(PatchCatalog, RegistrationFilterTracksExactFilesAndRetainsZipAsOneFile) {
     const auto previous=catalog.patches()[0].patch.text;PresetImportResult skipped;
     ASSERT_TRUE(catalog.registerFiles(zip.string(),[](const auto&){return ConflictChoice{FileConflict::skip,true};},skipped));EXPECT_TRUE(skipped.ids.empty());EXPECT_EQ(skipped.skipped,1u);EXPECT_EQ(catalog.patches()[0].patch.text,previous);
 }
+
+TEST(PatchCatalog, FailedRegistrationReloadKeepsThePreviousCatalogSnapshot) {
+    CatalogFiles files;const auto root=files.dir/"Library";PatchCatalog catalog(root);std::string error;
+    const auto source=files.bank("Owned.zip",{{"1.sy1",warm}});PresetImportResult result;
+    ASSERT_TRUE(catalog.registerFiles(source.string(),[](const auto&){return ConflictChoice{};},result));ASSERT_TRUE(result.catalogReady);
+    const auto original=catalog.patches()[0].id;fs::rename(root,files.dir/"Backup");std::ofstream(root)<<"not a directory";
+    EXPECT_FALSE(catalog.registerFiles(source.string(),[](const auto&){return ConflictChoice{};},result));EXPECT_FALSE(result.catalogReady);
+    ASSERT_EQ(catalog.patches().size(),1u);EXPECT_EQ(catalog.patches()[0].id,original);
+}
