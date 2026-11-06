@@ -350,6 +350,7 @@ namespace synth2
 
                 float combinedL = 0.0f;
                 float combinedR = 0.0f;
+                std::array<float,16> highLeft{},highRight{};
 
                 for (int v = 0; v < activeCoreCount(); ++v)
                 {
@@ -366,18 +367,42 @@ namespace synth2
                         nativeGlidePitch[v][i],nativeModPitch[v][i],
                         nativeFmDepth[v][i],
                         mods.pulseControl};
-                    const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                        oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr);
+                    float vEnveloped;
+                    if(audioFactor==1)
+                    {
+                        const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                            oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr);
 
-                    float vCombined = mixer.mix(oscSignal, (random.nextFloat() * 2.0f - 1.0f), params.noiseLevel);
+                        float vCombined = mixer.mix(oscSignal, (random.nextFloat() * 2.0f - 1.0f), params.noiseLevel);
 
-                    const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
-                        {vCombined,nativeCutoffIndices[v][i]});
+                        const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                            {vCombined,nativeCutoffIndices[v][i]});
 
-                    // Central gain stage: apply envelope to the signal before panner/unison sum.
-                    float vEnveloped = vFiltered;
-                    if (!bypassEnv)
-                        vEnveloped *= amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
+                        // Central gain stage: apply envelope to the signal before panner/unison sum.
+                        vEnveloped = vFiltered;
+                        if (!bypassEnv)
+                            vEnveloped *= amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
+                    }
+                    else
+                    {
+                        const int factor=audioFactor;
+                        auto highInput=oscillatorInput;
+                        // FM depth is a phase increment per host frame.
+                        highInput.fmDepth/=factor;
+                        const float noise=random.nextFloat()*2.0f-1.0f;
+                        const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
+                        for(int step=0;step<factor;++step)
+                        {
+                            const float signal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                                oscillatorAudio,highInput,audioLfos,i,waveTableBankPtr);
+                            const float mixed=mixer.mix(signal,noise,params.noiseLevel);
+                            const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                                {mixed,nativeCutoffIndices[v][i]})*gain;
+                            float left,right;amplifier.processSample(filtered,1.f,panAmt,left,right);
+                            highLeft[step]+=left;highRight[step]+=right;
+                        }
+                        continue;
+                    }
 
                     float vL, vR;
                     amplifier.processSample (vEnveloped, 1.0f, panAmt, vL, vR);
@@ -391,6 +416,15 @@ namespace synth2
                 ? sy1AmpGain * params.masterVolume * velocityGain
                 : params.masterVolume;
 
+            if(audioFactor>1)
+            {
+                for(int step=0;step<audioFactor;++step)
+                {
+                    audioLeft[(startSample+i-audioChunkStart)*audioFactor+step]+=highLeft[step]*overallGain;
+                    audioRight[(startSample+i-audioChunkStart)*audioFactor+step]+=highRight[step]*overallGain;
+                }
+                continue;
+            }
             combinedL *= overallGain;
             combinedR *= overallGain;
 

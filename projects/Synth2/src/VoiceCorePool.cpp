@@ -14,8 +14,7 @@ namespace synth2
     {
         for (auto& core : slots)
         {
-            core.oscillator.prepare(spec);
-            core.filter.setSampleRate(spec.sampleRate);
+            core.setAudioFactor(spec.sampleRate,core.audioFactor);
             core.cutoff.setSampleRate(static_cast<int>(spec.sampleRate));
             core.coarse.elapsed=static_cast<int>(spec.sampleRate)/20;
         }

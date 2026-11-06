@@ -1,4 +1,5 @@
 #include "ProcessorState.h"
+#include "dsp/OversamplingSettings.h"
 #include "patch/PatchLoader.h"
 #include "patch/PatchFormat.h"
 #include "patch/Synth1SourceRange.h"
@@ -38,6 +39,7 @@ std::vector<uint8_t> encodeProcessorState(const ProcessorState& state,
     const bool native=state.nativeSource;
     std::ostringstream xml;xml.imbue(std::locale::classic());xml<<std::setprecision(17);
     xml<<"<?xml version=\"1.0\" encoding=\"UTF-8\"?> <PARAMS stateVersion=\""<<state.version<<'"';
+    if(state.oversamplingFactor!=1)xml<<" oversamplingFactor=\""<<state.oversamplingFactor<<'"';
     if(state.version==3)xml<<" nativeSource=\""<<(native ? 1 : 0)<<'"';
     if(state.directControls)xml<<" patchFormat=\"200\"";
     if(native)
@@ -61,6 +63,14 @@ std::optional<ProcessorState> decodeProcessorState(const void* data,int size,
     if(xml.Parse(reinterpret_cast<const char*>(bytes+8),length)!=tinyxml2::XML_SUCCESS)return std::nullopt;
     auto* root=xml.RootElement();if(!root || std::strcmp(root->Name(),"PARAMS"))return std::nullopt;
     auto property=[&](const char* key)->std::string{const auto* s=root->Attribute(key);return s ? s : "";};
+    const auto oversampling=property("oversamplingFactor");
+    if(!oversampling.empty())
+    {
+        const auto parsed=serialization::parseFiniteNumber(oversampling);
+        if(!parsed || *parsed!=std::floor(*parsed) || *parsed<1 || *parsed>16
+            || !dsp::OversamplingSettings::valid(static_cast<int>(*parsed)))return std::nullopt;
+        state.oversamplingFactor=static_cast<int>(*parsed);
+    }
     const auto stateVersion=property("stateVersion");if(stateVersion!="1" && stateVersion!="2" && stateVersion!="3")return std::nullopt;
     const auto patchFormat=property("patchFormat");
     if(!patchFormat.empty() && (patchFormat!="200" || stateVersion!="3" || property("nativeSource")!="0"))return std::nullopt;

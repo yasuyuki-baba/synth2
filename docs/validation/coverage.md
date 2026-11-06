@@ -99,3 +99,8 @@ actual SDK dialogs and standalone teardown are platform interactions.
 Dropped-ZIP refresh regressions cover ordinary folders, legacy storage folder
 names, mixed managed/loose sources, and unrelated files named `banks`. Managed
 IDs and metadata remain stable without suppressing newly copied source files.
+
+OversamplingTest uses generated impulses, DC, sine/cubic signals and actual bridge
+playback to check factor/state validation, fixed latency, folded-harmonic reduction,
+audible pitch, note-off tails and host-rate LFO/envelope clocks. RealtimeBehavior
+checks prepared factor changes and short/chunked callbacks without heap activity.

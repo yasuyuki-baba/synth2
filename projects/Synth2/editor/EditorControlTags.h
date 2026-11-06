@@ -3,6 +3,7 @@
 
 namespace synth2::editor::native
 {
+inline constexpr int oversamplingTag=1013;
 inline constexpr int bankTag = 1000, presetTag = 1001, statusTag = 1002, parameterTag = 2000;
 inline constexpr int panelTag = 3000;
 inline constexpr int keyboardTag=1010, keyboardToggleTag=1011, keyboardHelpTag=1012;

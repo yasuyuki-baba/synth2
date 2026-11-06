@@ -26,6 +26,9 @@ namespace synth2
         bool canPlaySound (::synth2::audio::Sound* sound) override;
 
         void prepare (double newSampleRate);
+        void setAudioChunkStart(int start) noexcept {audioChunkStart=start;}
+        void setAudioOutput(int factor,float* left,float* right) noexcept
+        {audioFactor=factor;audioLeft=left;audioRight=right;for(auto& core:localCores)core.setAudioFactor(sampleRate,factor); }
         void updateSampleRate (double newSampleRate);
 
         void startNote (int midiNoteNumber, float velocity,
@@ -125,6 +128,7 @@ namespace synth2
         double sampleRate { 0.0 };
         int nativeWorkspaceOrigin {};
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
+        int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
         bool renderedSignal {};
         int filterMidiNote {60};
         dsp::PitchBendSmoother localPitchBend;

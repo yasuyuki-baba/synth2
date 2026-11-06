@@ -112,6 +112,10 @@
   unbiased fractional integration. PWM interpolates compatible base/control knots
   and shares real-offset reads across ordinary/stack oscillators, retaining each
   path's phase lookup and gain rules. See the audio contract.
+- Optional audio oversampling is instance quality configuration, separate from
+  patch controls. Keep 1x as the unchanged default; 2x/4x/8x/16x must not accelerate
+  MIDI, shared clocks, control envelopes or intentional decimator timing. Report
+  the actual resampling latency and retain prepared, allocation-free callbacks.
 - Preserve real-valued VCA Attack targets. Do not restore integer Attack
   truncation to reduce distortion-sensitive reference errors; keep audio
   comparisons and their unresolved bounds separate from the precision choice.

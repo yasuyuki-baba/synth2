@@ -56,3 +56,7 @@ must not exist; choose a fresh filename for each run.
 Offline over-budget observations are not detected audio-device underruns. Neither
 average nor sampled maximum callback time establishes a hard real-time deadline.
 Actual DAW/device testing and concurrency contracts require separate validation.
+
+`Synth2Probe --oversampling FACTOR` selects 1, 2, 4, 8 or 16 before preparation.
+The default is 1. Higher-factor WAVs include processing latency; do not silently
+align or gain-fit them when reporting raw audio comparisons.

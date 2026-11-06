@@ -1,5 +1,6 @@
 #pragma once
 #include "dsp/OscillatorSection.h"
+#include "dsp/OversamplingSettings.h"
 #include "dsp/Filter.h"
 #include "dsp/FilterEnvelope.h"
 #include "dsp/CutoffControl.h"
@@ -19,6 +20,15 @@ namespace synth2
     {
         dsp::OscillatorSection oscillator;
         dsp::Filter filter;
+        int audioFactor=1;
+        void setAudioFactor(double rate,int factor) noexcept
+        {
+            if(!dsp::OversamplingSettings::valid(factor))return;
+            if(audioFactor!=factor){audioFactor=factor;oscillator.resetFmPhase();}
+            oscillator.prepare({rate*factor,512,2});
+            oscillator.noiseGain=std::sqrt(static_cast<float>(factor));
+            filter.setSampleRate(rate*factor);
+        }
         dsp::FilterEnvelope filterEnvelope;
         dsp::CutoffControl cutoff;
         dsp::OscillatorPhaseState phase;
@@ -40,8 +50,10 @@ namespace synth2
         }
         void prepare (const ::synth2::audio::ProcessSpec& spec,bool preservePhase=false)
         {
-            oscillator.prepare (spec);
-            filter.prepare (spec);
+            auto audioSpec=spec;audioSpec.sampleRate*=audioFactor;
+            oscillator.prepare (audioSpec);
+            oscillator.noiseGain=std::sqrt(static_cast<float>(audioFactor));
+            filter.prepare (audioSpec);
             filterEnvelope.reset();
             cutoff.prepare (static_cast<int>(spec.sampleRate));
             coarse.elapsed=static_cast<int>(spec.sampleRate)/20;

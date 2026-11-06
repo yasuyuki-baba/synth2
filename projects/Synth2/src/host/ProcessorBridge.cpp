@@ -62,6 +62,8 @@ float defaultSource(int i)
 struct ProcessorBridge::Impl
 {
     SynthEngine engine;
+    std::atomic<int> requestedOversampling{1};
+    int fadeOut=0,fadeIn=0;float fadeFrom=1,fadeGain=1;
     std::array<std::atomic<float>,parameterCount> values{};
     std::array<ParameterInfo,parameterCount> info{};
     std::array<std::atomic<float>*,126> rawSourceValues{};
@@ -332,7 +334,7 @@ struct ProcessorBridge::Impl
     }
     std::vector<uint8_t> save()const
     {
-        ProcessorState state;
+        ProcessorState state;state.oversamplingFactor=requestedOversampling.load();
         const int version=static_cast<int>(std::lround(values[126].load()));
         state.nativeSource=nativeSourceLoading.load() && version==nativeSourceVersion.load()
             && synth1::patch::isNativeSourceVersion(version);
@@ -349,6 +351,7 @@ struct ProcessorBridge::Impl
         auto state=decodeProcessorState(data,size,info);
         if(!state)return false;
         replacingParameters.store(true);
+        requestedOversampling.store(state->oversamplingFactor);
         directControls=state->directControls;
         for(int i=0;i<parameterCount;++i)values[i].store(state->values[i]);
         patchName=std::move(state->patchName);program=state->program;lastLoadedPreset=std::move(state->presetText);
@@ -394,8 +397,22 @@ struct ProcessorBridge::Impl
             const bool supportedController=message.isPitchWheel() || controller==1 || controller==64 || controller==120 || controller==121 || controller==123;
             if((message.isController() || message.isChannelPressure() || message.isPitchWheel()) && !supportedController)engine.invalidateNativeRandomHistory();
         }
-        updateSynthParams();engine.render(buffer,midi,0,frames);
-        for(int i=0;i<frames;++i){left[i]=pointers[0][i];right[i]=pointers[1][i];}return true;
+        updateSynthParams();
+        const int desired=requestedOversampling.load();
+        if(desired!=engine.getOversamplingFactor() && fadeOut==0)
+        {fadeOut=64;fadeFrom=fadeGain;fadeIn=0;}
+        engine.render(buffer,midi,0,frames);
+        const bool changing=fadeOut>0;
+        for(int i=0;i<frames;++i)
+        {
+            if(changing){fadeGain=fadeFrom*static_cast<float>(fadeOut)/64.f;if(fadeOut>0)--fadeOut;}
+            else if(fadeIn>0){fadeGain=static_cast<float>(129-fadeIn)/128.f;--fadeIn;}
+            left[i]=pointers[0][i];right[i]=pointers[1][i];
+            if(changing || fadeIn>0 || fadeGain!=1){left[i]*=fadeGain;right[i]*=fadeGain;}
+        }
+        if(changing && fadeOut==0)
+        {engine.setOversamplingFactor(desired);fadeIn=128;fadeGain=0;}
+        return true;
     }
 };
 ProcessorBridge::ProcessorBridge():impl(std::make_unique<Impl>()){}
@@ -408,8 +425,14 @@ void ProcessorBridge::prepare(double rate,int frames)
     if(!std::isfinite(rate) || rate<=0 || frames<=0)throw std::invalid_argument("Invalid Synth2 playback configuration");
     impl->scratch.setSize(2,frames);impl->eventCount=0;impl->overflow=false;impl->midi.clear();
     impl->flushNativeLfoHistory();if(rate!=44100. || frames!=64)impl->engine.invalidateNativeRandomHistory();
-    impl->engine.prepareToPlay(rate,frames);impl->editorMidi.resetAudio();impl->capacity=frames;
+    impl->engine.prepareToPlay(rate,frames);impl->engine.setOversamplingFactor(impl->requestedOversampling.load());
+    impl->fadeOut=impl->fadeIn=0;impl->fadeGain=1;
+    impl->editorMidi.resetAudio();impl->capacity=frames;
 }
+bool ProcessorBridge::setOversamplingFactor(int factor) noexcept
+{if(!dsp::OversamplingSettings::valid(factor))return false;impl->requestedOversampling.store(factor);return true;}
+int ProcessorBridge::oversamplingFactor() const noexcept {return impl->requestedOversampling.load();}
+int ProcessorBridge::latencySamples() const noexcept {return dsp::OversamplingSettings::latency(oversamplingFactor());}
 void ProcessorBridge::release(){impl->engine.releaseResources();impl->capacity=0;impl->eventCount=0;impl->overflow=false;impl->midi.clear();}
 void ProcessorBridge::setEditorNote(int note,int velocity,EditorNoteSource source)noexcept {impl->editorMidi.set(note,velocity,source);}
 void ProcessorBridge::releaseEditorNotes()noexcept {impl->editorMidi.release();}

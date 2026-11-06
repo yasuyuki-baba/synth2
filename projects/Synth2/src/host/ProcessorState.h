@@ -13,6 +13,7 @@ namespace synth2::host
 struct ProcessorState
 {
     int version=3,program=0;
+    int oversamplingFactor=1;
     bool nativeSource=false,directControls=false;
     std::array<float,processorParameterCount> values{};
     std::array<uint64_t,2> sourcePresence{},runtimeEdits{};

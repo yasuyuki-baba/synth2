@@ -36,7 +36,11 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,16,214,65),"SYNTH2",text.WithFont("Synth2UIBold").WithSize(29.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
-    graphics->AttachControl(new ITextControl(IRECT(20,82,744,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
+    graphics->AttachControl(new ITextControl(IRECT(20,82,592,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
+    auto* quality=new ActionButtonControl(IRECT(600,82,744,112),[this](IControl* caller){showOversamplingMenu(caller);},
+        ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),style);
+    quality->SetTooltip("Higher factors reduce aliasing and use more CPU. Saved with the project.");
+    graphics->AttachControl(quality,oversamplingTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
@@ -182,8 +186,34 @@ void Synth2::showPage(int next)
     }
 }
 
+void Synth2::refreshOversampling()
+{
+    syncQualityLatency();
+    if(auto* graphics=GetUI())
+        if(auto* control=graphics->GetControlWithTag(oversamplingTag))
+        {
+            control->As<IVButtonControl>()->SetLabelStr(("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str());
+            control->SetDirty(false);
+        }
+    displayedOversampling=processor.oversamplingFactor();
+}
+void Synth2::showOversamplingMenu(IControl* caller)
+{
+    qualityMenu=std::make_unique<IPopupMenu>("Oversampling");
+    for(int factor:{1,2,4,8,16})
+        qualityMenu->AddItem((std::to_string(factor)+"x").c_str())->SetChecked(factor==processor.oversamplingFactor());
+    qualityMenu->SetFunction([this](IPopupMenu* menu) {
+        const int index=menu->GetChosenItemIdx();if(index<0 || index>4)return;
+        BeginInformHostOfParamChange(qualityParameter);
+        SendParameterValueFromUI(qualityParameter,GetParam(qualityParameter)->ToNormalized(index));
+        EndInformHostOfParamChange(qualityParameter);
+        refreshOversampling();
+    });
+    caller->GetUI()->CreatePopupMenu(*caller,*qualityMenu,caller->GetRECT());
+}
 void Synth2::OnIdle()
 {
+    if(displayedOversampling!=processor.oversamplingFactor())refreshOversampling();
     updateKeyboardInput();
     if (importPrompt && !conflictShown && GetUI())
     {

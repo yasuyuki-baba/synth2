@@ -12,11 +12,13 @@ namespace synth2::dsp
     public:
         void prepare(double rate,bool preserve=false) noexcept
         {
-            sampleRate=rate;overdrive.prepare(static_cast<int>(rate),preserve);
+            sampleRate=rate;overdrive.prepare(static_cast<int>(rate*audioFactor),preserve);
             if(!preserve){counter=0;held={};envelope={};cosine=0;sine=1;previous={-1,-1,-1};}
             updateFrequency(frequency);
             updateDynamics();
         }
+        void setOversamplingFactor(int factor) noexcept
+        {if(audioFactor!=factor){audioFactor=factor;overdrive.prepare(static_cast<int>(sampleRate*factor));}}
         void setDials(float first,float second,float third) noexcept
         {
             first=std::clamp(first,0.0f,127.0f);second=std::clamp(second,0.0f,127.0f);third=std::clamp(third,0.0f,127.0f);
@@ -94,6 +96,7 @@ namespace synth2::dsp
             cosine=std::clamp(cosine,-1.0f,1.0f);
             const float next=std::sin(std::acos(cosine));sine=sine<0 ? -next : next;
         }
+        int audioFactor=1;
         OverdriveKernel overdrive;
         double sampleRate=44100;
         float downsample=0;int bits=0;uint32_t counter=0;

@@ -34,6 +34,7 @@ int main(int argc,char** argv) try {
     int blockSize=512,velocity=127;if(auto* e=std::getenv("SYNTH2_PROBE_BLOCK_SIZE"))blockSize=std::atoi(e);if(auto* e=std::getenv("SYNTH2_PROBE_VELOCITY"))velocity=std::atoi(e);
     if(blockSize<1 || blockSize>8192 || velocity<1 || velocity>127)throw std::runtime_error("Invalid block size or velocity");
     std::filesystem::path outFile="docs/synth1_probe/synth2_a4_2s.wav",patchFile,initialPreset,lfoActionsFile,midiTimeline;
+    int oversamplingFactor=1;
     int midiNote=69,presetWarmupBlocks=1,primeNoteCount=1,primeUnisonVoices=0,positional=0;
     double durationSec=2.,tempo=120.,primeNoteSeconds=0.,primeReleaseSeconds=0.;std::string noteList;
     bool floatWav=false,transactionalPresetLoad=false,warmupSpecified=false,bypass=false;
@@ -42,6 +43,7 @@ int main(int argc,char** argv) try {
         const std::string arg=argv[i];auto next=[&](){if(i+1>=argc)throw std::runtime_error("Missing argument for "+arg);return std::string(argv[++i]);};
         if(arg=="--transactional-preset-load")transactionalPresetLoad=true;
         else if(arg=="--float-wav")floatWav=true;
+        else if(arg=="--oversampling")oversamplingFactor=std::stoi(next());
         else if(arg=="--bypass-env")bypass=true;
         else if(arg=="-o")outFile=next();else if(arg=="-n")midiNote=std::stoi(next());else if(arg=="-d")durationSec=std::stof(next());else if(arg=="-p")patchFile=next();
         else if(arg=="--initial-preset")initialPreset=next();else if(arg=="--preset-warmup-blocks"){presetWarmupBlocks=std::stoi(next());warmupSpecified=true;}
@@ -61,6 +63,7 @@ int main(int argc,char** argv) try {
     const int totalSamples=static_cast<int>(std::round(durationSec*sampleRate)),numChannels=2;
     std::vector<int> notes;for(const auto& n:split(noteList,',')){if(n.empty() || n.find_first_not_of("0123456789")!=n.npos || std::stoi(n)>127)throw std::runtime_error("Invalid chord note list");notes.push_back(std::stoi(n));}if(notes.empty())notes.push_back(midiNote);
     auto processor=std::make_unique<ProcessorBridge>();
+    if(!processor->setOversamplingFactor(oversamplingFactor))throw std::runtime_error("Oversampling must be 1, 2, 4, 8 or 16");
     auto warmup=[&](){AudioBuffer<float> audio(2,blockSize);for(int i=0;i<presetWarmupBlocks;++i){audio.clear();MidiBuffer none;process(*processor,audio,none,tempo);}};
     if(!initialPreset.empty()){load(*processor,initialPreset);processor->prepare(sampleRate,blockSize);warmup();}
     if(!patchFile.empty()) {if(!transactionalPresetLoad)for(int i=0;i<128;++i)processor->setNormalizedValue(i,processor->parameter(i).defaultNormalized);load(*processor,patchFile);}

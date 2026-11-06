@@ -1,5 +1,38 @@
 # Audio rendering contract
 
+## Optional audio oversampling
+
+The instance quality selector supports 1x (default), 2x, 4x, 8x and 16x. Keep
+existing audio arithmetic and source/loading semantics unchanged at 1x.
+Oversampling is global processing configuration, saved with processor/session
+state and retained across patch loads; it is not a patch dial or source-version
+policy. Old states without the setting restore 1x. Unsupported factors are rejected
+transactionally. Append the native non-automatable quality parameter after the
+existing 129 host controls without renumbering them.
+
+At higher factors, run oscillator/Sync/FM and the complete per-core filter,
+limiter and saturation at the internal audio rate. Apply the base-rate VCA and
+pan values to those samples, sum them, then decimate globally so tails outlive
+logical voice retirement. Scale FM's per-sample phase depth by the factor;
+keep the fixed 22 kHz frequency ceiling. Independent oscillator noise runs at
+the internal rate with square-root factor energy normalization; shared noise/RNG
+and all MIDI, ARP, LFO, portamento, FM/cutoff/envelope receivers advance at the host
+rate. Hold their resolved values across each internal audio frame group.
+
+The output drive uses interpolation/decimation at the selected factor. Run
+its overdrive kernels and tone filters at that rate. Other output processing,
+including intentional decimation, Ring, compressor, EQ, pan, Delay and Chorus,
+keeps its host-rate cadence. Keep a consistent interpolation/decimation stage
+before those effects even when drive is off, so latency is independent of patch.
+
+Use prepared 65-tap linear-phase half-band stages and phase-zero decimation.
+Voice decimation plus the output interpolation/decimation pair produces fixed
+host-frame delays of 0/48/72/84/90 at 1x/2x/4x/8x/16x. Expose the delay to native
+hosts. A live selection fades out before applying the new internal rates and
+fades back in; do not allocate or reset MIDI/control history during the switch.
+Higher-factor rendering deliberately changes timbre and latency and is not a way
+to force original-engine error bounds. Compatibility comparisons retain 1x.
+
 ## Required behavior
 
 Preserve the supported control meanings, integer/float operation order, frequency

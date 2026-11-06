@@ -27,7 +27,13 @@ public:
     void OnUIClose() override;
 
 private:
+    static constexpr int qualityParameter=synth2::host::ProcessorBridge::parameterCount;
     void syncParametersFromProcessor();
+    void syncQualityLatency();
+    void refreshOversampling();
+    void showOversamplingMenu(iplug::igraphics::IControl* caller);
+    int displayedOversampling=0,reportedLatency=0;
+    std::unique_ptr<iplug::igraphics::IPopupMenu> qualityMenu;
     void layoutEditor(iplug::igraphics::IGraphics* graphics);
     void showPage(int page);
     void setKeyboardVisible(bool visible);

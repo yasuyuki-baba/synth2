@@ -19,6 +19,7 @@ add_executable(Synth2PatchTests
     tests/PlaybackBehaviorTest.cpp
     tests/ModulationBehaviorTest.cpp
     tests/LfoPhasePrecisionTest.cpp
+    tests/OversamplingTest.cpp
     tests/OscillatorReadTest.cpp
     tests/PwmPrecisionTest.cpp
     tests/FmPhaseCorrectionTest.cpp

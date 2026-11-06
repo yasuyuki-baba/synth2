@@ -1,4 +1,5 @@
 #pragma once
+#include "dsp/AudioOversampler.h"
 #include "audio/VoiceBank.h"
 #include "dsp/SharedModulationRuntime.h"
 
@@ -26,6 +27,8 @@ namespace synth2
 
         void prepareToPlay (double sampleRate, int samplesPerBlock);
         void releaseResources();
+        void setOversamplingFactor(int factor) noexcept;
+        int getOversamplingFactor() const noexcept {return audioFactor;}
         void requestPhaseReset();
         void restartFilterCutoff() noexcept;
         void applyFilterParameter(int index,float normalized) noexcept;
@@ -90,6 +93,9 @@ namespace synth2
 
     private:
         void initWaveTables (double sampleRate);
+        int audioFactor=1;
+        std::array<std::array<float,256*16>,2> oversampledAudio{};
+        std::array<dsp::AudioDownsampler,2> audioDownsamplers;
         RenderControls params;
         render::RenderHistory renderHistory;
         dsp::SharedModulationRuntime sharedModulation;

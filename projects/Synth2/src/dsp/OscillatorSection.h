@@ -47,6 +47,7 @@ namespace synth2::dsp {
             osc1.updatePhaseIncrement(f1);
             osc2.updatePhaseIncrement(f2);
             float s2=osc2.renderSample(params.osc2Wave,pw,0,bank,pulseBins);
+            if(params.osc2Wave==4 && noiseGain!=1)s2*=noiseGain;
 
             // FM amount is in 27-bit phase-increment units.
             // The native dispatcher scales noise by .65 only without FM.
@@ -166,6 +167,7 @@ namespace synth2::dsp {
         } params;
     public:
         uint32_t subSharedPhase {0};
+        float noiseGain {1};
         float stackDial {0}, cachedStackDial {-1};
         float stackBase {-1.0f};
         std::array<float,8> stackFrequencies {};

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "SynthEngine.h"
 #include "support/HeapActivity.h"
 #include "dsp/LfoHistory.h"
 #include "../tools/host_scenarios.h"
@@ -190,4 +191,49 @@ TEST(RealtimeBehavior, EditorNotesAndOverlapWithHostMidiDoNotAllocateOrLoseRelea
         EXPECT_EQ(counts.cAllocations,0u);EXPECT_EQ(counts.cDeallocations,0u);
     }
     EXPECT_FALSE(processor.editorNotePressed(60));
+}
+
+TEST(RealtimeBehavior, OversamplingAndLiveFactorChangesAvoidHeapActivity)
+{
+    synth2::host::ProcessorBridge processor;
+    std::string error;ASSERT_TRUE(processor.loadPatch(hostvalidation::patch(),error));
+    processor.prepare(48000,64);
+    std::array<float,64> left{},right{};
+    ASSERT_TRUE(processor.enqueueMidi(3,0x90,60,100));
+    ASSERT_TRUE(processor.process(left.data(),right.data(),64,120));
+    for(int factor:{2,4,8,16,1})
+    {
+        ASSERT_TRUE(processor.setOversamplingFactor(factor));
+        for(int block=0;block<8;++block)
+        {
+            testheap::Counts counts;bool processed;
+            {testheap::Scope scope(counts);processed=processor.process(left.data(),right.data(),64,120);}
+            EXPECT_TRUE(processed);EXPECT_EQ(counts.allocations,0u);EXPECT_EQ(counts.deallocations,0u);
+            EXPECT_EQ(counts.cAllocations,0u);EXPECT_EQ(counts.cDeallocations,0u);
+            for(float value:left)EXPECT_TRUE(std::isfinite(value));
+        }
+        EXPECT_EQ(processor.engineForInspection().getOversamplingFactor(),factor);
+    }
+}
+
+TEST(RealtimeBehavior, OversampledShortAndChunkedCallbacksRespectOutputBounds)
+{
+    for(int factor:{2,16})
+    {
+        synth2::host::ProcessorBridge processor;
+        processor.setOversamplingFactor(factor);processor.prepare(48000,257);
+        std::array<float,259> left{},right{};
+        for(int frames:{1,17,257})
+        {
+            left.fill(-99);right.fill(-99);
+            ASSERT_TRUE(processor.enqueueMidi(frames-1,0x90,60,100));
+            testheap::Counts counts;bool processed;
+            {testheap::Scope scope(counts);processed=processor.process(left.data()+1,right.data()+1,frames,120);}
+            EXPECT_TRUE(processed);EXPECT_EQ(left[0],-99);EXPECT_EQ(right[0],-99);
+            EXPECT_EQ(left[frames+1],-99);EXPECT_EQ(right[frames+1],-99);
+            EXPECT_EQ(counts.allocations,0u);EXPECT_EQ(counts.deallocations,0u);
+            EXPECT_EQ(counts.cAllocations,0u);EXPECT_EQ(counts.cDeallocations,0u);
+            for(int i=1;i<=frames;++i)EXPECT_TRUE(std::isfinite(left[i]));
+        }
+    }
 }

@@ -35,6 +35,10 @@ public:
     void setNormalizedValue(int index, double value);
     void prepare(double sampleRate, int maximumFrames);
     void release();
+    // Global audio quality, independent of patch source values. Applied at callback boundaries.
+    bool setOversamplingFactor(int factor) noexcept;
+    int oversamplingFactor() const noexcept;
+    int latencySamples() const noexcept;
     // Channel messages only; status includes the zero-based MIDI channel nibble.
     // Editor thread only; audio applies desired UI ownership at block boundaries.
     void setEditorNote(int note, int velocity, EditorNoteSource source) noexcept;

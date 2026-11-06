@@ -7,6 +7,7 @@
 #include "PanLfo.h"
 #include "Phaser.h"
 #include "MultiEffect.h"
+#include "AudioOversampler.h"
 
 namespace synth2::dsp
 {
@@ -15,6 +16,8 @@ namespace synth2::dsp
     public:
         // The engine invokes preparation phases at their existing lifecycle
         // boundaries. Keeping them separate preserves rate-change retention.
+        void setOversamplingFactor(int factor) noexcept
+        {audioOversampler.setFactor(factor);nativeMultiEffect.setOversamplingFactor(factor);}
         void prepareGain(double rate,bool preserve);
         void prepareProcessors(double rate,bool preserve);
         void prepareEffects(const ::synth2::audio::ProcessSpec&,bool preserveVoices,bool rateChanged);
@@ -28,6 +31,7 @@ namespace synth2::dsp
         void processBalance(::synth2::audio::AudioBuffer<float>&,int,int,const OutputPipelineSettings&,bool graphSilent,const ReceiverLfoView&);
         void processWetEffects(::synth2::audio::AudioBuffer<float>&,int,int,const OutputPipelineSettings&,bool graphSilent);
         void processGain(::synth2::audio::AudioBuffer<float>&,int,int,int capacity);
+        StereoOversampler audioOversampler;
         Equalizer equalizer;
         EffectPair wetEffects;
         OutputGain outputGain;

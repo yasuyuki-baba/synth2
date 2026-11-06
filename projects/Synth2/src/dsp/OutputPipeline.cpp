@@ -7,6 +7,7 @@ namespace synth2::dsp
     { outputGain.prepare(rate,preserve); }
     void OutputPipeline::prepareProcessors(double rate,bool preserve)
     {
+        if(!preserve)audioOversampler.reset();
         nativePan.prepare(rate,preserve);
         nativePhaser.prepare(rate,preserve);
         nativeMultiEffect.prepare(rate,preserve);
@@ -43,7 +44,30 @@ namespace synth2::dsp
         const bool nativeSilenceGraph=settings.nativeSilenceGraph;
         const bool nativeGainSilence=settings.nativeGainSilence;
         nativeMultiEffect.setDials(settings.nativeMultiEffectDials[0],settings.nativeMultiEffectDials[1],settings.nativeMultiEffectDials[2]);
-        if(settings.nativeMultiEffectType>=0 && settings.nativeMultiEffectType<=5)
+        const bool highRateDrive=audioOversampler.getFactor()>1 && settings.nativeMultiEffectType>=0 && settings.nativeMultiEffectType<=2;
+        if(audioOversampler.getFactor()>1)
+        {
+            auto* left=buffer.getWritePointer(0,outputStart);
+            auto* right=buffer.getNumChannels()>1 ? buffer.getWritePointer(1,outputStart) : nullptr;
+            bool nonzero=false;
+            for(int i=0;i<outputFrames;++i)
+            {
+                const auto output=audioOversampler.process(left[i],right ? right[i] : left[i],
+                    [&](float* l,float* r,int count) {
+                        if(highRateDrive)
+                        {
+                            for(int k=0;k<count;++k){l[k]/=OutputGain::defaultTarget;r[k]/=OutputGain::defaultTarget;}
+                            nativeMultiEffect.process(settings.nativeMultiEffectType,l,r,count,false);
+                            for(int k=0;k<count;++k){l[k]*=OutputGain::defaultTarget;r[k]*=OutputGain::defaultTarget;}
+                        }
+                    });
+                left[i]=output[0];if(right)right[i]=output[1];
+                nonzero=nonzero || output[0]!=0 || output[1]!=0;
+            }
+            inputSilent=!nonzero;
+            graphSilent=false; // Prepared FIR/drive tails must drain during idle input.
+        }
+        if(!highRateDrive && settings.nativeMultiEffectType>=0 && settings.nativeMultiEffectType<=5)
         {
             // Nonlinear effects consume the native VCA level. The existing
             // voice trim represents the master stage after these devices.
@@ -60,6 +84,7 @@ namespace synth2::dsp
             nativePhaser.process(buffer.getWritePointer(0,outputStart),
                 buffer.getNumChannels()>1 ? buffer.getWritePointer(1,outputStart) : nullptr,outputFrames,graphSilent);
         }
+        if(audioOversampler.getFactor()>1)graphSilent=false;
         equalizer.setParams(settings.eq);
         if(nativeSilenceGraph)equalizer.processNative(buffer.getWritePointer(0,outputStart),
             buffer.getNumChannels()>1 ? buffer.getWritePointer(1,outputStart) : nullptr,outputFrames,graphSilent,

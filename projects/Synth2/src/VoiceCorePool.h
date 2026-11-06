@@ -13,6 +13,8 @@ namespace synth2
     public:
         void prepare (const ::synth2::audio::ProcessSpec&,bool preservePhase=false);
         void updateSampleRate (const ::synth2::audio::ProcessSpec&);
+        void setAudioFactor(double rate,int factor) noexcept
+        {for(auto& core:slots)core.setAudioFactor(rate,factor);}
         void requestPhaseReset() noexcept;
         void setPhaseDial (int) noexcept;
         void setGroupCount (int) noexcept;

@@ -74,6 +74,18 @@ namespace synth2
             if (auto* voice = dynamic_cast<SynthVoice*> (synth.getVoice(i))) voice->requestPhaseReset();
     }
 
+    void SynthEngine::setOversamplingFactor(int factor) noexcept
+    {
+        if(!dsp::OversamplingSettings::valid(factor) || (factor==1 && audioFactor==1))return;
+        audioFactor=factor;
+        corePool.setAudioFactor(currentSampleRate,factor);
+        for(auto& channel:audioDownsamplers)channel.setFactor(factor);
+        outputPipeline.setOversamplingFactor(factor);
+        for(int i=0;i<synth.getNumVoices();++i)
+            if(auto* voice=dynamic_cast<SynthVoice*>(synth.getVoice(i)))
+                voice->setAudioOutput(factor,oversampledAudio[0].data(),oversampledAudio[1].data());
+    }
+
     void SynthEngine::prepareToPlay (double sampleRate, int samplesPerBlock)
     {
         // The native host's mains/sample-rate/block-size cycle retains held
@@ -83,6 +95,7 @@ namespace synth2
         const bool preserveVoices = !sharedModulation.isInitial()
             && params.playMode == 0
             && (params.lfo1.nativeSharedClock || params.lfo2.nativeSharedClock);
+        if(!preserveVoices || rateChanged)for(auto& channel:audioDownsamplers)channel.reset();
         currentSampleRate = sampleRate;
         outputPipeline.prepareGain(sampleRate,preserveVoices);
         if (!preserveVoices)
@@ -122,6 +135,7 @@ namespace synth2
                 voice->setGlobalLfoBlock (&sharedModulation.block());
             }
         }
+        if(audioFactor>1)setOversamplingFactor(audioFactor);
     }
 
     void SynthEngine::initWaveTables (double sampleRateForTables)
@@ -188,10 +202,31 @@ namespace synth2
         // Hosts may send more samples than their advertised block size. Chunking
         // reuses prepared storage without allocating on the audio thread.
         const int capacity = sharedModulation.capacity();
+        const bool outputPerRegion=params.nativeVoicePerformance;
+        int audioChunkStart=startSample;
+        auto convertAudio=[&](int start,int count) {
+            bool nonzero=false;
+            for(int frame=0;frame<count;++frame)
+            {
+                std::array<float,2> output{};
+                for(int channel=0;channel<2;++channel)
+                {
+                    std::array<float,16> values{};
+                    for(int step=0;step<audioFactor;++step)
+                        values[step]=oversampledAudio[channel][(start+frame-audioChunkStart)*audioFactor+step];
+                    output[channel]=audioDownsamplers[channel].process(values);
+                    nonzero=nonzero || output[channel]!=0;
+                }
+                if(buffer.getNumChannels()==1)buffer.setSample(0,start+frame,(output[0]+output[1])*.5f);
+                else for(int channel=0;channel<2;++channel)buffer.setSample(channel,start+frame,output[channel]);
+            }
+            return !nonzero;
+        };
         auto processOutput=[&](int outputStart,int outputFrames,bool inputSilent) {
        #if defined(SYNTH2_HOST_PROFILING)
         hostprofile::Scope phase(hostprofile::current.effects);
        #endif
+        if(audioFactor>1 && outputPerRegion)inputSilent=convertAudio(outputStart,outputFrames);
         const auto settings=render::outputSettings(params);
         const auto panControls=settings.panLfo
             ? render::outputPanControls(params,&sharedModulation.block(),outputStart) : dsp::ReceiverLfoView{};
@@ -206,7 +241,6 @@ namespace synth2
         assert (capacity > 0);
         if (capacity <= 0) return;
         bool inputSilent=true;
-        const bool outputPerRegion=params.nativeVoicePerformance;
         const auto outputSink=[](void* context,int start,int count,bool silent) {
             (*static_cast<decltype(processOutput)*>(context))(start,count,silent);
         };
@@ -215,6 +249,13 @@ namespace synth2
             // Win64 processing bridge RVA 0x19e00 limits each synth call
             // to 256 frames, including hosts that supply larger blocks.
             const int size = std::min ({capacity,256,numSamples - offset});
+            audioChunkStart=startSample+offset;
+            if(audioFactor>1)
+            {
+                for(auto& channel:oversampledAudio)std::fill_n(channel.data(),size*audioFactor,0.f);
+                for(int i=0;i<synth.getNumVoices();++i)
+                    if(auto* voice=dynamic_cast<SynthVoice*>(synth.getVoice(i)))voice->setAudioChunkStart(audioChunkStart);
+            }
             sharedModulation.beginChunk(startSample+offset);
             {
                #if defined(SYNTH2_HOST_PROFILING)
@@ -223,8 +264,9 @@ namespace synth2
                 synth.renderRegion (buffer, midiMessages, startSample + offset, size,
                     outputPerRegion ? &processOutput : nullptr,outputPerRegion ? +outputSink : nullptr);
             }
-            inputSilent=inputSilent && !synth.renderedVoicesInRegion;
-            if(!outputPerRegion && render::outputPanLfo(params))processOutput(startSample+offset,size,!synth.renderedVoicesInRegion);
+            const bool chunkSilent=audioFactor>1 && !outputPerRegion ? convertAudio(startSample+offset,size) : !synth.renderedVoicesInRegion;
+            inputSilent=inputSilent && chunkSilent;
+            if(!outputPerRegion && render::outputPanLfo(params))processOutput(startSample+offset,size,chunkSilent);
             globalSampleCount += static_cast<uint64_t> (size);
             params.globalSampleCount = globalSampleCount;
             offset += size;

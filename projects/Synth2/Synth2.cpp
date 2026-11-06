@@ -9,12 +9,13 @@
 using namespace iplug;
 
 Synth2::Synth2(const InstanceInfo& info)
-    : iplug::Plugin(info, MakeConfig(synth2::host::ProcessorBridge::parameterCount, 1))
+    : iplug::Plugin(info, MakeConfig(synth2::host::ProcessorBridge::parameterCount+1, 1))
 {
-    for (int index=0; index<NParams(); ++index)
+    for (int index=0; index<synth2::host::ProcessorBridge::parameterCount; ++index)
     {
         synth2::host::initializeHostParameter(*GetParam(index),index,processor.parameter(index));
     }
+    GetParam(qualityParameter)->InitEnum("Oversampling",0,{"1x","2x","4x","8x","16x"},IParam::kFlagCannotAutomate,"Quality");
     syncParametersFromProcessor();browser.capture(processor);
 #if defined(APP_API)
     const auto session=synth2::host::PresetFiles::loadStandaloneState();
@@ -31,8 +32,10 @@ Synth2::Synth2(const InstanceInfo& info)
 
 void Synth2::syncParametersFromProcessor()
 {
-    for (int index=0; index<NParams(); ++index)
+    for (int index=0; index<synth2::host::ProcessorBridge::parameterCount; ++index)
         GetParam(index)->SetNormalized(processor.normalizedValue(index));
+    int choice=0;while((1<<choice)<processor.oversamplingFactor())++choice;
+    GetParam(qualityParameter)->Set(choice);
 }
 
 void Synth2::OnReset()
@@ -42,6 +45,7 @@ void Synth2::OnReset()
         processor.prepare(GetSampleRate(), GetBlockSize());
         SetTailSize(static_cast<int>(std::min<double>(std::numeric_limits<int>::max(),
             std::ceil(GetSampleRate()*synth2::host::ProcessorBridge::tailLengthSeconds))));
+        syncQualityLatency();
         prepared = true;
     }
 }
@@ -50,13 +54,22 @@ void Synth2::OnActivate(bool active)
     if (!active) { processor.release(); prepared = false; }
     else if (!prepared) OnReset();
 }
-void Synth2::OnParamChange(int index) { processor.setNormalizedValue(index, GetParam(index)->GetNormalized()); }
+void Synth2::syncQualityLatency()
+{
+    const int next=processor.latencySamples();
+    if(next!=reportedLatency){reportedLatency=next;SetLatency(next);}
+}
+void Synth2::OnParamChange(int index)
+{
+    if(index==qualityParameter)processor.setOversamplingFactor(1<<GetParam(index)->Int());
+    else processor.setNormalizedValue(index, GetParam(index)->GetNormalized());
+}
 void Synth2::OnParamReset(EParamSource source)
 {
     // iPlug2 broadcasts resets at initialization/activation. Replaying every
     // unchanged source setter would change native LFO/load history. Restore
     // already synchronizes DSP and parameters transactionally below.
-    for (int index=0; index<NParams(); ++index) OnParamChangeUI(index, source);
+    for (int index=0; index<synth2::host::ProcessorBridge::parameterCount; ++index) OnParamChangeUI(index, source);
 }
 void Synth2::ProcessMidiMsg(const IMidiMsg& message)
 {
@@ -97,5 +110,5 @@ int Synth2::UnserializeState(const IByteChunk& chunk,int start)
     if(start<0 || start>chunk.Size())return -1;
     const int n=synth2::host::restorePresetSession(chunk.GetData()+start,chunk.Size()-start,processor,browser);
     if(n<0)return -1;
-    browserGeneration.fetch_add(1);restoreBrowser();syncParametersFromProcessor();stateRestored.store(true);return start+n;
+    browserGeneration.fetch_add(1);restoreBrowser();syncParametersFromProcessor();syncQualityLatency();stateRestored.store(true);return start+n;
 }
