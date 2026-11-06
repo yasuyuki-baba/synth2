@@ -1,0 +1,40 @@
+# Build directories
+build/
+build_x86/
+bin/
+cmake-build-*/
+build-probe/
+build-iplug-*/
+build-oos-*/
+
+# IDE/plugin artifacts
+*.xcodeproj
+*.sln
+*.vcxproj
+*.vst3
+*.component
+
+# Test artifacts (WAVs and logs)
+tests/*.wav
+tests/*.sy1
+tests/outputs/
+**/*.wav
+**/*.wav.csv
+**/*.txt
+!**/CMakeLists.txt
+!tests/references/*.wav
+
+# OS X
+.DS_Store
+
+# Python analysis tool caches
+__pycache__/
+*.py[cod]
+*.bak
+
+# License notices shipped with native editor assets
+!projects/Synth2/resources/IPLUG2-LICENSE.txt
+!projects/Synth2/resources/fonts/LICENSE.txt
+
+# Local native capture process logs
+docs/gui/*.log

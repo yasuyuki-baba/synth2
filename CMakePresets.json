@@ -1,0 +1,122 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "core",
+      "displayName": "Portable DSP and tests (no plugin SDK)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-oos-core",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SYNTH2_BUILD_IPLUG2": "OFF",
+        "SYNTH2_BUILD_TESTS": "ON",
+        "SYNTH2_BUILD_TOOLS": "ON"
+      }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows VST3 / CLAP",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build-oos-win",
+      "cacheVariables": {
+        "SYNTH2_BUILD_IPLUG2": "ON",
+        "SYNTH2_BUILD_TESTS": "OFF",
+        "SYNTH2_IPLUG2_FORMATS": "VST3;CLAP",
+        "SYNTH2_BUILD_TOOLS": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-app",
+      "inherits": "windows",
+      "binaryDir": "${sourceDir}/build-oos-app",
+      "cacheVariables": {
+        "SYNTH2_IPLUG2_FORMATS": "APP"
+      }
+    },
+    {
+      "name": "macos",
+      "displayName": "macOS VST3 / CLAP / AUv2",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build-oos-mac",
+      "cacheVariables": {
+        "SYNTH2_BUILD_IPLUG2": "ON",
+        "SYNTH2_BUILD_TESTS": "OFF",
+        "SYNTH2_IPLUG2_FORMATS": "VST3;CLAP;AU",
+        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
+        "IPLUG2_UNIVERSAL": "ON",
+        "SYNTH2_BUILD_TOOLS": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "macos-app",
+      "displayName": "macOS standalone (Apple Silicon + Intel)",
+      "inherits": "macos",
+      "binaryDir": "${sourceDir}/build-oos-mac-app",
+      "cacheVariables": {
+        "SYNTH2_IPLUG2_FORMATS": "APP"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "core",
+      "configurePreset": "core"
+    },
+    {
+      "name": "windows",
+      "configurePreset": "windows",
+      "configuration": "Release",
+      "targets": [
+        "Synth2-vst3",
+        "Synth2-clap"
+      ]
+    },
+    {
+      "name": "windows-app",
+      "configurePreset": "windows-app",
+      "configuration": "Release",
+      "targets": [
+        "Synth2-app"
+      ]
+    },
+    {
+      "name": "macos",
+      "configurePreset": "macos",
+      "configuration": "Release",
+      "targets": [
+        "Synth2-vst3",
+        "Synth2-clap",
+        "Synth2-au"
+      ]
+    },
+    {
+      "name": "macos-app",
+      "configurePreset": "macos-app",
+      "configuration": "Release",
+      "targets": [
+        "Synth2-app"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "core",
+      "configurePreset": "core",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

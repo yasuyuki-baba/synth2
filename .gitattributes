@@ -1,0 +1,3 @@
+# Preserve upstream vendored sources and licenses verbatim.
+third_party/** -whitespace
+projects/Synth2/resources/IPLUG2-LICENSE.txt -whitespace

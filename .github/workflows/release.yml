@@ -1,0 +1,13 @@
+name: Release candidate packages
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    uses: ./.github/workflows/build.yml
