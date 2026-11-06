@@ -13,7 +13,7 @@ ZIP/XML support uses the bundled miniz/tinyxml2 implementations.
 Use the root CMake presets for the configured toolchain/SDK. `core` disables the
 native wrapper and builds the SDK-independent core/tests. Native format presets
 require the appropriate iPlug2 checkout, SDK and platform compiler. The macOS
-presets request arm64/x86_64 universal builds with macOS 13 as the deployment target.
+presets request Apple Silicon arm64 builds with macOS 13 as the deployment target.
 A configured target is not evidence that it built or ran in a DAW.
 
 ## Preparing the native build
@@ -21,7 +21,7 @@ A configured target is not evidence that it built or ran in a DAW.
 Install CMake 3.25+, Python 3 and Git. Portable `core` builds also require Ninja
 and a C++20 compiler. Windows native presets require Visual Studio 2022 with the
 Desktop development with C++ workload and a Windows SDK. macOS native presets
-require full Xcode, its selected command-line tools and both requested architectures.
+require full Xcode, its selected command-line tools and the arm64 SDK/toolchain.
 For Windows portable builds, use a Visual Studio developer shell so Ninja can
 find the C++ compiler.
 

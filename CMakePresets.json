@@ -41,16 +41,16 @@
     },
     {
       "name": "macos",
-      "displayName": "macOS VST3 / CLAP / AUv2",
+      "displayName": "macOS VST3 / CLAP / AUv2 (Apple Silicon)",
       "generator": "Xcode",
       "binaryDir": "${sourceDir}/build-oos-mac",
       "cacheVariables": {
         "SYNTH2_BUILD_IPLUG2": "ON",
         "SYNTH2_BUILD_TESTS": "OFF",
         "SYNTH2_IPLUG2_FORMATS": "VST3;CLAP;AU",
-        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "13.0",
-        "IPLUG2_UNIVERSAL": "ON",
+        "IPLUG2_UNIVERSAL": "OFF",
         "SYNTH2_BUILD_TOOLS": "OFF"
       },
       "condition": {
@@ -61,7 +61,7 @@
     },
     {
       "name": "macos-app",
-      "displayName": "macOS standalone (Apple Silicon + Intel)",
+      "displayName": "macOS standalone (Apple Silicon)",
       "inherits": "macos",
       "binaryDir": "${sourceDir}/build-oos-mac-app",
       "cacheVariables": {

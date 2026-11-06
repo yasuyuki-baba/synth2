@@ -20,8 +20,7 @@ Check out the pinned iPlug2 SDK and required format dependencies as described in
 For example, run `cmake --preset windows`, then
 `cmake --build --preset windows`. Repeat with the applicable APP/macOS preset.
 A successful compile is a build result; verify each resulting format in a host.
-On macOS verify both supported architectures where a matching machine/host is
-available. Record the product and SDK commits, compiler, architecture, format,
+On macOS verify Apple Silicon products with a native arm64 host. Record the product and SDK commits, compiler, architecture, format,
 host/version, sample rate, block size and actual result outside this specification.
 
 ## Host acceptance

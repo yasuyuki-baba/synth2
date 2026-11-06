@@ -45,6 +45,19 @@ jobs:
           -DIGRAPHICS_BACKEND=NANOVG
       - name: Build all selected formats
         run: cmake --build build --config Release --parallel 4
+      - name: Verify Apple Silicon products
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for format in vst3 clap component app; do
+            binary="build/out/Synth2.$format/Contents/MacOS/Synth2"
+            architectures=$(lipo -archs "$binary")
+            if [[ "$architectures" != "arm64" ]]; then
+              echo "Unexpected architectures in $binary: $architectures" >&2
+              exit 1
+            fi
+          done
       - name: Package native products
         run: >-
           python tools/package_native.py --build build

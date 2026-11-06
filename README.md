@@ -15,7 +15,7 @@ their own supplementary views; serialized metadata stays outside the editor.
 | Platform | Plugin formats | Standalone |
 | --- | --- | --- |
 | Windows | VST3, CLAP | APP |
-| macOS | VST3, CLAP, AUv2 | APP |
+| macOS (Apple Silicon) | VST3, CLAP, AUv2 | APP |
 
 These are configured build targets, not certification of plugin/DAW operation.
 See [capabilities and verification boundaries](docs/status.md) for the current scope.

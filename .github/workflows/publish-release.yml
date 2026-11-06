@@ -64,7 +64,7 @@ jobs:
           mv Synth2-macos/Synth2-macos.tar.gz .
           sha256sum Synth2-windows.zip Synth2-macos.tar.gz > SHA256SUMS
           cat > release-notes.md <<'NOTES'
-          Synth2 native packages for Windows (x64) and macOS (Apple Silicon and Intel).
+          Synth2 native packages for Windows (x64) and macOS (Apple Silicon, arm64).
 
           These builds are unsigned; macOS builds are not notarized.
           See [installation instructions](https://github.com/yasuyuki-baba/synth2/blob/main/INSTALL.md)
