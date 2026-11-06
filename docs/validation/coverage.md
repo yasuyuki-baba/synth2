@@ -116,3 +116,7 @@ aliasing already embedded in the retained base-rate feedback model.
 `RenderDiagnosticsTests` checks that the normal product probe ignores legacy DSP
 bypass environment variables and rejects switches reserved for the separately
 linked diagnostic probe. This does not validate native GUI/device operation.
+
+`BuildVersionTests` checks release-tag and development-date metadata generation,
+prerelease numeric fields and rejection of out-of-range plugin versions without
+native SDKs. It validates generated metadata, not native bundle/DAW operation.

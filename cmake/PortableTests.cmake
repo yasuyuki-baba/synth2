@@ -118,3 +118,8 @@ set_target_properties(Synth2PatchTests Synth2RealtimeTests PROPERTIES CXX_EXTENS
 add_test(NAME RenderDiagnosticsTests
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_render_diagnostics.py $<TARGET_FILE:Synth2Probe>)
 set_tests_properties(RenderDiagnosticsTests PROPERTIES LABELS "portable;python" TIMEOUT 30)
+
+add_test(NAME BuildVersionTests
+    COMMAND ${CMAKE_COMMAND} -E env "CMAKE_COMMAND=${CMAKE_COMMAND}"
+        ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_build_version.py -v)
+set_tests_properties(BuildVersionTests PROPERTIES LABELS "portable;python" TIMEOUT 60)

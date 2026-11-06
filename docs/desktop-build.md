@@ -142,3 +142,22 @@ presets consistent. Internal class names do not define parameter identities.
 DAW plugin-identity compatibility is not established by readable state chunks.
 Parameter IDs, ordering, ranges and processor state encoding remain independent
 contracts.
+
+## Build versions
+
+Version numbers are generated at CMake configure time; do not edit version strings
+in source or resource templates. GitHub Actions tag builds use their `vMAJOR.MINOR.PATCH`
+ref, optionally with a prerelease suffix. Plugin numeric version words, Windows
+resource metadata and all macOS bundle metadata share that input.
+
+Local builds default to `0.0.0-dev.YYYYMMDD.g<commit>` (UTC date, with the Git suffix
+omitted for source archives). Numeric-only plugin/bundle fields use `0.0.0` for
+these development builds. Reconfigure to refresh the label after changing commits
+or dates; `SOURCE_DATE_EPOCH` provides a reproducible development date.
+
+For an explicit local release build or a source archive, configure with
+`-DSYNTH2_RELEASE_TAG=vMAJOR.MINOR.PATCH`. Clear that cache value with
+`-DSYNTH2_RELEASE_TAG=` to return to development labeling. The override affects
+metadata only and does not create or move a Git tag. Minor and patch components
+must fit the plugin format's 8-bit fields; major uses 16 bits. Prerelease labels
+remain in display strings while numeric bundle fields retain the version triplet.

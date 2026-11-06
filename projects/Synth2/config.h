@@ -1,8 +1,9 @@
 #pragma once
 #define PLUG_NAME "Synth2"
 #define PLUG_MFR "babab"
-#define PLUG_VERSION_HEX 0x00000101
-#define PLUG_VERSION_STR "0.1.1"
+#include "BuildVersion.h"
+#define PLUG_VERSION_HEX SYNTH2_VERSION_HEX
+#define PLUG_VERSION_STR SYNTH2_VERSION_STR
 // Product identity is independent of internal DSP and loading class names.
 #define PLUG_UNIQUE_ID 'Syn2'
 #define PLUG_MFR_ID 'BABA'

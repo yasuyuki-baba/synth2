@@ -3,6 +3,7 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "BuildVersion.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -192,8 +193,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 0,1,1,0
-PRODUCTVERSION 0,1,1,0
+FILEVERSION SYNTH2_FILE_VERSION
+PRODUCTVERSION SYNTH2_FILE_VERSION
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -208,8 +209,8 @@ BEGIN
     BEGIN
         BLOCK "040004e4"
         BEGIN
-            VALUE "FileVersion", "0.1.1"
-            VALUE "ProductVersion", "0.1.1"
+            VALUE "FileVersion", SYNTH2_VERSION_STR
+            VALUE "ProductVersion", SYNTH2_VERSION_STR
             VALUE "FileDescription", "Synth2"
             VALUE "InternalName", "Synth2"
             VALUE "ProductName", "Synth2"

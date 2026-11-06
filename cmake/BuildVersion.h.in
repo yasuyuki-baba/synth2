@@ -1,0 +1,5 @@
+#pragma once
+// Generated at configure time; edit the release tag, not this file.
+#define SYNTH2_VERSION_HEX @SYNTH2_VERSION_HEX@
+#define SYNTH2_VERSION_STR "@SYNTH2_BUILD_VERSION@"
+#define SYNTH2_FILE_VERSION @SYNTH2_FILE_VERSION@

@@ -59,6 +59,9 @@ cmake --build build-oos-tests --parallel 4
 ctest --test-dir build-oos-tests --output-on-failure
 ```
 
+Local builds receive a dated development version. Release builds derive their
+version from the Git tag; see [build versions](docs/desktop-build.md#build-versions).
+
 Native products use the pinned `iPlug2/` submodule and additional SDK revisions
 in [dependencies.lock.json](dependencies.lock.json). Initialize it with
 `git submodule update --init iPlug2`, then follow the
