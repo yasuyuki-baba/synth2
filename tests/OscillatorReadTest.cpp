@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "dsp/OscillatorAudioRenderer.h"
+#include "dsp/AudioOversampler.h"
 #include <cmath>
 
 namespace {
@@ -228,5 +229,83 @@ TEST(OscillatorRead, CeilingAppliesAfterPitchModulation)
             const auto b=reference.processSample(440,input.expected,.5f,.5f,0,false,false,0,0,-1,&bank);
             ASSERT_EQ(actual.readPhaseWords(),reference.readPhaseWords());ASSERT_EQ(a,b);
         }
+    }
+}
+
+TEST(OscillatorRead, FineFramesPreserveBaseTrajectoryAcrossWaveformsAndControlChanges)
+{
+    const auto bank=generatedBank();
+    for(double rate:{44100.,48000.})for(int factor:{2,4,8,16})
+    for(int first:{0,1,2,3})for(int second:{0,1,2,3,4})for(int mode:{0,1,2,3})
+    {
+        synth2::dsp::OscillatorSection base,fine;
+        for(auto* o:{&base,&fine}){o->prepare({rate,64,2});o->params={first,second};o->resetPhase(.87f);}
+        for(int frame=0;frame<96;++frame)
+        {
+            if(frame==48){base.resetPhase(.13f);fine.resetPhase(.13f);}
+            const bool sync=(mode&1)!=0,ring=(mode&2)!=0;
+            const float stack=frame<32 ? 0.f : 37.5f,sub=frame<16 ? 0.f : .7f;
+            base.stackDial=fine.stackDial=stack;
+            const float f1=frame<64 ? 1046.5f : 35000.f,f2=frame<32 ? 2489.f : 10000.f;
+            const float width=frame%2 ? .23f : .77f;
+            const double depth=frame<8 ? 0 : 15400286.75;
+            const float expected=base.processSample(f1,f2,width,.35f,depth,sync,ring,sub,2,-1,&bank,-1,.1,-.2,true,true);
+            std::array<float,16> actual{};
+            fine.processFrame(actual.data(),factor,f1,f2,width,.35f,depth,sync,ring,sub,2,-1,&bank,-1,.1,-.2,true,true);
+            ASSERT_EQ(actual[0],expected);
+            ASSERT_EQ(fine.readPhaseWords(),base.readPhaseWords());
+            ASSERT_EQ(fine.subSharedPhase,base.subSharedPhase);
+            ASSERT_EQ(fine.stackPhases,base.stackPhases);
+            for(int i=0;i<factor;++i)ASSERT_TRUE(std::isfinite(actual[i]));
+        }
+    }
+}
+
+TEST(OscillatorRead, FineFrameFollowsSignedFmAdvanceIncludingMoreThanHalfACycle)
+{
+    // Constant owned modulator tables make the signed FM advance independent
+    // of feedback. Check analytic intermediate sine values, not another renderer.
+    for(float source:{-1.f,1.f})for(int factor:{2,4,8,16})
+    {
+        auto bank=generatedBank();synth2::ShapeTables constant;
+        constant.infos.push_back({0,2048,100000});constant.data.assign(2048,source);
+        bank.setShapeTables(2,std::move(constant));
+        synth2::dsp::OscillatorSection o;o.prepare({48000,64,2});o.params={3,2};
+        o.osc1.setPhaseFixed27(0x07000000);o.osc2.setPhaseFixed27(0);
+        std::array<float,16> values{};
+        o.processFrame(values.data(),factor,22000,1000,.5f,0,67108864,true,false,0,0,-1,&bank);
+        const int64_t increment=o.osc1.getPhaseIncFixed27();
+        const int64_t delta=increment+(source<0 ? -67108864 : 67108864);
+        for(int i=0;i<factor;++i)
+        {
+            const uint32_t phase=(0x07000000u+static_cast<uint32_t>(delta*i/factor))&0x07ffffffu;
+            EXPECT_NEAR(values[i],std::sin(2*std::acos(-1.)*phase/134217728.),2e-6);
+        }
+    }
+}
+
+TEST(OscillatorRead, FineFmTrajectorySuppressesAnAboveNyquistCarrierWithoutRetuning)
+{
+    auto bank=generatedBank();synth2::ShapeTables constant;
+    constant.infos.push_back({0,2048,100000});constant.data.assign(2048,1.f);
+    bank.setShapeTables(2,std::move(constant));
+    double reference=0;
+    for(int factor:{1,2,4,8,16})
+    {
+        synth2::dsp::OscillatorSection o;o.prepare({48000,64,2});o.params={3,2};
+        synth2::dsp::AudioDownsampler down;down.setFactor(factor);
+        double re=0,im=0;
+        for(int i=0;i<12288;++i)
+        {
+            std::array<float,16> samples{};
+            // 12 kHz base + 20 kHz constant FM = 32 kHz. At 48 kHz it
+            // folds to 16 kHz. A finer read must remove, not retune, this tone.
+            o.processFrame(samples.data(),factor,12000,1000,.5f,0,20000.*134217728./48000.,false,false,0,0,-1,&bank);
+            const float value=down.process(samples);
+            if(i>=4096){const double w=.5-.5*std::cos(2*std::acos(-1.)*(i-4096)/8191.);re+=w*value*std::cos(2*std::acos(-1.)*16000*i/48000.);im+=w*value*std::sin(2*std::acos(-1.)*16000*i/48000.);}
+        }
+        const double magnitude=std::hypot(re,im);
+        if(factor==1){reference=magnitude;ASSERT_GT(reference,100);}
+        else EXPECT_LT(magnitude,reference*.02);
     }
 }

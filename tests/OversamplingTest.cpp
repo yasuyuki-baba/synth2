@@ -158,3 +158,30 @@ TEST(Oversampling, AllFactorsKeepTheAudibleFundamentalAndDrainNoteOff)
         for(float value:left)EXPECT_LT(std::abs(value),1e-5f);
     }
 }
+
+TEST(Oversampling, FmSyncPhysicalPhasesSurviveQualityChangesAndMidiHistory)
+{
+    auto base=std::make_unique<synth2::host::ProcessorBridge>();
+    auto high=std::make_unique<synth2::host::ProcessorBridge>();
+    const std::string patch="Phase quality\nver=113\n0,0\n1,3\n2,80\n3,64\n4,1\n45,100\n6,1\n76,80\n73,1\n74,64\n25,0\n26,0\n27,127\n28,60\n19,100\n20,50\n23,70\n77,1\n78,2\n79,90\n80,64\n81,80\n59,0\n57,0\n58,0\n65,0\n66,0\n9,0\n";
+    std::string error;ASSERT_TRUE(base->loadPatch(patch,error));ASSERT_TRUE(high->loadPatch(patch,error));
+    ASSERT_TRUE(high->setOversamplingFactor(16));base->prepare(48000,64);high->prepare(48000,64);
+    std::array<float,64> a{},b{},c{},d{};double energy=0;
+    for(int block=0;block<240;++block)
+    {
+        auto event=[&](int offset,int status,int note,int value){ASSERT_TRUE(base->enqueueMidi(offset,status,note,value));ASSERT_TRUE(high->enqueueMidi(offset,status,note,value));};
+        if(block==0)event(7,0x90,72,100);
+        if(block==25)event(11,0xe0,0,80);
+        if(block==40)event(19,0x90,84,100);
+        if(block==60)event(23,0x80,72,0);
+        if(block==90)event(3,0xb0,1,100);
+        if(block==120)event(31,0x80,84,0);
+        if(block==130)event(9,0x90,36,110);
+        if(block==170)event(1,0x80,36,0);
+        if(block%30==0)ASSERT_TRUE(high->setOversamplingFactor((std::array<int,5>{1,2,4,8,16})[(block/30)%5]));
+        ASSERT_TRUE(base->process(a.data(),b.data(),64,120));ASSERT_TRUE(high->process(c.data(),d.data(),64,120));
+        for(size_t core=0;core<32;++core){std::array<uint32_t,9> x{},y{};ASSERT_TRUE(base->engineForInspection().readCoreWords(core,x));ASSERT_TRUE(high->engineForInspection().readCoreWords(core,y));ASSERT_EQ(x,y);}
+        for(float v:c){ASSERT_TRUE(std::isfinite(v));energy+=double(v)*v;}
+    }
+    EXPECT_GT(energy,1e-6);
+}

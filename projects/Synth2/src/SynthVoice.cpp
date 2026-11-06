@@ -386,15 +386,14 @@ namespace synth2
                     else
                     {
                         const int factor=audioFactor;
-                        auto highInput=oscillatorInput;
-                        // FM depth is a phase increment per host frame.
-                        highInput.fmDepth/=factor;
+                        std::array<float,16> oscillatorFrame{};
+                        dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                            oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr,oscillatorFrame.data(),factor);
                         const float noise=random.nextFloat()*2.0f-1.0f;
                         const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
                         for(int step=0;step<factor;++step)
                         {
-                            const float signal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                                oscillatorAudio,highInput,audioLfos,i,waveTableBankPtr);
+                            const float signal=oscillatorFrame[step];
                             const float mixed=mixer.mix(signal,noise,params.noiseLevel);
                             const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
                                 {mixed,nativeCutoffIndices[v][i]})*gain;

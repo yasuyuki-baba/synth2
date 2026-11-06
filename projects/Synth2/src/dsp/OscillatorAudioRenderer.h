@@ -22,7 +22,7 @@ namespace synth2::dsp
     {
         static float process(OscillatorSection& oscillator,const OscillatorAudioSettings& config,
             const OscillatorAudioInput& input,const ReceiverLfoView& lfos,int position,
-            const synth2::WaveTableBank* bank)
+            const synth2::WaveTableBank* bank,float* frame=nullptr,int factor=1)
         {
             float firstFrequency=input.firstFrequency,secondFrequency=input.secondFrequency;
             double firstPitch=input.firstPitch+input.glidePitch;
@@ -53,6 +53,12 @@ namespace synth2::dsp
             const float width=config.pulseReceiver || config.pulseEnvelope
                 ? config.pulseWidth : input.pulseWidth;
             const double bins=ModulationEnvelope::pulseWidthForDial(fractionalDial(width),pulse);
+            if(frame) {
+                oscillator.processFrame(frame,factor,firstFrequency,secondFrequency,input.pulseWidth,input.mix,
+                    fm,input.sync,input.ring,input.subGain,config.subWave,config.subOctave,bank,
+                    bins,firstPitch,secondPitch,config.pitchReceiver,config.correctFmPhase);
+                return frame[0];
+            }
             return oscillator.processSample(firstFrequency,secondFrequency,input.pulseWidth,input.mix,
                 fm,input.sync,input.ring,input.subGain,config.subWave,config.subOctave,bank,
                 bins,firstPitch,secondPitch,config.pitchReceiver,config.correctFmPhase);

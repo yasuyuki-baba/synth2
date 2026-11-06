@@ -24,9 +24,8 @@ namespace synth2
         void setAudioFactor(double rate,int factor) noexcept
         {
             if(!dsp::OversamplingSettings::valid(factor))return;
-            if(audioFactor!=factor){audioFactor=factor;oscillator.resetFmPhase();}
-            oscillator.prepare({rate*factor,512,2});
-            oscillator.noiseGain=std::sqrt(static_cast<float>(factor));
+            audioFactor=factor;
+            oscillator.prepare({rate,512,2});
             filter.setSampleRate(rate*factor);
         }
         dsp::FilterEnvelope filterEnvelope;
@@ -51,8 +50,7 @@ namespace synth2
         void prepare (const ::synth2::audio::ProcessSpec& spec,bool preservePhase=false)
         {
             auto audioSpec=spec;audioSpec.sampleRate*=audioFactor;
-            oscillator.prepare (audioSpec);
-            oscillator.noiseGain=std::sqrt(static_cast<float>(audioFactor));
+            oscillator.prepare (spec);
             filter.prepare (audioSpec);
             filterEnvelope.reset();
             cutoff.prepare (static_cast<int>(spec.sampleRate));

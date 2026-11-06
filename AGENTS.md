@@ -114,7 +114,9 @@
   path's phase lookup and gain rules. See the audio contract.
 - Optional audio oversampling is instance quality configuration, separate from
   patch controls. Keep 1x as the unchanged default; 2x/4x/8x/16x must not accelerate
-  MIDI, shared clocks, control envelopes or intentional decimator timing. Report
+  MIDI, shared clocks, control envelopes or intentional decimator timing. Keep
+  oscillator/FM/Sync and noise state on the base-frame trajectory; reconstruct
+  signed intermediate phases for fine waveform reads. Report
   the actual resampling latency and retain prepared, allocation-free callbacks.
 - Preserve real-valued VCA Attack targets. Do not restore integer Attack
   truncation to reduce distortion-sensitive reference errors; keep audio

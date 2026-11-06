@@ -104,3 +104,11 @@ OversamplingTest uses generated impulses, DC, sine/cubic signals and actual brid
 playback to check factor/state validation, fixed latency, folded-harmonic reduction,
 audible pitch, note-off tails and host-rate LFO/envelope clocks. RealtimeBehavior
 checks prepared factor changes and short/chunked callbacks without heap activity.
+
+Phase-preserving quality checks in OscillatorReadTest cover base-frame state
+and sample identity across waveform/Ring/Sync/sub/stack/control combinations,
+signed FM paths beyond half a cycle, and an analytically known folded carrier.
+OversamplingTest also compares actual bridge phase words across quality changes,
+MIDI offsets, overlapping notes and releases with nonlinear filter/drive enabled.
+These properties do not establish unrestricted source compatibility or remove
+aliasing already embedded in the retained base-rate feedback model.

@@ -10,14 +10,21 @@ policy. Old states without the setting restore 1x. Unsupported factors are rejec
 transactionally. Append the native non-automatable quality parameter after the
 existing 129 host controls without renumbering them.
 
-At higher factors, run oscillator/Sync/FM and the complete per-core filter,
-limiter and saturation at the internal audio rate. Apply the base-rate VCA and
-pan values to those samples, sum them, then decimate globally so tails outlive
-logical voice retirement. Scale FM's per-sample phase depth by the factor;
-keep the fixed 22 kHz frequency ceiling. Independent oscillator noise runs at
-the internal rate with square-root factor energy normalization; shared noise/RNG
-and all MIDI, ARP, LFO, portamento, FM/cutoff/envelope receivers advance at the host
-rate. Hold their resolved values across each internal audio frame group.
+At higher factors, preserve oscillator phase, FM feedback, Sync reset, stack/sub
+and oscillator-noise updates at the host rate. Reconstruct intermediate waveform
+reads along the signed phase advance of each base frame, retaining Sync resets
+at its boundary. Do not infer the advance from the shortest circular phase arc,
+scale the FM depth by the factor, or reset FM history on quality changes.
+Oscillator noise holds the base-frame sample without square-root gain scaling.
+This retains the discrete feedback model; it does not remove aliasing already
+embedded in that model or claim a continuous-time FM/Sync replacement.
+
+Run the complete per-core filter, limiter and saturation at the internal rate.
+Apply base-rate VCA and pan values to fine samples, sum them, then decimate
+globally so tails outlive logical voice retirement. Keep the fixed 22 kHz base
+frequency ceiling. Shared noise/RNG and MIDI, ARP, LFO, portamento and all
+FM/cutoff/envelope receivers retain the host cadence. Hold resolved controls
+across each internal audio frame group.
 
 The output drive uses interpolation/decimation at the selected factor. Run
 its overdrive kernels and tone filters at that rate. Other output processing,

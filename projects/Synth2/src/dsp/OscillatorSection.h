@@ -8,6 +8,11 @@
 #include <array>
 
 namespace synth2::dsp {
+    struct OscillatorFrameAdvance {
+        int64_t first {},second {};
+        std::array<int64_t,8> stack {};
+    };
+
     class OscillatorSection {
     public:
         void prepare(const ::synth2::audio::ProcessSpec& spec) {
@@ -29,7 +34,7 @@ namespace synth2::dsp {
         }
 
         float processSample(float f1, float f2, float pw, float mix, double fmAmt, bool sync, bool ring,
-                            float subGain, int subShape, int subOctaveMode, const WaveTableBank* bank, double nativePulseWidthBins = -1, double pitch1Control = 0, double pitch2Control = 0, bool nativePitchLfo = false, bool correctFmPhase = false) {
+                            float subGain, int subShape, int subOctaveMode, const WaveTableBank* bank, double nativePulseWidthBins = -1, double pitch1Control = 0, double pitch2Control = 0, bool nativePitchLfo = false, bool correctFmPhase = false, OscillatorFrameAdvance* frameAdvance = nullptr) {
             const float base1=f1;
             const double pulseBins=nativePulseWidthBins>=0 ? nativePulseWidthBins
                 : ModulationEnvelope::pulseWidthForDial(fractionalDial(pw),0.0);
@@ -47,7 +52,6 @@ namespace synth2::dsp {
             osc1.updatePhaseIncrement(f1);
             osc2.updatePhaseIncrement(f2);
             float s2=osc2.renderSample(params.osc2Wave,pw,0,bank,pulseBins);
-            if(params.osc2Wave==4 && noiseGain!=1)s2*=noiseGain;
 
             // FM amount is in 27-bit phase-increment units.
             // The native dispatcher scales noise by .65 only without FM.
@@ -70,6 +74,11 @@ namespace synth2::dsp {
             const auto fmAdvance=fmPhase.advance(ring ? 0.0f : fmAmt,fmSource,
                 osc1.getPhaseIncFixed27(),p1Old,correctFmPhase && !ring);
             const uint32_t phaseAdd=fmAdvance.audibleOffset;
+            if(frameAdvance) {
+                *frameAdvance={};
+                frameAdvance->first=int64_t(osc1.getPhaseIncFixed27())+static_cast<int32_t>(phaseAdd);
+                frameAdvance->second=osc2.getPhaseIncFixed27();
+            }
 
             float s1 = osc1.renderSample(params.osc1Wave, pw, 0, bank,pulseBins);
             float nativeSubSample=0.0f;
@@ -121,6 +130,7 @@ namespace synth2::dsp {
                             ? ModulationEnvelope::pitchFrequency(stackFrequencies[lane],pitch1Control) : std::min(stackFrequencies[lane],22000.0f);
                         const float increment=static_cast<float>(static_cast<double>(laneFrequency)
                             *(134217728.0/sampleRate));
+                        if(frameAdvance)frameAdvance->stack[lane]=int64_t(static_cast<uint32_t>(increment))+static_cast<int32_t>(phaseAdd);
                         stackPhases[lane]+=static_cast<uint32_t>(increment)+phaseAdd;
                     }
                 }
@@ -162,12 +172,39 @@ namespace synth2::dsp {
             return combined;
         }
 
+        // Advance the authoritative FM/Sync/noise state once at the host rate.
+        // Fine reads follow that signed phase trajectory; Sync resets remain at
+        // its boundary. Never infer direction from a shortest circular arc.
+        void processFrame(float* output,int factor,float f1,float f2,float pw,float mix,
+                          double fmAmt,bool sync,bool ring,float subGain,int subShape,int subOctaveMode,
+                          const WaveTableBank* bank,double pulseBins=-1,double pitch1=0,double pitch2=0,
+                          bool pitchReceiver=false,bool correctFmPhase=false) {
+            const auto initial=*this;
+            OscillatorFrameAdvance advance;
+            output[0]=processSample(f1,f2,pw,mix,fmAmt,sync,ring,subGain,subShape,subOctaveMode,
+                                    bank,pulseBins,pitch1,pitch2,pitchReceiver,correctFmPhase,&advance);
+            for(int step=1;step<factor;++step) {
+                auto view=initial;
+                const auto phase=[&](uint32_t start,int64_t delta) {
+                    return start+static_cast<uint32_t>(delta*step/factor);
+                };
+                view.osc1.setPhaseFixed27(phase(initial.osc1.getPhaseFixed27(),advance.first));
+                view.osc2.setPhaseFixed27(phase(initial.osc2.getPhaseFixed27(),advance.second));
+                view.subSharedPhase=phase(initial.subSharedPhase,advance.first);
+                for(size_t lane=0;lane<view.stackPhases.size();++lane)
+                    view.stackPhases[lane]=phase(initial.stackPhases[lane],advance.stack[lane]);
+                // Noise reads use a disposable copy of the starting state, so
+                // they hold the base-frame sample and never advance the real RNG.
+                output[step]=view.processSample(f1,f2,pw,mix,fmAmt,sync,ring,subGain,subShape,subOctaveMode,
+                                                bank,pulseBins,pitch1,pitch2,pitchReceiver,correctFmPhase);
+            }
+        }
+
         struct Settings {
             int osc1Wave{0}, osc2Wave{0};
         } params;
     public:
         uint32_t subSharedPhase {0};
-        float noiseGain {1};
         float stackDial {0}, cachedStackDial {-1};
         float stackBase {-1.0f};
         std::array<float,8> stackFrequencies {};
