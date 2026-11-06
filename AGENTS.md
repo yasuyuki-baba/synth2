@@ -2,8 +2,7 @@
 
 ## Communication and project context
 
-- Respond to the user in Japanese. Write code, documentation and commit messages
-  in English.
+- Write code, documentation and commit messages in English.
 - Start with [capabilities and verification boundaries](docs/status.md) and the
   [product contracts](docs/README.md). Read the relevant contract and independent
   evidence before changing compatibility behavior.
