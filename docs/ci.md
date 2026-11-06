@@ -60,10 +60,21 @@ including unsigned-build steps. Failure diagnostics are uploaded separately.
 Artifacts expire after 14 days and are identified by the workflow run/commit.
 
 `release.yml` runs on `v*` tags or manual dispatch and reuses the complete build
-pipeline to produce the same candidates. It does not create/publish a GitHub
-Release or change repository visibility. Official distribution still follows the
-[publication requirements](publication/README.md), including asset rights and the
-chosen public history. Candidates are unsigned and macOS builds are not notarized.
+pipeline. After a successful tag build, `publish-release.yml` downloads its Windows
+and macOS artifacts and publishes the native packages plus `SHA256SUMS` to the
+matching GitHub Release. Only the publisher has `contents: write`; build jobs keep
+read-only access. The publisher checks the upstream repository, workflow path,
+push event, completed success status and tag-to-commit identity before downloading
+packages. It does not check out or execute code from an upstream artifact.
+
+To publish an already completed tag build, manually dispatch **Publish release
+packages** on main and provide its Actions run ID. For example, the original
+v0.1.0 build is run `42220916639`. Its artifacts must still be available. This
+publishes the packages from that build without moving the tag or rebuilding it.
+A manual candidate build from a branch cannot be published through this path.
+Repeated publication updates the same tag's assets; repository visibility is
+unchanged. Distribution follows the [publication requirements](publication/README.md).
+Candidates are unsigned and macOS builds are not notarized.
 
 A native compile/package result does not establish plugin scanning, GUI interaction,
 DAW session compatibility, device behavior or hard real-time guarantees. Those

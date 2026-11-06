@@ -1,0 +1,85 @@
+name: Publish release packages
+
+on:
+  workflow_run:
+    workflows: ['Release candidate packages']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Successful tag build run ID (for example 42220916639 for v0.1.0)'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: publish-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+    steps:
+      - name: Verify successful tag build and immutable source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > run.json
+          jq -e --arg repo "$GH_REPO" '
+            .repository.full_name == $repo and
+            .event == "push" and
+            .path == ".github/workflows/release.yml" and
+            .status == "completed" and .conclusion == "success"
+          ' run.json > /dev/null
+          TAG=$(jq -r '.head_branch' run.json)
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][a-zA-Z0-9.-]+)?$ ]]
+          BUILD_SHA=$(jq -r '.head_sha' run.json)
+          TAG_SHA=$(gh api "repos/$GH_REPO/commits/$TAG" --jq '.sha')
+          [[ "$BUILD_SHA" == "$TAG_SHA" ]]
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Download native packages from the verified build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$RUN_ID" --repo "$GH_REPO" --pattern 'Synth2-*' --dir packages
+          test -s packages/Synth2-windows/Synth2-windows.zip
+          test -s packages/Synth2-macos/Synth2-macos.tar.gz
+      - name: Publish packages and checksums
+        working-directory: packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv Synth2-windows/Synth2-windows.zip .
+          mv Synth2-macos/Synth2-macos.tar.gz .
+          sha256sum Synth2-windows.zip Synth2-macos.tar.gz > SHA256SUMS
+          cat > release-notes.md <<'NOTES'
+          Synth2 native packages for Windows (x64) and macOS (Apple Silicon and Intel).
+
+          These builds are unsigned; macOS builds are not notarized.
+          See [installation instructions](https://github.com/yasuyuki-baba/synth2/blob/main/INSTALL.md)
+          for product locations and unsigned-build prompts. The same guide is included in each package.
+
+          Extract the native package before installing. No preset banks are included;
+          add your own Synth1 `.sy1` patches or ZIP banks through the patch library.
+          Build identity and dependency revisions are included in `dependencies.json`.
+          NOTES
+          if gh release view "$TAG" --repo "$GH_REPO" > /dev/null 2>&1; then
+            gh release upload "$TAG" Synth2-windows.zip Synth2-macos.tar.gz SHA256SUMS --repo "$GH_REPO" --clobber
+          else
+            extra=()
+            if [[ "$TAG" == *-* ]]; then extra+=(--prerelease); fi
+            gh release create "$TAG" Synth2-windows.zip Synth2-macos.tar.gz SHA256SUMS \
+              --repo "$GH_REPO" --verify-tag --title "Synth2 $TAG" \
+              --notes-file release-notes.md "${extra[@]}"
+          fi
