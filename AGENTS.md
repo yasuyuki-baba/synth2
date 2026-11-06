@@ -223,6 +223,13 @@ See [source strategies](docs/architecture/source-conversion.md),
   catalog/selection ownership and weak dialog-lifetime guards when splitting files.
   Audit presentation headers against host/engine/SDK dependencies.
 
+## Build versions
+
+- Derive release metadata from Git tags; keep version numbers out of maintained
+  CMake project/config/resource sources. Local builds use dated development labels.
+  Generate plugin version words and native resource metadata together; see
+  [build versions](docs/desktop-build.md#build-versions).
+
 ## Public distribution
 
 - Keep product specifications, build instructions and portable tests self-contained.

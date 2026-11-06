@@ -1,5 +1,6 @@
 # Adapted from iPlug2OOS/TemplateProject at 9b214c1121a0da1e8db14b86a565c942a3bfea7e.
-project(Synth2 VERSION 0.1.1 LANGUAGES C CXX)
+project(Synth2 VERSION ${SYNTH2_NUMERIC_VERSION} LANGUAGES C CXX)
+include_directories("${SYNTH2_VERSION_DIR}")
 if(NOT WIN32 AND NOT APPLE)
     message(FATAL_ERROR "Synth2 iPlug2 targets require Windows or macOS. Use Synth2Core for portable validation.")
 endif()
@@ -18,7 +19,7 @@ set(synth2_iplug_formats ${SYNTH2_IPLUG2_FORMATS})
 if(APPLE AND "APP" IN_LIST synth2_iplug_formats)
     # The SDK includes the SWELL resources and compiles the XIB into the bundle.
     # A missing XIB otherwise produces an app that cannot initialize its menu.
-    foreach(resource Synth2-macOS-Info.plist Synth2-macOS-MainMenu.xib main.rc_mac_dlg main.rc_mac_menu)
+    foreach(resource Synth2-macOS-Info.plist.in Synth2-macOS-MainMenu.xib main.rc_mac_dlg main.rc_mac_menu)
         if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/${resource}")
             message(FATAL_ERROR "The macOS standalone requires resources/${resource}")
         endif()
@@ -99,6 +100,18 @@ if(APPLE)
                     LIBRARY_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/out"
                     RUNTIME_OUTPUT_DIRECTORY_${configuration} "${CMAKE_BINARY_DIR}/out")
             endforeach()
+        endif()
+    endforeach()
+endif()
+
+if(APPLE)
+    foreach(pair "vst3|VST3" "clap|CLAP" "au|AU" "app|macOS")
+        string(REPLACE "|" ";" fields "${pair}")
+        list(GET fields 0 suffix)
+        list(GET fields 1 format)
+        if(TARGET Synth2-${suffix})
+            set_target_properties(Synth2-${suffix} PROPERTIES MACOSX_BUNDLE_INFO_PLIST
+                "${SYNTH2_VERSION_DIR}/Synth2-${format}-Info.plist")
         endif()
     endforeach()
 endif()

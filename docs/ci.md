@@ -60,6 +60,10 @@ including unsigned-build steps. Failure diagnostics are uploaded separately.
 Before packaging, macOS checks every product with `lipo` and requires exactly
 arm64 code. Artifacts expire after 14 days and are identified by the workflow run/commit.
 
+Tag builds derive product and resource versions from the tag at configure time.
+Branch/PR builds use dated development labels; source files carry no maintained
+release version. See [build versions](desktop-build.md#build-versions).
+
 `release.yml` runs on `v*` tags or manual dispatch and reuses the complete build
 pipeline. After a successful tag build, `publish-release.yml` downloads its Windows
 and macOS artifacts and publishes the native packages plus `SHA256SUMS` to the
