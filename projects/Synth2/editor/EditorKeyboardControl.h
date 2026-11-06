@@ -8,7 +8,7 @@ namespace synth2::editor::native {
 class EditorKeyboardControl final : public iplug::igraphics::IVKeyboardControl {
 public:
     EditorKeyboardControl(const iplug::igraphics::IRECT& bounds,host::ProcessorBridge& processor)
-        : IVKeyboardControl(bounds,36,84,false,iplug::igraphics::IColor(255,218,215,205),color(appearance.control),accent,color(appearance.border),ink),processor(processor) { SetWantsMidi(false); }
+        : IVKeyboardControl(bounds,36,84,true,iplug::igraphics::IColor(255,218,215,205),color(appearance.control),accent,color(appearance.border),ink),processor(processor) { SetWantsMidi(false); }
     void OnMouseDown(float x,float y,const iplug::igraphics::IMouseMod&) override { touch(x,y); }
     void OnMouseDrag(float x,float y,float,float,const iplug::igraphics::IMouseMod&) override { touch(x,y); }
     void OnMouseUp(float,float,const iplug::igraphics::IMouseMod&) override { releaseMouse(); }

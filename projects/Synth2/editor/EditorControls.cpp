@@ -22,6 +22,13 @@ ActionButtonControl::ActionButtonControl(const IRECT& bounds, IActionFunction ac
 {
 }
 
+BackgroundControl::BackgroundControl(const IRECT& bounds) : IPanelControl(bounds,background) {}
+
+void BackgroundControl::OnResize() {
+    if(auto* graphics=GetUI())mRECT=mTargetRECT=graphics->GetBounds();
+    IPanelControl::OnResize();
+}
+
 HeaderControl::HeaderControl() : IControl(IRECT(0,0,1280,118)) { mIgnoreMouse=true; }
 
 void HeaderControl::Draw(IGraphics& g) {

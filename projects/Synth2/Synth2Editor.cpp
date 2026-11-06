@@ -23,7 +23,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->LoadFont("Synth2Mono",mono.data,mono.size);
     graphics->EnableMouseOver(true);
     graphics->EnableTooltips(true);
-    graphics->AttachPanelBackground(background);
+    graphics->AttachControl(new BackgroundControl(graphics->GetBounds()));
     graphics->AttachControl(new HeaderControl());
     graphics->AttachCornerResizer(EUIResizerMode::Scale, false);
     graphics->AttachTextEntryControl();
@@ -93,15 +93,12 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,802,700,826),"",text.WithFGColor(muted).WithSize(12.f).WithAlign(EAlign::Near)),statusTag);
     graphics->AttachControl(new ITextControl(IRECT(720,802,1090,826),"Click a value to type  /  Drag corner to scale",
         text.WithFGColor(muted).WithSize(11.f).WithAlign(EAlign::Far)));
-    auto* keyboard=new EditorKeyboardControl(IRECT(20,840,1260,900),processor);
+    auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
     keyboard->SetText(text);
     graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
     graphics->AttachControl(new IVToggleControl(IRECT(1100,802,1260,830),[this](IControl* control) {
         setKeyboardVisible(control->GetValue()>.5);
     },"",style,"Keyboard","Keyboard"),keyboardToggleTag);
-    graphics->AttachControl(new ITextControl(IRECT(20,902,1260,918),
-        "Play: A W S E D F T G Y H U J K O L   /   Octave: Z down, X up",
-        text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),keyboardHelpTag)->Hide(!keyboardVisible);
     graphics->SetKeyHandlerFunc([this,graphics](const IKeyPress& key,bool up) {
         if(!keyboardVisible || graphics->GetControlInTextEntry() || !editorKeyboardHasFocus(graphics->GetWindow())) {
             releaseComputerNotes();return false;
@@ -318,12 +315,11 @@ void Synth2::setKeyboardVisible(bool visible)
     if(!visible)releaseKeyboardNotes();
     keyboardVisible=visible;
     if(auto* graphics=GetUI()) {
-        for(int tag:{keyboardTag,keyboardHelpTag})
-            if(auto* control=graphics->GetControlWithTag(tag))control->Hide(!visible);
+        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->Hide(!visible);
         if(auto* toggle=graphics->GetControlWithTag(keyboardToggleTag)) {
             toggle->SetValue(visible ? 1. : 0.);toggle->SetDirty(false);
         }
-        graphics->Resize(PLUG_WIDTH,visible ? 920 : PLUG_HEIGHT,graphics->GetDrawScale());
+        graphics->Resize(PLUG_WIDTH,visible ? 936 : PLUG_HEIGHT,graphics->GetDrawScale());
         graphics->SetAllControlsDirty();
     }
 }

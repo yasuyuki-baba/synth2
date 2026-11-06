@@ -20,6 +20,14 @@ public:
                         const IVStyle& style);
 };
 
+// Covers the complete editor after the optional keyboard changes its height.
+class BackgroundControl final : public IPanelControl
+{
+public:
+    explicit BackgroundControl(const IRECT& bounds);
+    void OnResize() override;
+};
+
 class HeaderControl final : public IControl
 {
 public:

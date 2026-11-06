@@ -18,8 +18,9 @@ loading actions.
 
 The footer's **Keyboard** toggle opens/closes the software keyboard on every
 view. It starts closed; opening increases the logical editor height from 840 to
-920 while retaining the current display scale. This is an editor control, not a
-sound parameter or a saved patch value.
+936 while retaining the current display scale. This is an editor control, not a
+sound parameter or a saved patch value. The background covers the full logical
+editor bounds after every resize, including the keyboard margins.
 
 While open and focused, PC keys `A W S E D F T G Y H U J K O L` play chromatically
 from MIDI note 48 at velocity 127, matching CheapSynth01. `Z`/`X` lower/raise the
