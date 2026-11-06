@@ -32,7 +32,7 @@ class CandidatePackages(unittest.TestCase):
         self.manifest.write_text(json.dumps({'product_commit': 'a' * 40,
                                              'iplug2': 'b' * 40}))
         for name in [
-            'LICENSE', 'third_party/miniz/LICENSE', 'third_party/tinyxml2/LICENSE',
+            'LICENSE', 'INSTALL.md', 'third_party/miniz/LICENSE', 'third_party/tinyxml2/LICENSE',
             'projects/Synth2/resources/IPLUG2-LICENSE.txt',
             'projects/Synth2/resources/fonts/LICENSE.txt',
             'iPlug2/Dependencies/IPlug/VST3_SDK/LICENSE.txt',
@@ -62,9 +62,16 @@ class CandidatePackages(unittest.TestCase):
             names = archive.namelist()
             for name in ['Synth2/Synth2.exe', 'Synth2/Synth2.clap',
                          'Synth2/Synth2.vst3/Contents/x86_64-win/Synth2.vst3',
-                         'Synth2/notices/iPlug2/WDL/license.txt', 'Synth2/LICENSE']:
+                         'Synth2/notices/iPlug2/WDL/license.txt', 'Synth2/LICENSE',
+                         'Synth2/INSTALL.md', 'Synth2/notices/miniz-LICENSE',
+                         'Synth2/notices/tinyxml2-LICENSE', 'Synth2/notices/fonts-LICENSE.txt',
+                         'Synth2/notices/iPlug2-LICENSE.txt', 'Synth2/notices/VST3-LICENSE.txt',
+                         'Synth2/notices/CLAP-LICENSE', 'Synth2/notices/CLAP-helpers-LICENSE']:
                 self.assertIn(name, names)
             self.assertNotIn('Synth2/unrelated.pdb', names)
+            self.assertEqual(archive.read('Synth2/INSTALL.md'),
+                             (self.root / 'INSTALL.md').read_bytes())
+            self.assertIn(b'INSTALL.md', archive.read('Synth2/README.txt'))
             self.assertEqual(archive.read('Synth2/dependencies.json'),
                              self.manifest.read_bytes())
         with self.assertRaisesRegex(ValueError, 'replace'):
@@ -84,6 +91,8 @@ class CandidatePackages(unittest.TestCase):
             binary = archive.getmember('Synth2/Synth2.app/Contents/MacOS/Synth2')
             self.assertEqual(binary.mode & 0o111, 0o111)
             self.assertIsNotNone(archive.getmember('Synth2/dependencies.json'))
+            self.assertEqual(archive.extractfile('Synth2/INSTALL.md').read(),
+                             (self.root / 'INSTALL.md').read_bytes())
 
     def test_partial_bundles_cannot_become_successful_candidates(self):
         self.binary('Synth2.clap')

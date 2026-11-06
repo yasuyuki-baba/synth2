@@ -55,7 +55,8 @@ python tools/package_native.py --build build --platform windows --manifest build
 Native jobs require every selected product and package only the known product
 names from `build/out`. Windows packages use ZIP; macOS packages use tar.gz to
 retain bundle permissions and symlinks. Archives include the dependency manifest,
-project license and dependency notices. Failure diagnostics are uploaded separately.
+project license, dependency notices and [installation instructions](../INSTALL.md),
+including unsigned-build steps. Failure diagnostics are uploaded separately.
 Artifacts expire after 14 days and are identified by the workflow run/commit.
 
 `release.yml` runs on `v*` tags or manual dispatch and reuses the complete build

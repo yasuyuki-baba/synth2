@@ -20,6 +20,12 @@ their own supplementary views; serialized metadata stays outside the editor.
 These are configured build targets, not certification of plugin/DAW operation.
 See [capabilities and verification boundaries](docs/status.md) for the current scope.
 
+## Install native packages
+
+See [INSTALL.md](INSTALL.md) for Windows/macOS product locations, unsigned-build
+prompts and plugin rescanning. Source archives require building; native candidate
+packages are available from successful Actions runs.
+
 ## Build and test
 
 Build the portable synthesis core, tools and tests with CMake 3.25+, Ninja, a

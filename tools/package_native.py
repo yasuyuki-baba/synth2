@@ -43,6 +43,7 @@ def package(root, build, platform, manifest, output):
                 shutil.copy2(path, destination)
         shutil.copy2(manifest, staging / 'dependencies.json')
         shutil.copy2(root / 'LICENSE', staging / 'LICENSE')
+        shutil.copy2(root / 'INSTALL.md', staging / 'INSTALL.md')
         for source, destination in [
             ('third_party/miniz/LICENSE', 'notices/miniz-LICENSE'),
             ('third_party/tinyxml2/LICENSE', 'notices/tinyxml2-LICENSE'),
@@ -67,6 +68,7 @@ def package(root, build, platform, manifest, output):
         (staging / 'README.txt').write_text(
             'Synth2 native build candidate\n\n'
             'These unsigned binaries have not been certified for DAW or device use.\n'
+            'Installation and unsigned-build instructions are in INSTALL.md.\n'
             'Build identity and SDK revisions are in dependencies.json.\n'
             'Source: https://github.com/yasuyuki-baba/synth2/tree/'
             + metadata['product_commit'] + '\n'
