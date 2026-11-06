@@ -1,5 +1,5 @@
 # Adapted from iPlug2OOS/TemplateProject at 9b214c1121a0da1e8db14b86a565c942a3bfea7e.
-project(Synth2 VERSION 0.1.0 LANGUAGES C CXX)
+project(Synth2 VERSION 0.1.1 LANGUAGES C CXX)
 if(NOT WIN32 AND NOT APPLE)
     message(FATAL_ERROR "Synth2 iPlug2 targets require Windows or macOS. Use Synth2Core for portable validation.")
 endif()

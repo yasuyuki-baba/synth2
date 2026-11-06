@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Synth2 VERSION 0.1.0 LANGUAGES C CXX)
+project(Synth2 VERSION 0.1.1 LANGUAGES C CXX)
 # Out-of-source layout based on iPlug2/iPlug2OOS (see dependencies.lock.json).
 set(IPLUG2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/iPlug2" CACHE PATH "Path to the iPlug2 framework checkout")
 if(WIN32 OR APPLE)
