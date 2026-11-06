@@ -1,0 +1,70 @@
+name: Native Synth2 builds
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: windows
+            preset: windows
+            formats: VST3;CLAP;APP
+          - os: macos-15
+            platform: macos
+            preset: macos
+            formats: VST3;CLAP;AU;APP
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout pinned iPlug2
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          submodules: true
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Prepare pinned format SDKs
+        run: python tools/prepare_native_sdks.py --output build/dependencies.json
+      - name: Configure native products
+        run: >-
+          cmake --preset ${{ matrix.preset }} -B build
+          "-DSYNTH2_IPLUG2_FORMATS=${{ matrix.formats }}"
+          -DSYNTH2_BUILD_TOOLS=OFF -DSYNTH2_BUILD_TESTS=OFF
+          "-DPython3_EXECUTABLE=${{ steps.python.outputs.python-path }}"
+          -DIGRAPHICS_BACKEND=NANOVG
+      - name: Build all selected formats
+        run: cmake --build build --config Release --parallel 4
+      - name: Package native products
+        run: >-
+          python tools/package_native.py --build build
+          --platform ${{ matrix.platform }}
+          --manifest build/dependencies.json --output dist
+      - name: Preserve native packages
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Synth2-${{ matrix.platform }}
+          path: dist/Synth2-*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve native build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-diagnostics-${{ matrix.platform }}
+          path: |
+            build/CMakeFiles/CMakeConfigureLog.yaml
+            build/CMakeCache.txt
+            build/dependencies.json
+          if-no-files-found: ignore
+          retention-days: 14
