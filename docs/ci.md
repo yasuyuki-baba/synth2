@@ -15,8 +15,8 @@ test configuration. Linux also runs actionlint and the independent DSP header
 audit. No virtual display or native audio/GUI packages are needed.
 
 After portable checks pass, the reusable `native.yml` builds Windows VST3/CLAP/APP
-and macOS VST3/CLAP/AUv2/APP. Windows uses MSVC x64; macOS uses the Xcode universal
-arm64/x86_64 preset and macOS 13 deployment target. NanoVG uses its platform
+and macOS VST3/CLAP/AUv2/APP. Windows uses MSVC x64; macOS uses the Xcode Apple Silicon
+arm64 preset and macOS 13 deployment target. NanoVG uses its platform
 default renderer (GL2/Metal). The unused SDK WebView extra is disabled so its
 WIL/WebView2 downloads do not enter configuration. Plugin deployment to system folders stays disabled.
 Native jobs do not configure the portable test target again.
@@ -57,7 +57,8 @@ names from `build/out`. Windows packages use ZIP; macOS packages use tar.gz to
 retain bundle permissions and symlinks. Archives include the dependency manifest,
 project license, dependency notices and [installation instructions](../INSTALL.md),
 including unsigned-build steps. Failure diagnostics are uploaded separately.
-Artifacts expire after 14 days and are identified by the workflow run/commit.
+Before packaging, macOS checks every product with `lipo` and requires exactly
+arm64 code. Artifacts expire after 14 days and are identified by the workflow run/commit.
 
 `release.yml` runs on `v*` tags or manual dispatch and reuses the complete build
 pipeline. After a successful tag build, `publish-release.yml` downloads its Windows

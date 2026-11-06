@@ -21,8 +21,8 @@ Keep the package's license and notice files with your downloaded distribution.
 
 ## macOS
 
-Current macOS candidates target macOS 13 or later and include Apple Silicon
-(arm64) and Intel (x86_64) code. In Finder, choose **Go > Go to Folder…** and
+Current macOS candidates require Apple Silicon (arm64) and macOS 13 or later.
+Intel Macs are not supported. In Finder, choose **Go > Go to Folder…** and
 enter a destination below. `~` means your home folder. Create missing folders;
 these user-level locations do not require administrator permission.
 
@@ -106,8 +106,8 @@ is 1x. Higher oversampling factors use more CPU and can change tone and level;
 reduce the factor or increase your audio buffer if playback crackles.
 
 If the plugin is missing, check its installation folder, the host's supported
-formats and CPU architecture, and the DAW's scan/validation log. On Apple Silicon,
-a host running natively and one running under Rosetta need compatible plugin code.
+formats and CPU architecture, and the DAW's scan/validation log. Run Apple Silicon DAWs natively; Intel/Rosetta hosts cannot load these arm64-only
+plugins.
 For AUv2 discovery problems, logging out and back in can refresh Audio Unit
 registration before rescanning.
 
