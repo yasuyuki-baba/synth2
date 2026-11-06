@@ -7,6 +7,12 @@ target_include_directories(CompareWaves PRIVATE projects/Synth2/src)
 set(synth2_tool_targets Synth2Probe CompareWaves)
 
 if(SYNTH2_BUILD_TOOLS)
+    # Deliberately excluded from normal builds and never linked into native products.
+    synth2_add_core(Synth2DiagnosticCore EXCLUDE_FROM_ALL)
+    target_compile_definitions(Synth2DiagnosticCore PUBLIC SYNTH2_OFFLINE_DIAGNOSTICS=1)
+    add_executable(Synth2DiagnosticProbe EXCLUDE_FROM_ALL tools/synth2_probe.cpp)
+    target_link_libraries(Synth2DiagnosticProbe PRIVATE Synth2DiagnosticCore)
+    list(APPEND synth2_tool_targets Synth2DiagnosticProbe)
     add_executable(Synth2LoadingProbe tools/synth2_loading_probe.cpp)
     target_link_libraries(Synth2LoadingProbe PRIVATE Synth2Core)
     add_executable(ExportEditorLayout tools/export_editor_layout.cpp)

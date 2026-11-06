@@ -114,3 +114,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Cla
 endif()
 
 set_target_properties(Synth2PatchTests Synth2RealtimeTests PROPERTIES CXX_EXTENSIONS OFF)
+
+add_test(NAME RenderDiagnosticsTests
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_render_diagnostics.py $<TARGET_FILE:Synth2Probe>)
+set_tests_properties(RenderDiagnosticsTests PROPERTIES LABELS "portable;python" TIMEOUT 30)

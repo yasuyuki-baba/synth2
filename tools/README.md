@@ -60,3 +60,14 @@ Actual DAW/device testing and concurrency contracts require separate validation.
 `Synth2Probe --oversampling FACTOR` selects 1, 2, 4, 8 or 16 before preparation.
 The default is 1. Higher-factor WAVs include processing latency; do not silently
 align or gain-fit them when reporting raw audio comparisons.
+
+## Isolated rendering diagnostics
+
+Normal product targets and `Synth2Probe` do not read DSP bypass environment
+variables. To isolate envelopes, filters or output effects, explicitly build
+`cmake --build build-oos-core --target Synth2DiagnosticProbe`. This optional target
+links a separate diagnostic core and is excluded from normal builds. Invoke it
+with `--bypass-env`, `--bypass-filter` or `--bypass-fx`; the normal probe rejects
+these switches. Bypass state belongs to the diagnostic rendering thread, is set
+outside processing callbacks, and is neither a patch control nor saved processor state.
+`--bypass-env` retains the probe's accompanying isolation dial overrides.

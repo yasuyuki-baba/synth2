@@ -1,3 +1,4 @@
+#include "offline/RenderDiagnostics.h"
 // SDK-independent offline host. Keep loading and callback partitions explicit.
 #include "host/ProcessorBridge.h"
 #include "SynthDiagnostics.h"
@@ -45,6 +46,14 @@ int main(int argc,char** argv) try {
         else if(arg=="--float-wav")floatWav=true;
         else if(arg=="--oversampling")oversamplingFactor=std::stoi(next());
         else if(arg=="--bypass-env")bypass=true;
+        else if(arg=="--bypass-filter" || arg=="--bypass-fx") {
+#if defined(SYNTH2_OFFLINE_DIAGNOSTICS)
+            if(arg=="--bypass-filter")synth2::offline::diagnostics.filter=true;
+            else synth2::offline::diagnostics.effects=true;
+#else
+            throw std::runtime_error("Bypass options require Synth2DiagnosticProbe");
+#endif
+        }
         else if(arg=="-o")outFile=next();else if(arg=="-n")midiNote=std::stoi(next());else if(arg=="-d")durationSec=std::stof(next());else if(arg=="-p")patchFile=next();
         else if(arg=="--initial-preset")initialPreset=next();else if(arg=="--preset-warmup-blocks"){presetWarmupBlocks=std::stoi(next());warmupSpecified=true;}
         else if(arg=="--notes")noteList=next();else if(arg=="--tempo")tempo=std::stod(next());
@@ -70,10 +79,10 @@ int main(int argc,char** argv) try {
     if(auto* path=std::getenv("SYNTH_OSC1_PATCH_FILE"))load(*processor,path);
     overrides(*processor);for(const auto& [i,v]:diagnosticOverrides)set(*processor,i,v);
     if(bypass){for(const auto& [i,v]:std::map<int,float>{{19,1},{27,1},{29,1},{35,1},{4,0},{13,0},{14,.5},{15,.5}})set(*processor,i,v);
-#ifdef _WIN32
-        _putenv_s("SYNTH2_BYPASS_ENV","1");
+#if defined(SYNTH2_OFFLINE_DIAGNOSTICS)
+        synth2::offline::diagnostics.envelopes=true;
 #else
-        setenv("SYNTH2_BYPASS_ENV","1",1);
+        throw std::runtime_error("--bypass-env requires Synth2DiagnosticProbe");
 #endif
     }
     if(std::getenv("SYNTH1_FORCE_NOISE")){set(*processor,2,4.f/127.f);set(*processor,15,1);set(*processor,95,0);}

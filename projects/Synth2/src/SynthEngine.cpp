@@ -1,3 +1,4 @@
+#include "offline/RenderDiagnostics.h"
 #include "render/FilterParameterMapping.h"
 #if defined(SYNTH2_HOST_PROFILING)
 #include "HostCallbackProfile.h"
@@ -9,7 +10,6 @@
 #include "render/OutputConfiguration.h"
 #include "render/SharedModulationConfiguration.h"
 #include <cmath>
-#include <cstdlib>
 
 namespace synth2
 {
@@ -231,7 +231,7 @@ namespace synth2
         const auto panControls=settings.panLfo
             ? render::outputPanControls(params,&sharedModulation.block(),outputStart) : dsp::ReceiverLfoView{};
         outputPipeline.process(buffer,outputStart,outputFrames,settings,
-            {currentSampleRate,capacity,std::getenv("SYNTH2_BYPASS_FX")!=nullptr,inputSilent},panControls);
+            {currentSampleRate,capacity,offline::bypassEffects(),inputSilent},panControls);
         };
         if (previousPlayMode != params.playMode)
         {

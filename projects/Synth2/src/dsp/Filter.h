@@ -1,5 +1,7 @@
 #pragma once
 
+#include "offline/RenderDiagnostics.h"
+
 #include "audio/AudioTypes.h"
 #include "Saturation.h"
 #include "Lp24Kernel.h"
@@ -58,7 +60,7 @@ namespace synth2::dsp
         }
         float processNativeIndex (float input,double index) noexcept
         {
-            static const bool bypass = std::getenv ("SYNTH2_BYPASS_FILTER") != nullptr;
+            const bool bypass = offline::bypassFilter();
             if(bypass)return input;
             float filtered;
             // The fifth serialized mode has its own nonlinear diode kernel.
@@ -80,7 +82,7 @@ namespace synth2::dsp
         }
         float processSample (float input, float envelope) noexcept
         {
-            static const bool bypass = std::getenv ("SYNTH2_BYPASS_FILTER") != nullptr;
+            const bool bypass = offline::bypassFilter();
             if (bypass) return input;
             // Native LP24 inversions give 127/64 serialized cutoff steps per
             // signed amount step at full envelope, independently of base cutoff.

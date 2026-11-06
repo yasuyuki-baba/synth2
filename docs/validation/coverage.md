@@ -112,3 +112,7 @@ OversamplingTest also compares actual bridge phase words across quality changes,
 MIDI offsets, overlapping notes and releases with nonlinear filter/drive enabled.
 These properties do not establish unrestricted source compatibility or remove
 aliasing already embedded in the retained base-rate feedback model.
+
+`RenderDiagnosticsTests` checks that the normal product probe ignores legacy DSP
+bypass environment variables and rejects switches reserved for the separately
+linked diagnostic probe. This does not validate native GUI/device operation.

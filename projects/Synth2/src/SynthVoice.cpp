@@ -1,3 +1,4 @@
+#include "offline/RenderDiagnostics.h"
 #include "dsp/VelocityResponse.h"
 #include "dsp/Unison.h"
 #include "SynthVoice.h"
@@ -11,7 +12,6 @@
 #include "dsp/AmplitudeBlockRenderer.h"
 #include "dsp/OscillatorTuning.h"
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include "dsp/DspUtils.h"
 
@@ -232,7 +232,7 @@ namespace synth2
             return;
         }
         // Envelope retirement and logical note state keep separate lifetimes.
-        static bool bypassEnv = (std::getenv("SYNTH2_BYPASS_ENV") != nullptr);
+        const bool bypassEnv = offline::bypassEnvelopes();
         const bool nativeVcaLfo = !bypassEnv && globalLfoBlock != nullptr
             && ((params.lfo1.nativeSharedClock && params.lfo1.dest == 3) || (params.lfo2.nativeSharedClock && params.lfo2.dest == 3));
         bool amplitudeActive = false;

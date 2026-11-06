@@ -8,6 +8,9 @@ add_library(Synth1PatchCore STATIC
     ${synth1probe_core_dir}/Synth1PatchParser.cpp
     ${synth1probe_core_dir}/Synth1PatchSemantics.cpp
     ${synth1probe_core_dir}/Synth1PatchFamilyRawAdaptation.cpp
+    ${synth1probe_core_dir}/Synth1PatchFamilyImplicitEntries.cpp
+    ${synth1probe_core_dir}/Synth1PatchFamilyProfiles.cpp
+    ${synth1probe_core_dir}/Synth1PatchFamilyTables.cpp
     ${synth1probe_core_dir}/Synth1PatchDocumentIo.cpp
     ${synth1probe_core_dir}/Synth1PatchIoCodec.cpp
     ${synth1probe_core_dir}/Synth1PatchLegacyImport.cpp

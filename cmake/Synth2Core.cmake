@@ -33,14 +33,18 @@ target_include_directories(Synth2Xml PUBLIC third_party/tinyxml2)
 target_compile_features(Synth2Xml PUBLIC cxx_std_11)
 set_target_properties(Synth2Xml PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF)
 include(cmake/Synth1PatchCore.cmake)
-add_library(Synth2Core STATIC
+set(synth2_core_sources
     projects/Synth2/src/SynthEngine.cpp projects/Synth2/src/VoiceDispatcher.cpp
     projects/Synth2/src/SynthVoice.cpp projects/Synth2/src/VoiceCorePool.cpp projects/Synth2/src/SynthDiagnostics.cpp projects/Synth2/src/dsp/OutputPipeline.cpp projects/Synth2/src/dsp/SharedModulationRuntime.cpp
     projects/Synth2/src/render/RenderPolicy.cpp projects/Synth2/src/patch/PatchLoader.cpp projects/Synth2/src/patch/PatchMapper.cpp projects/Synth2/src/patch/Synth1PatchMapper.cpp
     projects/Synth2/src/patch/PatchFormat.cpp
     projects/Synth2/src/host/ProcessorBridge.cpp projects/Synth2/src/host/ProcessorState.cpp projects/Synth2/src/host/PatchLibrary.cpp
     projects/Synth2/src/host/PatchCatalog.cpp projects/Synth2/src/host/PresetFiles.cpp)
-target_include_directories(Synth2Core PUBLIC projects/Synth2/src projects/Synth2/src/host)
-target_link_libraries(Synth2Core PUBLIC Synth1PatchCore PRIVATE Synth2Resources Synth2Zip Synth2Xml)
-target_compile_features(Synth2Core PUBLIC cxx_std_20)
-set_target_properties(Synth2Core PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF)
+function(synth2_add_core target)
+    add_library(${target} STATIC ${ARGN} ${synth2_core_sources})
+    target_include_directories(${target} PUBLIC projects/Synth2/src projects/Synth2/src/host)
+    target_link_libraries(${target} PUBLIC Synth1PatchCore PRIVATE Synth2Resources Synth2Zip Synth2Xml)
+    target_compile_features(${target} PUBLIC cxx_std_20)
+    set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF)
+endfunction()
+synth2_add_core(Synth2Core)

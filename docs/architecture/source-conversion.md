@@ -77,3 +77,16 @@ mapper in the callback. See the [verification map](../validation/coverage.md).
 Ordinary and workspace import/decode overloads share conversion semantics.
 Prepare `Synth1PatchImportWorkspace` outside audio callbacks so repeated
 runtime-dial adaptation can reuse storage.
+
+## Legacy typed-import family rules
+
+The legacy adapter keeps immutable raw maps in `Synth1PatchFamilyTables.cpp`,
+serialized-value predicates in `Synth1PatchFamilyProfiles.cpp`, implicit-field
+derivation in `Synth1PatchFamilyImplicitEntries.cpp`, and ordered remaps, preserve
+rules and entry application in `Synth1PatchFamilyRawAdaptation.cpp`.
+Their shared declarations are internal in `Synth1PatchFamilyRules.h`.
+Profile names identify distinguishing source fields; each complete predicate
+still determines eligibility. They do not identify a bank, title or patch number.
+These historical corrections are limited to typed legacy import, with their
+existing narrow evidence bounds; they are not general native conversion formulas.
+Do not expand a predicate, reorder remappers or infer new table values as cleanup.

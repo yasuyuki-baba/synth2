@@ -133,7 +133,8 @@
   Capture velocity sensitivity at note assignment;
   running control edits retain that reference. At full pool capacity, reuse a
   physical Release before stealing a held core, keeping oldest order within each
-  group. Explicit offline envelope bypass remains a diagnostic operation.
+  group. Explicit offline bypasses belong to the separately linked DiagnosticProbe core;
+  keep the normal product independent of DSP bypass environment variables.
 - Use physical-core filter and oscillator AD envelopes for every caller. Resolve
   oscillator timing/depth from dials and destination; do not restore parallel
   sample envelopes or approximate modulation-envelope math in the router. Keep
