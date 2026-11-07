@@ -9,12 +9,13 @@ refresh, filtering and metadata edits preserve the sounding processor.
 The processor starts with Init and the library starts empty; no factory bank is
 bundled, privileged or automatically added.
 
-The persistent sound header shows the current patch name followed by its bank
-name when the selected library entry is available. Init and sounds without a
-matching catalog entry show only the patch name. The full label is available as
-a tooltip. The selected result row uses a contrasting background, a left accent
-stripe and a bold title; favorites remain a separate indicator. Filtering does
-not change the selected sound or mark another row as selected.
+The persistent sound header displays the patch name and edited marker on the first
+line, with the selected entry's bank path on a smaller second line. Init and sounds
+without a matching catalog entry show only the patch name. The tooltip includes
+both lines. The full display remains clickable to open the Library view. The
+selected result row uses a contrasting background, a left accent stripe and a bold
+title; favorites remain a separate indicator. Filtering does not change the selected
+sound or mark another row as selected.
 
 ## Files and registration
 
@@ -31,9 +32,9 @@ hierarchy are retained. Already stored files are referenced without copying. A
 bank is a directory: loose `.sy1` files in the same folder share a bank, and
 ZIP entry subdirectories form banks under the archive's relative filename.
 For example, `Pads/Collection.zip/Analog/Soft` is distinct from
-`Leads/Collection.zip/Analog/Soft`. The bank menu uses directory and ZIP hierarchy. Parents without direct sounds
-are classification-only submenus. A parent with direct sounds offers **This folder**
-inside its submenu. Selecting a bank includes only its direct sounds; **All banks**
+`Leads/Collection.zip/Analog/Soft`. The bank menu shows directory and ZIP hierarchy in one indented list, without
+submenus. Parents are disabled classification headings. A parent with direct sounds
+offers an indented **This folder** row. Selecting a bank includes only its direct sounds; **All banks**
 at the top searches across every bank while retaining tag, keyword and favorite
 filters. Empty directories are omitted. Files directly in the library root use `Library root`.
 Bank paths use forward slashes on every platform. Empty folders are omitted.

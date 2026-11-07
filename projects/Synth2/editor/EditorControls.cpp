@@ -22,6 +22,26 @@ ActionButtonControl::ActionButtonControl(const IRECT& bounds, IActionFunction ac
 {
 }
 
+void PresetDisplayControl::setDisplay(const synth2::editor::EditorPresetDisplay& value)
+{
+    display=value;
+    SetTooltip(display.tooltip().c_str());
+    SetDirty(false);
+}
+
+void PresetDisplayControl::Draw(IGraphics& g)
+{
+    ActionButtonControl::Draw(g);
+    const auto title=IText(16.f,color(appearance.displayText),"Synth2Mono",EAlign::Near);
+    if(display.detail.empty()) {
+        g.DrawText(title,display.title.c_str(),IRECT(mRECT.L+10,mRECT.T,mRECT.R-10,mRECT.B));
+        return;
+    }
+    g.DrawText(title,display.title.c_str(),IRECT(mRECT.L+10,mRECT.T+3,mRECT.R-10,mRECT.T+27));
+    g.DrawText(IText(11.f,muted,"Synth2UI",EAlign::Near),display.detail.c_str(),
+               IRECT(mRECT.L+10,mRECT.T+27,mRECT.R-10,mRECT.B-3));
+}
+
 BackgroundControl::BackgroundControl(const IRECT& bounds) : IPanelControl(bounds,background) {}
 
 void BackgroundControl::OnResize() {
