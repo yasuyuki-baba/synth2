@@ -1,6 +1,5 @@
 #pragma once
 #include "patch/PatchMetadata.h"
-#include <utility>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -12,11 +11,9 @@ struct LibraryPatch
     std::string name;
     std::string text;
     std::string entry;
-    std::optional<unsigned> color;
-    LibraryPatch() = default;
-    LibraryPatch(std::string title, std::string source, std::string location = {})
-        : name(std::move(title)), text(std::move(source)), entry(std::move(location)),
-          color(patchColor(readPatchMetadata(text))) {}
+    // Retain aggregate initialization: source text must be consumed only after
+    // the title expression has read it (function argument order is unspecified).
+    std::optional<unsigned> color = patchColor(readPatchMetadata(text));
 
 };
 
