@@ -24,7 +24,9 @@ struct CatalogFilter {
     bool favoritesOnly = false;
     bool registeredOnly = false;
     std::vector<std::string> registeredIds;
+    std::vector<std::string> selectedTags; // All selected tags must match.
 };
+struct TagCacheStats { std::size_t reused=0, rebuilt=0; };
 struct ImportResult { std::size_t added = 0, duplicates = 0; };
 
 // UI-only persistent library. Filesystem work never enters ProcessorBridge or
@@ -48,11 +50,13 @@ public:
     bool removePatch(const std::string& id, std::string& error);
     bool removeBank(const std::string& bankId, std::string& error);
     const std::vector<CatalogPatch>& patches() const noexcept { return entries; }
+    const TagCacheStats& tagCacheStats() const noexcept { return cacheStats; }
     const std::filesystem::path& root() const noexcept { return directory; }
     std::vector<CatalogBank> banks() const;
     std::vector<std::size_t> search(const CatalogFilter& filter) const;
 private:
     std::filesystem::path directory;
     std::vector<CatalogPatch> entries;
+    TagCacheStats cacheStats;
 };
 }

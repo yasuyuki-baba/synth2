@@ -82,14 +82,15 @@ void Synth2::ProcessBlock(sample**, sample** outputs, int frames)
 
 synth2::host::PresetBrowserState Synth2::captureBrowser() const
 {
-    auto state=browser;state.query=libraryFilter.query;state.bankId=libraryFilter.bankId;state.tag=libraryFilter.tag;
+    auto state=browser;state.query=libraryFilter.query;state.bankId=libraryFilter.bankId;state.tag=libraryFilter.tag;state.selectedTags=libraryFilter.selectedTags;
     state.favoritesOnly=libraryFilter.favoritesOnly;state.restricted=libraryFilter.registeredOnly;
     state.importedIds=libraryFilter.registeredIds;state.selectedId=selectedPatchId;state.patchName=currentPatch;
     state.scroll=static_cast<int>(resultOffset);state.page=page;return state;
 }
 void Synth2::restoreBrowser()
 {
-    libraryFilter.query=browser.query;libraryFilter.bankId=browser.bankId;libraryFilter.tag=browser.tag;
+    libraryFilter.query=browser.query;libraryFilter.bankId=browser.bankId;libraryFilter.tag.clear();libraryFilter.selectedTags=browser.selectedTags;
+    if(libraryFilter.selectedTags.empty() && !browser.tag.empty())libraryFilter.selectedTags.push_back(browser.tag);
     libraryFilter.favoritesOnly=browser.favoritesOnly;libraryFilter.registeredOnly=browser.restricted;
     libraryFilter.registeredIds=browser.importedIds;selectedPatchId=browser.selectedId;currentPatch=browser.patchName;
     resultOffset=browser.scroll;page=browser.page;

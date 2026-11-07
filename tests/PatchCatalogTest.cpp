@@ -407,3 +407,65 @@ TEST(PatchCatalog, LegacyManualTagSidecarsRemainReadableAndCanBePromoted) {
     ASSERT_TRUE(catalog.setTags(id,"",error));ASSERT_TRUE(catalog.reload(error));
     EXPECT_EQ(catalog.search({"","","Pad"}).size(),1u);
 }
+
+TEST(PatchCatalog, MultipleTagsMatchAllAcrossManualAndAutomaticTags) {
+    CatalogFiles files;const auto root=files.dir/"Library";fs::create_directories(root);
+    ProcessorBridge processor;auto patch=synth2::parseContinuousPatch(processor.savePatch());
+    patch.name="Owned Pad";patch.values[45]=64;patch.values[7]=0;patch.values[25]=100;
+    std::ofstream(root/"1.sy1")<<synth2::formatContinuousPatch(patch);
+    patch.values[45]=0;std::ofstream(root/"2.sy1")<<synth2::formatContinuousPatch(patch);
+    PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;
+    const auto id=catalog.patches().front().id;ASSERT_TRUE(catalog.setTags(id,"Choice",error));
+    CatalogFilter filter;filter.selectedTags={"pAD","fm","choice"};
+    EXPECT_EQ(catalog.search(filter),(std::vector<std::size_t>{0}));
+    filter.query="Owned";filter.favoritesOnly=true;EXPECT_TRUE(catalog.search(filter).empty());
+    ASSERT_TRUE(catalog.setFavorite(id,true,error));EXPECT_EQ(catalog.search(filter).size(),1u);
+    filter.selectedTags.push_back("Missing");EXPECT_TRUE(catalog.search(filter).empty());
+    filter={};EXPECT_EQ(catalog.search(filter).size(),2u);
+}
+
+TEST(PatchCatalog, TagCacheReusesUnchangedSourcesAndTracksContentAdditionsAndDeletion) {
+    CatalogFiles files;const auto root=files.dir/"Library";fs::create_directories(root);
+    const auto one=root/"one.sy1",two=root/"two.sy1";
+    std::ofstream(one)<<warm;std::ofstream(two)<<bass;
+    PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;
+    EXPECT_EQ(catalog.tagCacheStats().rebuilt,2u);EXPECT_EQ(catalog.tagCacheStats().reused,0u);
+    ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.tagCacheStats().rebuilt,0u);
+    EXPECT_EQ(catalog.tagCacheStats().reused,2u);
+    PatchCatalog reopened(root);ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().reused,2u);
+    const auto time=fs::last_write_time(one);const auto size=fs::file_size(one);
+    auto changed=warm;changed.replace(changed.find("Warm Pad"),8,"Low Bass");
+    std::ofstream(one)<<changed;fs::last_write_time(one,time);ASSERT_EQ(fs::file_size(one),size);
+    ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().rebuilt,1u);
+    EXPECT_EQ(reopened.tagCacheStats().reused,1u);EXPECT_TRUE(reopened.search({"","","Pad"}).empty());
+    std::ofstream(root/"three.sy1")<<lead;ASSERT_TRUE(reopened.reload(error));
+    EXPECT_EQ(reopened.tagCacheStats().rebuilt,1u);EXPECT_EQ(reopened.tagCacheStats().reused,2u);
+    fs::remove(two);ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().rebuilt,0u);
+    EXPECT_EQ(reopened.tagCacheStats().reused,2u);
+    std::ifstream in(root/".synth2-tags.cache");const std::string cache{std::istreambuf_iterator<char>(in),{}};in.close();
+    EXPECT_EQ(cache.find("Soft Bass"),std::string::npos);
+    const auto id=reopened.patches().front().id;ASSERT_TRUE(reopened.setTags(id,"Keep",error));
+    std::ofstream(root/".synth2-tags.cache")<<"corrupt cache";
+    ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().rebuilt,2u);
+    EXPECT_EQ(reopened.patches().front().tags,(std::vector<std::string>{"Keep"}));
+    std::ofstream(root/".synth2-tags.cache")<<"Synth2 tag cache 999\n";
+    ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().rebuilt,2u);
+    fs::remove(root/".synth2-tags.cache");fs::create_directory(root/".synth2-tags.cache");
+    ASSERT_TRUE(reopened.reload(error));EXPECT_EQ(reopened.tagCacheStats().rebuilt,2u);
+    EXPECT_EQ(reopened.patches().front().tags,(std::vector<std::string>{"Keep"}));
+}
+
+TEST(PatchCatalog, TagCacheUpdatesChangedZipEntriesAndRecallsInvalidSourceErrors) {
+    CatalogFiles files;const auto root=files.dir/"Library";fs::create_directories(root);
+    auto zip=files.bank("Source.zip",{{"one.sy1",warm},{"two.sy1",bass}});
+    fs::copy_file(zip,root/"Bank.zip");PatchCatalog catalog(root);std::string error;
+    ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.tagCacheStats().rebuilt,2u);
+    zip=files.bank("Source.zip",{{"one.sy1",warm},{"two.sy1","Broken\nver=999\n0,0\n"}});
+    fs::copy_file(zip,root/"Bank.zip",fs::copy_options::overwrite_existing);
+    ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.tagCacheStats().rebuilt,1u);
+    EXPECT_EQ(catalog.tagCacheStats().reused,1u);EXPECT_FALSE(catalog.patches()[1].error.empty());
+    const auto failure=catalog.patches()[1].error;
+    ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.tagCacheStats().rebuilt,0u);
+    EXPECT_EQ(catalog.tagCacheStats().reused,2u);EXPECT_EQ(catalog.patches()[1].error,failure);
+    EXPECT_TRUE(catalog.patches()[1].automaticTags.empty());
+}

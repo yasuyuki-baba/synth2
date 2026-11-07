@@ -76,3 +76,9 @@ Filter/search both kinds without changing the sounding patch. Use Auto tags to
 hide and restore a suggestion, reopen the editor, and confirm persistence. Enter
 the same tag manually with different case; it should appear once in the manual
 color. Check narrow/overflowing tag columns and selection/readability on both OSes.
+
+Toggle multiple tags in the checked tag menu and verify AND results, the selection
+count/tooltip, All tags reset and DAW session recall. Refresh/reopen a large
+library twice, then add, remove and replace loose/ZIP sounds externally and
+refresh. Check that the updated list and tags reflect the current sources while
+the sounding patch and manual/hidden-tag overrides remain intact.

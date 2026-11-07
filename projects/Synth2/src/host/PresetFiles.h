@@ -38,7 +38,7 @@ class PresetFiles
 {
   public:
     explicit PresetFiles(std::filesystem::path root);
-    bool scan(std::string &error);
+    bool scan(std::string &error, bool validateSources = true);
     PresetImportResult import(const std::filesystem::path &source, const ResolveConflict &resolve);
     bool save(const std::filesystem::path &relative, const std::string &text, bool replace, std::string &id,
               std::string &error);
@@ -67,6 +67,7 @@ struct PresetBrowserState
     bool favoritesOnly = false;
     bool restricted = false;
     std::vector<std::string> importedIds;
+    std::vector<std::string> selectedTags;
     int scroll = 0, page = 0;
     std::array<double, ProcessorBridge::parameterCount> baseline{};
     void capture(const ProcessorBridge &);

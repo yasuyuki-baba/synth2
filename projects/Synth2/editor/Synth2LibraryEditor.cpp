@@ -1,9 +1,11 @@
 #include "../Synth2.h"
 #include "EditorControls.h"
+#include "EditorStyle.h"
 #include "IPopupMenuControl.h"
 #include "EditorControlTags.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorBankMenu.h"
+#include "editor/EditorTextFit.h"
 #include "editor/EditorPresetDisplay.h"
 #include <algorithm>
 #include <set>
@@ -71,7 +73,12 @@ void Synth2::refreshBrowser()
             break;
         }
     setButton(bankFilterTag, bankLabel);
-    setButton(tagFilterTag, libraryFilter.tag.empty() ? "All tags" : libraryFilter.tag);
+    const auto& selectedTags=libraryFilter.selectedTags;
+    const auto tagLabel=selectedTags.empty() ? std::string("All tags") : selectedTags.size()==1 ? selectedTags.front() : "Tags: "+std::to_string(selectedTags.size())+" (all)";
+    const auto measureTag=[&](std::string_view value) {IRECT bounds;const std::string copy(value);graphics->MeasureText(IText(12.f,ink,"Synth2UI"),copy.c_str(),bounds);return bounds.W();};
+    setButton(tagFilterTag,synth2::editor::editorFitText(tagLabel,184.f,measureTag));
+    if(auto* control=graphics->GetControlWithTag(tagFilterTag))
+        control->SetTooltip(("Match all selected tags: "+synth2::host::PatchCatalog::tagText(selectedTags)).c_str());
     setButton(favoritesTag, libraryFilter.favoritesOnly ? "Favorites: on" : "Favorites: off");
     if (auto *c = graphics->GetControlWithTag(libraryListTag))
         c->As<CatalogListControl>()->setResults(matches, resultOffset);
@@ -139,31 +146,34 @@ void Synth2::showScrollableLibraryMenu(IControl* caller)
 
 void Synth2::showTagMenu(IControl *caller)
 {
-    std::set<std::string> unique;
-    auto scoped = libraryFilter;
-    scoped.tag.clear();
-    scoped.query.clear();
-    for (auto i : catalog.search(scoped))
-        for (const auto &tag : catalog.patches()[i].allTags())
-            unique.insert(tag);
-    const std::vector<std::string> tags(unique.begin(), unique.end());
-    presetMenu = std::make_unique<IPopupMenu>("Tags");
-    presetMenu->AddItem("All tags");
-    for (const auto &tag : tags)
-        presetMenu->AddItem(tag.c_str());
-    presetMenu->SetFunction(
-        [this, tags](IPopupMenu *menu)
-        {
-            const int index = menu->GetChosenItemIdx();
-            if (index < 0 || index > static_cast<int>(tags.size()))
-                return;
-            libraryFilter.tag = index == 0 ? "" : tags[index - 1];
-            resultOffset = 0;
-            browserStatus.clear();
-            refreshBrowser();
-        });
+    const auto lower=[](std::string value) {for(auto& c:value)if(c>='A' && c<='Z')c=static_cast<char>(c-'A'+'a');return value;};
+    std::map<std::string,std::string> unique;
+    auto scoped=libraryFilter;scoped.tag.clear();scoped.selectedTags.clear();scoped.query.clear();
+    for(auto i:catalog.search(scoped))for(const auto& tag:catalog.patches()[i].allTags())unique.emplace(lower(tag),tag);
+    for(const auto& tag:libraryFilter.selectedTags)unique.emplace(lower(tag),tag);
+    std::vector<std::string> tags;for(const auto& [key,label]:unique)tags.push_back(label);
+    const auto selected=[&](const auto& tag) {return std::any_of(libraryFilter.selectedTags.begin(),libraryFilter.selectedTags.end(),[&](const auto& other){return lower(tag)==lower(other);});};
+    presetMenu=std::make_unique<IPopupMenu>("Tags (match all)");
+    presetMenu->AddItem("All tags",-1,libraryFilter.selectedTags.empty() ? IPopupMenu::Item::kChecked : 0);
+    for(const auto& tag:tags)presetMenu->AddItem(tag.c_str(),-1,selected(tag) ? IPopupMenu::Item::kChecked : 0);
+    presetMenu->SetFunction([this,tags,lower](IPopupMenu* menu) {
+        const int index=menu->GetChosenItemIdx();
+        if(index<0 || index>static_cast<int>(tags.size()))return;
+        libraryFilter.tag.clear();
+        auto& selection=libraryFilter.selectedTags;
+        if(index==0)selection.clear();
+        else {
+            const auto& tag=tags[index-1];
+            const auto found=std::find_if(selection.begin(),selection.end(),[&](const auto& other){return lower(other)==lower(tag);});
+            if(found!=selection.end())selection.erase(found);
+            else if(selection.size()<32)selection.push_back(tag);
+            else {browserStatus="Select up to 32 tags.";refreshBrowser();return;}
+        }
+        resultOffset=0;browserStatus.clear();refreshBrowser();
+    });
     showScrollableLibraryMenu(caller);
 }
+
 void Synth2::showAutomaticTagMenu(IControl* caller)
 {
     const auto found=std::find_if(catalog.patches().begin(),catalog.patches().end(),
