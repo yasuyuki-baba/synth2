@@ -31,7 +31,7 @@ inline const EditorAppearance& editorAppearance()
 }
 inline int editorKnobDiameter(int parameter,int height)
 {
-    const int limit=parameter==19 ? 66 : parameter==20 ? 48 : 34;
+    const int limit=parameter==19 ? 66 : parameter==20 ? 50 : 36;
     return std::max(18,std::min(limit,height-32));
 }
 }

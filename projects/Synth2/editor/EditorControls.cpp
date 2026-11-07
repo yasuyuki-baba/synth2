@@ -87,9 +87,9 @@ void SectionControl::Draw(IGraphics& g) {
     const auto surface=std::string(section.title)=="FILTER" ? color(appearance.filterPanel) : panel;
     g.FillRoundRect(surface,mRECT,3.f);
     g.DrawRoundRect(color(appearance.border),mRECT,3.f,nullptr,0.5f);
-    const auto heading=IRECT(mRECT.L+14,mRECT.T+9,mRECT.R-12,mRECT.T+25);
+    const auto heading=IRECT(mRECT.L+12,mRECT.T+8,mRECT.R-10,mRECT.T+26);
     g.DrawText(IText(Typography::heading,color(section.accent),"Synth2UIBold",EAlign::Near),section.title,heading);
-    g.DrawLine(color(appearance.border),heading.L,mRECT.T+32,heading.R,mRECT.T+32,nullptr,0.5f);
+    g.DrawLine(color(appearance.border),heading.L,mRECT.T+30,heading.R,mRECT.T+30,nullptr,0.5f);
 }
 
 PanelKnobControl::PanelKnobControl(const IRECT& bounds,int parameter,const char* label,const IVStyle& style)

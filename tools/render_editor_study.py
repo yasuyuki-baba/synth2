@@ -54,8 +54,8 @@ def render(model):
         x,y,w,h = section["bounds"]
         tone = section["accent"]
         box(x,y,w,h,a["filterPanel"] if section["title"]=="FILTER" else a["panel"],3,a["border"])
-        text(x+14,y+21,section["title"],t["heading"],tone,weight="bold")
-        nodes.append(f'<path d="M{x+14},{y+32} H{x+w-12}" stroke="{a["border"]}" stroke-width=".5"/>')
+        text(x+12,y+22,section["title"],t["heading"],tone,weight="bold")
+        nodes.append(f'<path d="M{x+12},{y+30} H{x+w-10}" stroke="{a["border"]}" stroke-width=".5"/>')
         for control in section["controls"]:
             x,y,w,h = control["bounds"]
             index = control["parameter"]

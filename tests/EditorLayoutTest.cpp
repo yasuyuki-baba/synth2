@@ -68,7 +68,7 @@ TEST(EditorLayout, ControlsFitWithoutCollidingWithPanelsOrTheBrowserAndKeyboard)
             SCOPED_TRACE(panel.controls[cell].parameter);
             const auto bounds=editorControlBounds(panel,cell);
             EXPECT_GE(bounds.width,50); EXPECT_GE(bounds.height,44);
-            EXPECT_GE(bounds.x,panel.bounds.x); EXPECT_GE(bounds.y,panel.bounds.y+40);
+            EXPECT_GE(bounds.x,panel.bounds.x); EXPECT_GE(bounds.y,panel.bounds.y+38);
             EXPECT_LE(bounds.x+bounds.width,panel.bounds.x+panel.bounds.width);
             EXPECT_LE(bounds.y+bounds.height,panel.bounds.y+panel.bounds.height);
             for (std::size_t next=cell+1;next<panel.controls.size();++next)
