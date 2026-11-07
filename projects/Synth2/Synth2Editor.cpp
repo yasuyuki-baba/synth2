@@ -43,7 +43,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(quality,oversamplingTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
-    graphics->AttachControl(new ActionButtonControl(IRECT(240,20,878,66),[this](IControl* caller) {
+    graphics->AttachControl(new PresetDisplayControl(IRECT(240,20,878,66),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
         .WithLabelText(text.WithFont("Synth2Mono").WithSize(16.f).WithFGColor(color(appearance.displayText)))),presetTag);

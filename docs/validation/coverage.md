@@ -127,4 +127,6 @@ on replacement. Native library marker drawing requires manual GUI verification.
 
 Editor bank-menu tests cover classification-only folders, direct sounds alongside
 sub-banks, duplicate display names and root banks. Catalog tests distinguish direct
-bank filtering from All banks. Native submenu interaction requires manual verification.
+bank filtering from All banks. Flat-row tests cover indentation, disabled headings, This folder and empty-library
+All banks. Header tests separate title/edit markers from bank text. Native popup
+and header appearance require manual verification.

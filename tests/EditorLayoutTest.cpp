@@ -11,14 +11,19 @@
 #include <set>
 
 using namespace synth2::editor;
-TEST(EditorLayout, PresetDisplayIncludesAvailableBankAndPreservesEditMarker)
+TEST(EditorLayout, PresetDisplaySeparatesTitleAndBankAndPreservesEditMarker)
 {
-    EXPECT_EQ(editorPresetDisplay("Warm Pad", "User Bank", false), "Warm Pad / User Bank");
-    EXPECT_EQ(editorPresetDisplay("Warm Pad", "User Bank", true), "Warm Pad / User Bank *");
-    EXPECT_EQ(editorPresetDisplay("Init", "", false), "Init");
-    EXPECT_EQ(editorPresetDisplay("Recalled Sound", "", true), "Recalled Sound *");
-    EXPECT_EQ(editorPresetDisplay("同名パッチ", "バンク A", false), "同名パッチ / バンク A");
-    EXPECT_NE(editorPresetDisplay("Pad", "Bank A", false), editorPresetDisplay("Pad", "Bank B", false));
+    const auto display=editorPresetDisplay("Warm Pad","User Bank",true);
+    EXPECT_EQ(display.title,"Warm Pad *");EXPECT_EQ(display.detail,"User Bank");
+    EXPECT_EQ(display.tooltip(),"Warm Pad *\nUser Bank");
+    const auto init=editorPresetDisplay("Init","",false);
+    EXPECT_EQ(init.title,"Init");EXPECT_TRUE(init.detail.empty());EXPECT_EQ(init.tooltip(),"Init");
+    const auto utf8=editorPresetDisplay("同名パッチ","バンク A",false);
+    EXPECT_EQ(utf8.title,"同名パッチ");EXPECT_EQ(utf8.detail,"バンク A");
+    EXPECT_EQ(editorPresetDisplay("Pad","Bank A",false).title,
+              editorPresetDisplay("Pad","Bank B",false).title);
+    EXPECT_NE(editorPresetDisplay("Pad","Bank A",false).detail,
+              editorPresetDisplay("Pad","Bank B",false).detail);
 }
 
 namespace
@@ -152,4 +157,19 @@ TEST(EditorBankMenu, GroupsParentsAndKeepsOnlyRealBanksSelectable)
     EXPECT_TRUE(editorBankMenu({}).empty());
     const auto duplicates=editorBankMenu({{"bank-a","Same"},{"bank-b","Same"}});
     ASSERT_EQ(duplicates.size(),2u);EXPECT_NE(duplicates[0].bankId,duplicates[1].bankId);
+}
+
+TEST(EditorBankMenu, FlatRowsKeepHierarchyAndSelectableFolderTargets)
+{
+    const auto rows=editorBankMenuRows(editorBankMenu({{"Set/Pads","Set/Pads"},
+        {"Set/Pads/Deep","Set/Pads/Deep"},{"Set/Lead","Set/Lead"}}));
+    ASSERT_EQ(rows.size(),6u);
+    EXPECT_EQ(rows[0].label,"All banks");EXPECT_TRUE(rows[0].selectable);EXPECT_TRUE(rows[0].bankId.empty());
+    EXPECT_EQ(rows[1].label,"Set");EXPECT_FALSE(rows[1].selectable);
+    EXPECT_EQ(rows[2].label,"Lead");EXPECT_EQ(rows[2].depth,1);EXPECT_EQ(rows[2].bankId,"Set/Lead");
+    EXPECT_EQ(rows[3].label,"Pads");EXPECT_FALSE(rows[3].selectable);
+    EXPECT_EQ(rows[4].label,"This folder");EXPECT_TRUE(rows[4].selectable);
+    EXPECT_EQ(rows[4].bankId,"Set/Pads");EXPECT_EQ(rows[4].depth,2);
+    EXPECT_EQ(rows[5].label,"Deep");EXPECT_EQ(rows[5].depth,2);EXPECT_TRUE(rows[5].selectable);
+    const auto empty=editorBankMenuRows({});ASSERT_EQ(empty.size(),1u);EXPECT_TRUE(empty[0].selectable);
 }

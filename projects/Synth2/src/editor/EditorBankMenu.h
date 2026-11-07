@@ -41,4 +41,27 @@ inline std::vector<EditorBankMenuItem> editorBankMenu(
     sort(sort,result);
     return result;
 }
+struct EditorBankMenuRow
+{
+    std::string label, bankId;
+    int depth = 0;
+    bool selectable = false;
+};
+
+inline std::vector<EditorBankMenuRow> editorBankMenuRows(const std::vector<EditorBankMenuItem>& tree)
+{
+    std::vector<EditorBankMenuRow> rows{{"All banks","",0,true}};
+    const auto append=[&](auto&& self,const auto& nodes,int depth)->void {
+        for(const auto& node:nodes) {
+            rows.push_back({node.label,node.children.empty() ? node.bankId : "",depth,node.children.empty()});
+            if(!node.children.empty()) {
+                if(!node.bankId.empty())rows.push_back({"This folder",node.bankId,depth+1,true});
+                self(self,node.children,depth+1);
+            }
+        }
+    };
+    append(append,tree,0);
+    return rows;
+}
+
 }

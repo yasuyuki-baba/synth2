@@ -4,13 +4,13 @@
 
 namespace synth2::editor
 {
-inline std::string editorPresetDisplay(std::string_view name, std::string_view bank, bool modified)
+struct EditorPresetDisplay
 {
-    std::string label(name);
-    if (!bank.empty())
-        label += " / " + std::string(bank);
-    if (modified)
-        label += " *";
-    return label;
+    std::string title, detail;
+    std::string tooltip() const {return title+(detail.empty() ? "" : "\n"+detail);}
+};
+inline EditorPresetDisplay editorPresetDisplay(std::string_view name, std::string_view bank, bool modified)
+{
+    return {std::string(name)+(modified ? " *" : ""),std::string(bank)};
 }
 }

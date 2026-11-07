@@ -1,6 +1,7 @@
 #pragma once
 #include "IControls.h"
 #include "editor/EditorLayout.h"
+#include "editor/EditorPresetDisplay.h"
 #include "host/PatchCatalog.h"
 #include <cstddef>
 #include <functional>
@@ -13,11 +14,22 @@ using namespace iplug;
 using namespace iplug::igraphics;
 
 // Compose the SDK momentary-button lifecycle with application callbacks.
-class ActionButtonControl final : public IVButtonControl
+class ActionButtonControl : public IVButtonControl
 {
 public:
     ActionButtonControl(const IRECT& bounds, IActionFunction action, const char* label,
                         const IVStyle& style);
+};
+
+// A single clickable display with independent title and bank lines.
+class PresetDisplayControl final : public ActionButtonControl
+{
+public:
+    using ActionButtonControl::ActionButtonControl;
+    void setDisplay(const synth2::editor::EditorPresetDisplay& display);
+    void Draw(IGraphics& graphics) override;
+private:
+    synth2::editor::EditorPresetDisplay display;
 };
 
 // Covers the complete editor after the optional keyboard changes its height.
