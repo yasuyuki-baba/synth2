@@ -114,19 +114,19 @@ void Synth2::layoutEditor(IGraphics* graphics)
         return handled;
     });
     // A supplementary browser keeps sound-design controls on the main surface.
-    graphics->AttachControl(new SearchControl(IRECT(20,136,430,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
+    graphics->AttachControl(new SearchControl(IRECT(20,136,320,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
-    }),librarySearchTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(442,136,650,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(662,136,868,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(880,136,1048,172),[this](IControl*) {
+    },"Search sounds..."),librarySearchTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(332,136,672,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(684,136,874,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(886,136,1034,172),[this](IControl*) {
         libraryFilter.favoritesOnly=!libraryFilter.favoritesOnly;resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Favorites: off",style),favoritesTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(1060,136,1152,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
-    graphics->AttachControl(new ActionButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1046,136,1138,172),[this](IControl*) { reloadCatalog(true); },"Refresh",style),4008);
+    graphics->AttachControl(new ActionButtonControl(IRECT(1150,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
-    graphics->AttachControl(new ITextControl(IRECT(244,180,1260,200),"Search names, banks, tags. Ctrl/Cmd+F: search / Up/Down: browse / Enter: load. Drop .zip/.sy1 to add sounds.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
+    graphics->AttachControl(new ITextControl(IRECT(244,180,1260,200),"Ctrl/Cmd+F: Search   /   Up/Down: Browse   /   Enter: Load",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Far)),4010);
     graphics->AttachControl(new ITextControl(IRECT(20,180,226,200),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),libraryMatchesTag);
     using Columns=synth2::editor::EditorLibraryColumns;
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4011);

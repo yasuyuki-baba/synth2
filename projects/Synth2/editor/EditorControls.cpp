@@ -321,8 +321,14 @@ void CatalogListControl::OnDrop(const char* path) {import(path);}
 void CatalogListControl::OnDropMultiple(const std::vector<const char*>& paths) {for(const auto* path:paths)import(path);}
 
 SearchControl::SearchControl(const IRECT& bounds, const char* text, const IText& style,
-              std::function<void(const char*)> change)
-    : IEditableTextControl(bounds,text,style,panel), onChange(std::move(change)) {}
+              std::function<void(const char*)> change,const char* placeholder)
+    : IEditableTextControl(bounds,text,style,panel), onChange(std::move(change)),placeholder(placeholder) {}
+
+void SearchControl::Draw(IGraphics& g) {
+    IEditableTextControl::Draw(g);
+    if(!*GetStr() && !placeholder.empty())
+        g.DrawText(GetText().WithFGColor(muted),placeholder.c_str(),mRECT.GetPadded(-10.f));
+}
 
 void SearchControl::OnTextEntryCompletion(const char* text, int value) {
     IEditableTextControl::OnTextEntryCompletion(text,value);

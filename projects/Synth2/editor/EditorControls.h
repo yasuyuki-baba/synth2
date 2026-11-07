@@ -120,9 +120,11 @@ class SearchControl final : public IEditableTextControl
 {
 public:
     SearchControl(const IRECT& bounds,const char* text,const IText& style,
-                  std::function<void(const char*)> change);
+                  std::function<void(const char*)> change,const char* placeholder="");
+    void Draw(IGraphics& graphics) override;
     void OnTextEntryCompletion(const char* text,int value) override;
 private:
     std::function<void(const char*)> onChange;
+    std::string placeholder;
 };
 }
