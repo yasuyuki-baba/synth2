@@ -76,7 +76,8 @@ scrolling rather than the SDK custom popup, whose wheel handler is unimplemented
 Parents are disabled classification headings. A parent with direct sounds
 offers an indented **This folder** row. Selecting a bank includes only its direct sounds; **All banks**
 at the top searches across every bank while retaining tag, keyword and favorite
-filters. The bank selector is flanked by previous/next buttons. They follow the
+filters. The bank selector has previous/next buttons grouped on its right, matching the
+patch selector. They follow the
 menu order, skip classification headings, include All banks at the beginning,
 and stop with a disabled button at each end. Switching banks retains keywords,
 tags, favorites and the sounding patch, clears registration-only filtering and
