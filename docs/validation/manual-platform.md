@@ -63,3 +63,9 @@ The HTML/SVG preview is a separate design aid and must not be labeled a native f
 
 See the [GUI contract](../gui/README.md) and [desktop build boundary](../desktop-build.md).
 Record the executable identity and capture conditions with any reported frame.
+
+For a library with more banks than fit on screen, open the bank selector and check
+platform-menu scrolling, wheel/trackpad behavior and selection near both ends.
+Verify indentation, disabled parent headings, All banks and This folder, then open
+another menu to confirm custom popup rendering is restored. Check both Windows
+and macOS; portable presentation tests do not exercise native menu interaction.
