@@ -25,7 +25,7 @@ See [capabilities and verification boundaries](docs/status.md) for the current s
 
 ## Install native packages
 
-See [INSTALL.md](INSTALL.md) for Windows/macOS product locations, unsigned-build
+See [INSTALL.md](INSTALL.md) for Linux/Windows/macOS product locations, unsigned-build
 prompts and plugin rescanning. Source archives require building; native candidate
 packages are available from successful Actions runs.
 
@@ -73,7 +73,7 @@ remain supported; CMake does not fetch or update SDKs. All platforms use the sam
 pinned development branch of iPlug2; see the build guide for Linux requirements.
 
 [GitHub Actions](docs/ci.md) runs SDK-free portable tests on three platforms and
-builds native candidates on Windows/macOS. Portable test success does not establish
+builds native candidates on Linux/Windows/macOS. Portable test success does not establish
 native plugin or DAW operation.
 
 ## Documentation

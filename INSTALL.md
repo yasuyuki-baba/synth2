@@ -1,13 +1,13 @@
 # Installing Synth2
 
 Choose the native package for your operating system:
-`Synth2-windows.zip` or `Synth2-macos.tar.gz`. GitHub's source archives are for
+`Synth2-linux.tar.gz`, `Synth2-windows.zip` or `Synth2-macos.tar.gz`. GitHub's source archives are for
 building Synth2, not installing it. The current workflow uploads candidates to
 GitHub Actions; if a version is published under
 [Releases](https://github.com/yasuyuki-baba/synth2/releases), use its native assets.
 Downloading an Actions artifact may require signing in to GitHub. An Actions
 artifact ZIP wraps the native package: extract that outer ZIP first, then extract
-the Windows ZIP or macOS tar.gz inside it.
+the native ZIP or tar.gz inside it.
 
 The extracted native package contains a `Synth2` folder with the plugin products,
 standalone application, `dependencies.json`, `LICENSE` and `notices/`.
@@ -18,6 +18,32 @@ Close your DAW and Synth2 before installing or updating. Copy each complete
 product, keeping its original name and contents. When updating, replace the old
 bundle rather than merging folders. Install only formats your DAW supports.
 Keep the package's license and notice files with your downloaded distribution.
+
+## Linux
+
+Linux packages target x86_64 and are built on Ubuntu 24.04 (glibc 2.39). Use that
+release or a compatible newer distribution; ARM Linux and older glibc systems are
+not covered by these packages. Extract the tar.gz on Linux to preserve executable
+permissions and symlinks. The editor uses X11 and OpenGL 3; Wayland sessions need
+XWayland. Runtime libraries include GTK3, FreeType/fontconfig, X11/OpenGL, ALSA,
+JACK and PulseAudio. On Ubuntu 24.04, install missing runtime dependencies with:
+
+```sh
+sudo apt-get install libgtk-3-0t64 libasound2t64 libjack-jackd2-0 libpulse0 libgl1
+```
+
+| Product in `Synth2/` | Destination folder |
+| --- | --- |
+| `Synth2.vst3` (entire bundle) | `~/.vst3/` |
+| `Synth2.clap` | `~/.clap/` |
+| `Synth2` (standalone) | A folder you own, such as `~/.local/opt/Synth2/` |
+
+Create missing folders. Keep any `Synth2.clap.resources` directory beside
+`Synth2.clap`, and any `Synth2.resources` directory beside the standalone binary.
+Keep the VST3 bundle intact, including `Contents/x86_64-linux/Synth2.so` and its
+resources. Run the standalone binary from its extracted folder; audio requires a
+working ALSA device or JACK server. Use the portable source build on platforms
+outside this binary baseline; see the [build guide](docs/desktop-build.md).
 
 ## macOS
 
@@ -119,7 +145,8 @@ A successful build is not a guarantee of host/device compatibility. See the
 Close the DAW and standalone app, then remove the Synth2 products from their
 installation folders. Rescan if the DAW still lists the plugin.
 
-User library/settings are stored separately in
+User library/settings are stored separately in `~/.local/share/Synth2/` on Linux
+(or `$XDG_DATA_HOME/Synth2/` when configured),
 `~/Library/Application Support/Synth2/` on macOS and `%APPDATA%\Synth2\` on
 Windows. Removing the products leaves those files and your original imported
 patches/banks in place. Keep your DAW projects and original patch files when

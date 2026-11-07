@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the exact native products, retaining macOS bundle modes and symlinks."""
+"""Package the exact native products, retaining Unix executable modes, resources and symlinks."""
 import argparse
 import json
 from pathlib import Path
@@ -10,6 +10,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCTS = {
+    'linux': ['Synth2.vst3', 'Synth2.clap', 'Synth2'],
     'windows': ['Synth2.vst3', 'Synth2.clap', 'Synth2.exe'],
     'macos': ['Synth2.vst3', 'Synth2.clap', 'Synth2.component', 'Synth2.app'],
 }
@@ -20,8 +21,12 @@ def package(root, build, platform, manifest, output):
     for path in products:
         binary = path
         if path.is_dir():
-            binary = (path / 'Contents' / 'x86_64-win' / 'Synth2.vst3'
-                      if platform == 'windows' else path / 'Contents' / 'MacOS' / 'Synth2')
+            if platform == 'linux':
+                binary = path / 'Contents' / 'x86_64-linux' / 'Synth2.so'
+            elif platform == 'windows':
+                binary = path / 'Contents' / 'x86_64-win' / 'Synth2.vst3'
+            else:
+                binary = path / 'Contents' / 'MacOS' / 'Synth2'
         if not binary.is_file() or binary.stat().st_size == 0:
             raise ValueError(f'Missing native product: {path}')
     metadata = json.loads(manifest.read_text())
@@ -41,6 +46,9 @@ def package(root, build, platform, manifest, output):
                 shutil.copytree(path, destination, symlinks=True)
             else:
                 shutil.copy2(path, destination)
+                resources = path.with_name(path.name + '.resources')
+                if platform == 'linux' and resources.is_dir():
+                    shutil.copytree(resources, staging / resources.name, symlinks=True)
         shutil.copy2(manifest, staging / 'dependencies.json')
         shutil.copy2(root / 'LICENSE', staging / 'LICENSE')
         shutil.copy2(root / 'INSTALL.md', staging / 'INSTALL.md')
@@ -73,7 +81,7 @@ def package(root, build, platform, manifest, output):
             'Source: https://github.com/yasuyuki-baba/synth2/tree/'
             + metadata['product_commit'] + '\n'
             'See LICENSE and notices for the applicable source/component terms.\n')
-        if platform == 'macos':
+        if platform != 'windows':
             with tarfile.open(archive, 'w:gz', dereference=False) as result:
                 result.add(staging, arcname='Synth2')
         else:
