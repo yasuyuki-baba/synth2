@@ -4,6 +4,8 @@
 #include "editor/EditorValueDisplay.h"
 #include "editor/EditorPresetDisplay.h"
 #include "editor/EditorBankMenu.h"
+#include "editor/EditorTextFit.h"
+#include "editor/EditorLibraryColumns.h"
 #include "patch/Synth1SourceRange.h"
 #include <Synth1PatchIo.h>
 #include <array>
@@ -172,4 +174,27 @@ TEST(EditorBankMenu, FlatRowsKeepHierarchyAndSelectableFolderTargets)
     EXPECT_EQ(rows[4].bankId,"Set/Pads");EXPECT_EQ(rows[4].depth,2);
     EXPECT_EQ(rows[5].label,"Deep");EXPECT_EQ(rows[5].depth,2);EXPECT_TRUE(rows[5].selectable);
     const auto empty=editorBankMenuRows({});ASSERT_EQ(empty.size(),1u);EXPECT_TRUE(empty[0].selectable);
+}
+
+TEST(EditorLayout, LongLabelsFitColumnsAndKeepUtf8AndBankSuffixes)
+{
+    const auto measure=[](std::string_view s) {float width=0;for(unsigned char c:s)if((c&0xc0)!=0x80)width+=1;return width;};
+    EXPECT_EQ(editorFitText("Short",10,measure),"Short");
+    EXPECT_EQ(editorFitText("Long patch title",9,measure),"Long p...");
+    EXPECT_EQ(editorFitText("Archive.zip/Folder/Bank",7,measure,true),"...Bank");
+    EXPECT_EQ(editorFitText("あいうえお",5,measure),"あいうえお");
+    EXPECT_EQ(editorFitText("あいうえお",4,measure),"あ...");
+    EXPECT_EQ(editorFitText("あいうえお",4,measure,true),"...お");
+    EXPECT_TRUE(editorFitText("Long",2,measure).empty());
+    EXPECT_TRUE(editorFitText("Long",0,measure).empty());
+}
+
+TEST(EditorLayout, LibraryColumnsLeaveGuttersAndRoomForTags)
+{
+    using C=EditorLibraryColumns;
+    EXPECT_LT(C::nameLeft,C::nameRight);
+    EXPECT_LE(C::nameRight+12,C::bankLeft);
+    EXPECT_LE(C::bankRight+12,C::tagsLeft);
+    EXPECT_GE(C::bankRight-C::bankLeft,250);
+    EXPECT_GE(1232-C::tagsLeft,500);
 }

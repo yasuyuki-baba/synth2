@@ -4,6 +4,8 @@
 #include "EditorStyle.h"
 #include "editor/EditorInteraction.h"
 #include "editor/EditorValueDisplay.h"
+#include "editor/EditorTextFit.h"
+#include "editor/EditorLibraryColumns.h"
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -183,9 +185,18 @@ void CatalogListControl::Draw(IGraphics& g) {
         }
         const auto label=item.patch.name+(item.error.empty() ? "" : " [Cannot load]");
         const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
-        g.DrawText(titleText,label.c_str(),IRECT(mRECT.L+50,y,mRECT.L+565,y+40));
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),item.bankName.c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
-        float tagX=mRECT.L+780;
+        using Columns=synth2::editor::EditorLibraryColumns;
+        const auto drawFitted=[&](const IText& style,const std::string& value,const IRECT& cell,bool keepEnd=false) {
+            const auto measure=[&](std::string_view text) {
+                IRECT measured;const std::string copy(text);g.MeasureText(style,copy.c_str(),measured);return measured.W();
+            };
+            const auto fitted=synth2::editor::editorFitText(value,cell.W(),measure,keepEnd);
+            g.DrawText(style,fitted.c_str(),cell);
+        };
+        drawFitted(titleText,label,IRECT(mRECT.L+Columns::nameLeft,y,mRECT.L+Columns::nameRight,y+40));
+        drawFitted(text.WithSize(11.f).WithFGColor(muted),item.bankName,
+                   IRECT(mRECT.L+Columns::bankLeft,y,mRECT.L+Columns::bankRight,y+40),true);
+        float tagX=mRECT.L+Columns::tagsLeft;
         const float tagRight=mRECT.R-8;
         const auto drawTag=[&](const std::string& tag,bool automatic) {
             if(tagX>=tagRight)return;
@@ -193,7 +204,7 @@ void CatalogListControl::Draw(IGraphics& g) {
             IRECT measured;g.MeasureText(tagText,tag.c_str(),measured);
             const float width=measured.W()+10;
             if(tagX+width>tagRight) {
-                g.DrawText(tagText,"...",IRECT(tagX,y,tagRight,y+40));tagX=tagRight;return;
+                drawFitted(tagText,"...",IRECT(tagX,y,tagRight,y+40));tagX=tagRight;return;
             }
             g.DrawText(tagText,tag.c_str(),IRECT(tagX,y,tagX+width,y+40));tagX+=width;
         };
@@ -208,6 +219,16 @@ void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
     const auto index=matches[offset+row];const auto item=catalog.patches()[index];
     if(x<mRECT.L+32)favorite(item.id,!item.favorite);
     else load(index);
+}
+
+void CatalogListControl::OnMouseOver(float x,float y,const IMouseMod& mod) {
+    const auto row=static_cast<std::size_t>((y-mRECT.T)/40.f);
+    if(row<visibleRows && offset+row<matches.size()) {
+        const auto& item=catalog.patches()[matches[offset+row]];
+        const auto tooltip=item.patch.name+"\n"+item.bankName+"\n"+host::PatchCatalog::tagText(item.allTags());
+        SetTooltip(tooltip.c_str());
+    }
+    IControl::OnMouseOver(x,y,mod);
 }
 
 void CatalogListControl::OnMouseWheel(float,float,const IMouseMod&,float delta) {if(delta!=0)scroll(delta>0 ? -1 : 1);}

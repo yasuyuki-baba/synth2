@@ -1,3 +1,4 @@
+#include "editor/EditorLibraryColumns.h"
 #include "Synth2.h"
 #include "editor/EditorControls.h"
 #include "editor/EditorControlTags.h"
@@ -123,9 +124,10 @@ void Synth2::layoutEditor(IGraphics* graphics)
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
     graphics->AttachControl(new ITextControl(IRECT(20,180,1260,200),"Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the list.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
-    graphics->AttachControl(new ITextControl(IRECT(58,204,580,226),"SOUND",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
-    graphics->AttachControl(new ITextControl(IRECT(600,204,780,226),"BANK",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4012);
-    graphics->AttachControl(new ITextControl(IRECT(800,204,1170,226),"TAGS",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4013);
+    using Columns=synth2::editor::EditorLibraryColumns;
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::bankLeft,204,20+Columns::bankRight,226),"BANK",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4012);
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::tagsLeft,204,1252,226),"TAGS",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4013);
     graphics->AttachControl(new CatalogListControl(IRECT(20,228,1260,708),catalog,selectedPatchId,
         [this](std::size_t index) { loadLibraryPatch(index); },
         [this](const std::string& id,bool favorite) {

@@ -94,6 +94,7 @@ public:
     void Draw(IGraphics& graphics) override;
     void OnMouseDown(float x,float y,const IMouseMod& modifiers) override;
     void OnMouseWheel(float x,float y,const IMouseMod& modifiers,float delta) override;
+    void OnMouseOver(float x,float y,const IMouseMod& modifiers) override;
     void OnDrop(const char* path) override;
     void OnDropMultiple(const std::vector<const char*>& paths) override;
 private:
