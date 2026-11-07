@@ -12,7 +12,9 @@
   Let normal pushes run CI; use skip directives only when the owner explicitly
   requests pausing Actions for the current work.
 - Desktop configurations target Windows VST3/CLAP and macOS VST3/CLAP/AUv2,
-  plus standalone APP on both desktop platforms. Official macOS builds target
+  plus standalone APP on those platforms. Linux targets VST3/CLAP/APP.
+  All three platforms use the same pinned development branch of iPlug2;
+  see the desktop build guide. Official macOS builds target
   Apple Silicon arm64 only; keep the iPlug2 universal build option disabled.
   Use the iPlug2OOS layout in `projects/Synth2`; keep JUCE out of production,
   tools and the portable build graph. Keep all product source there; the portable

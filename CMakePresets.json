@@ -67,6 +67,35 @@
       "cacheVariables": {
         "SYNTH2_IPLUG2_FORMATS": "APP"
       }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux VST3 / CLAP (experimental iPlug2 branch)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-oos-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SYNTH2_BUILD_IPLUG2": "ON",
+        "SYNTH2_BUILD_TESTS": "OFF",
+        "SYNTH2_IPLUG2_FORMATS": "VST3;CLAP",
+        "IGRAPHICS_BACKEND": "NANOVG",
+        "IGRAPHICS_RENDERER": "GL3",
+        "SYNTH2_BUILD_TOOLS": "OFF"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-app",
+      "displayName": "Linux standalone (experimental iPlug2 branch)",
+      "inherits": "linux",
+      "binaryDir": "${sourceDir}/build-oos-linux-app",
+      "cacheVariables": {
+        "SYNTH2_IPLUG2_FORMATS": "APP"
+      }
     }
   ],
   "buildPresets": [
@@ -105,6 +134,21 @@
       "name": "macos-app",
       "configurePreset": "macos-app",
       "configuration": "Release",
+      "targets": [
+        "Synth2-app"
+      ]
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux",
+      "targets": [
+        "Synth2-vst3",
+        "Synth2-clap"
+      ]
+    },
+    {
+      "name": "linux-app",
+      "configurePreset": "linux-app",
       "targets": [
         "Synth2-app"
       ]

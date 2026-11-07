@@ -1,15 +1,20 @@
 # Adapted from iPlug2OOS/TemplateProject at 9b214c1121a0da1e8db14b86a565c942a3bfea7e.
 project(Synth2 VERSION ${SYNTH2_NUMERIC_VERSION} LANGUAGES C CXX)
 include_directories("${SYNTH2_VERSION_DIR}")
-if(NOT WIN32 AND NOT APPLE)
-    message(FATAL_ERROR "Synth2 iPlug2 targets require Windows or macOS. Use Synth2Core for portable validation.")
+if(NOT WIN32 AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "Synth2 iPlug2 targets require Windows, macOS or Linux. Use Synth2Core for portable validation.")
 endif()
 set(IPLUG2_DIR "" CACHE PATH "Path to the pinned iPlug2 SDK checkout")
 if(NOT EXISTS "${IPLUG2_DIR}/iPlug2.cmake")
     message(FATAL_ERROR "Initialize the SDK with: git submodule update --init iPlug2, or set IPLUG2_DIR to an external checkout; see docs/desktop-build.md")
 endif()
 
-# The default plugin matrix is unchanged; APP can be selected for UI smoke tests.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
+   NOT EXISTS "${IPLUG2_DIR}/IGraphics/Platforms/IGraphicsLinux.cpp")
+    message(FATAL_ERROR "Linux requires the pinned iPlug2 fork; see dependencies.lock.json and docs/desktop-build.md")
+endif()
+
+# APP is selected explicitly; the default formats are the platform plugins.
 set(synth2_iplug_default_formats VST3 CLAP)
 if(APPLE)
     list(APPEND synth2_iplug_default_formats AU)
