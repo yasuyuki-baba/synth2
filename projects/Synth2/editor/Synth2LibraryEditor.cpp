@@ -2,9 +2,11 @@
 #include "EditorControls.h"
 #include "EditorControlTags.h"
 #include "editor/EditorPages.h"
+#include "editor/EditorBankMenu.h"
 #include "editor/EditorPresetDisplay.h"
 #include <algorithm>
 #include <set>
+#include <map>
 #include <stdexcept>
 #include <chrono>
 #include "../src/patch/PatchFormat.h"
@@ -23,8 +25,8 @@ void Synth2::refreshBrowser()
 #endif
     const auto banks = catalog.banks();
     if (catalogLoaded && !libraryFilter.bankId.empty() &&
-        std::none_of(banks.begin(), banks.end(),
-                     [&](const auto &bank) { return bank.id == libraryFilter.bankId; }))
+        std::none_of(catalog.patches().begin(), catalog.patches().end(),
+                     [&](const auto &patch) { return patch.bankId == libraryFilter.bankId; }))
         libraryFilter.bankId.clear();
     const auto matches = catalog.search(libraryFilter);
     if (catalogLoaded && resultOffset >= matches.size())
@@ -98,24 +100,37 @@ void Synth2::showPresetMenu(IControl *) { showPage(synth2::editor::editorLibrary
 
 void Synth2::showBankMenu(IControl *caller)
 {
-    const auto banks = catalog.banks();
+    std::map<std::string,std::string> banks;
+    for(const auto& patch:catalog.patches())banks.emplace(patch.bankId,patch.bankName);
+    const auto tree=synth2::editor::editorBankMenu({banks.begin(),banks.end()});
     presetMenu = std::make_unique<IPopupMenu>("Banks");
-    presetMenu->AddItem("All banks");
-    for (const auto &bank : banks)
-        presetMenu->AddItem(bank.name.c_str());
-    presetMenu->SetFunction(
-        [this, banks](IPopupMenu *menu)
-        {
-            const int index = menu->GetChosenItemIdx();
-            if (index < 0 || index > static_cast<int>(banks.size()))
-                return;
-            libraryFilter.registeredOnly = false;
-            libraryFilter.registeredIds.clear();
-            libraryFilter.bankId = index == 0 ? "" : banks[index - 1].id;
-            resultOffset = 0;
-            browserStatus.clear();
-            refreshBrowser();
-        });
+    // Tags identify selectable banks across all submenu levels. The root's
+    // callback is inherited by every submenu, as required by iPlug2.
+    auto ids=std::make_shared<std::vector<std::string>>(1, "");
+    presetMenu->SetFunction([this,ids](IPopupMenu* menu) {
+        const auto* item=menu->GetChosenItem();
+        if(!item || item->GetTag()<0 || static_cast<std::size_t>(item->GetTag())>=ids->size())return;
+        libraryFilter.registeredOnly=false;
+        libraryFilter.registeredIds.clear();
+        libraryFilter.bankId=(*ids)[item->GetTag()];
+        resultOffset=0;browserStatus.clear();refreshBrowser();
+    });
+    presetMenu->AddItem(new IPopupMenu::Item("All banks",
+        libraryFilter.bankId.empty() ? IPopupMenu::Item::kChecked : 0,0));
+    const auto addBank=[&](IPopupMenu& menu,const char* label,const std::string& id) {
+        const auto tag=static_cast<int>(ids->size());ids->push_back(id);
+        menu.AddItem(new IPopupMenu::Item(label,libraryFilter.bankId==id ? IPopupMenu::Item::kChecked : 0,tag));
+    };
+    const auto populate=[&](auto&& self,IPopupMenu& menu,const auto& nodes)->void {
+        for(const auto& node:nodes) {
+            if(node.children.empty()) {addBank(menu,node.label.c_str(),node.bankId);continue;}
+            auto* submenu=new IPopupMenu(node.label.c_str());
+            menu.AddItem(node.label.c_str(),submenu);
+            if(!node.bankId.empty()) {addBank(*submenu,"This folder",node.bankId);submenu->AddSeparator();}
+            self(self,*submenu,node.children);
+        }
+    };
+    populate(populate,*presetMenu,tree);
     caller->GetUI()->CreatePopupMenu(*caller, *presetMenu, caller->GetRECT());
 }
 void Synth2::showTagMenu(IControl *caller)

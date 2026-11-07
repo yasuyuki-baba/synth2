@@ -31,10 +31,6 @@ std::string filterPath(std::string path) {
 #endif
     return path;
 }
-bool inBank(const CatalogPatch& patch,const std::string& bank) {
-    return patch.bankId==bank || (!patch.file.empty() &&
-        (bank=="." || patch.bankId.starts_with(bank+"/")));
-}
 std::string lower(std::string s) {
     for(auto& c:s)if(static_cast<unsigned char>(c)<128)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
@@ -259,7 +255,7 @@ std::vector<std::size_t> PatchCatalog::search(const CatalogFilter& filter)const 
     for(std::size_t i=0;i<entries.size();++i) {
         const auto& p=entries[i];
         if(filter.registeredOnly && std::find(filter.registeredIds.begin(),filter.registeredIds.end(),p.id)==filter.registeredIds.end())continue;
-        if((!bank.empty() && !inBank(p,bank)) || (filter.favoritesOnly && !p.favorite))continue;
+        if((!bank.empty() && p.bankId!=bank) || (filter.favoritesOnly && !p.favorite))continue;
         if(!filter.tag.empty() && std::none_of(p.tags.begin(),p.tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
         const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.location+" "+p.archiveEntry+" "+tagText(p.tags));
         if(std::all_of(terms.begin(),terms.end(),[&](const auto& term){return haystack.find(term)!=std::string::npos;}))result.push_back(i);
