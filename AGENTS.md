@@ -50,6 +50,8 @@
   all selected tags and preserve legacy single-tag session recall.
   Keep keyboard browsing separate from audition: arrows/pages move a candidate,
   Enter loads it, and Ctrl/Command+F focuses search without intercepting text entry.
+  Use a continuous list with a draggable scrollbar and minimal candidate reveal,
+  not page buttons or page-aligned jumps; wheel input retains fractional deltas.
   Show automatic tags in muted text within the shared tag list. See [library behavior](docs/gui/patch-library.md).
   Do not bundle or privilege a factory bank. Start with Init and an empty library;
   all added banks share the same import and metadata behavior. Use a hierarchical

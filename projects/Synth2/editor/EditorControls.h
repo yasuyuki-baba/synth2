@@ -82,17 +82,19 @@ private:
     IPopupMenu menu;
 };
 
-// Borrow the catalog/selection; only the visible result page is drawn.
+// Borrow the catalog/selection; draw only rows intersecting the scroll viewport.
 class CatalogListControl final : public IControl
 {
 public:
     CatalogListControl(const IRECT& bounds,const host::PatchCatalog& catalog,
         const std::string& selected,const std::string& keyboardSelection,std::function<void(std::size_t)> load,
         std::function<void(const std::string&,bool)> favorite,
-        std::function<void(int)> scroll,std::function<void(const char*)> import);
-    void setResults(std::vector<std::size_t> results,std::size_t start);
+        std::function<void(double)> scroll,std::function<void(const char*)> import);
+    void setResults(std::vector<std::size_t> results,double start);
     void Draw(IGraphics& graphics) override;
     void OnMouseDown(float x,float y,const IMouseMod& modifiers) override;
+    void OnMouseDrag(float x,float y,float dX,float dY,const IMouseMod& modifiers) override;
+    void OnMouseUp(float x,float y,const IMouseMod& modifiers) override;
     void OnMouseWheel(float x,float y,const IMouseMod& modifiers,float delta) override;
     void OnMouseOver(float x,float y,const IMouseMod& modifiers) override;
     void OnDrop(const char* path) override;
@@ -102,10 +104,15 @@ private:
     const std::string& selected;
     const std::string& keyboardSelection;
     std::vector<std::size_t> matches;
-    std::size_t offset=0;
+    double offset=0,drawOffset=0,animationStart=0;
+    bool draggingScroll=false;
+    float scrollGrab=0;
+    IRECT scrollTrack() const;
+    IRECT scrollThumb() const;
+    void dragScroll(float y);
     std::function<void(std::size_t)> load;
     std::function<void(const std::string&,bool)> favorite;
-    std::function<void(int)> scroll;
+    std::function<void(double)> scroll;
     std::function<void(const char*)> import;
 };
 

@@ -93,7 +93,7 @@ private:
     bool catalogLoaded = false;
     bool catalogReloadPending = false;
     std::string selectedPatchId,keyboardPatchId;
-    std::size_t resultOffset = 0;
+    double resultOffset = 0;
     int page = 0;
     std::string currentPatch = "Init";
     std::string browserStatus;

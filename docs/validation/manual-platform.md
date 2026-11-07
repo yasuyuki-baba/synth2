@@ -89,3 +89,11 @@ without changing the sounding title. Enter should load it; Escape should return
 to the sounding entry if still in the results. Check empty results, invalid
 sources, catalog refresh, mouse selection, software-keyboard performance, and
 ordinary text editing/host shortcuts while the editor is unfocused.
+
+Scroll the Library with wheel/trackpad input and drag the scrollbar thumb from
+top to bottom; click the track to jump. Check a short/empty list, fractional
+rows, first/last bounds, clipped drawing and row/favorite hit tests after scrolling.
+Move the keyboard candidate across either viewport edge: reveal only the needed
+rows with a short transition, keeping the sounding patch unchanged until Enter.
+Check that refresh/filter changes clamp the viewport and session recall restores
+the first visible row after scanning. No page buttons should remain.
