@@ -69,3 +69,10 @@ platform-menu scrolling, wheel/trackpad behavior and selection near both ends.
 Verify indentation, disabled parent headings, All banks and This folder, then open
 another menu to confirm custom popup rendering is restored. Check both Windows
 and macOS; portable presentation tests do not exercise native menu interaction.
+
+Refresh a library with named Bass/Pad sounds and feature-rich patches. Check that
+manual tags use ordinary text and inferred tags use muted text in the same row.
+Filter/search both kinds without changing the sounding patch. Use Auto tags to
+hide and restore a suggestion, reopen the editor, and confirm persistence. Enter
+the same tag manually with different case; it should appear once in the manual
+color. Check narrow/overflowing tag columns and selection/readability on both OSes.

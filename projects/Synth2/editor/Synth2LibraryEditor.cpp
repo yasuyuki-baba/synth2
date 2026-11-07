@@ -76,7 +76,7 @@ void Synth2::refreshBrowser()
     if (auto *c = graphics->GetControlWithTag(libraryListTag))
         c->As<CatalogListControl>()->setResults(matches, resultOffset);
     setText(selectedNameTag,
-            canEdit ? "Tags for " + selected->patch.name + " (comma-separated; press Enter to save)"
+            canEdit ? "Manual tags for " + selected->patch.name + " (comma-separated; Enter to save; muted tags are automatic)"
                     : "Select a sound to edit its tags");
     setText(tagsEditTag, canEdit ? synth2::host::PatchCatalog::tagText(selected->tags) : "");
     if (auto *c = graphics->GetControlWithTag(tagsEditTag))
@@ -122,9 +122,13 @@ void Synth2::showBankMenu(IControl *caller)
             libraryFilter.bankId==row.bankId ? IPopupMenu::Item::kChecked : 0;
         presetMenu->AddItem(new IPopupMenu::Item(label.c_str(),flags,static_cast<int>(i)));
     }
+    showScrollableLibraryMenu(caller);
+}
+void Synth2::showScrollableLibraryMenu(IControl* caller)
+{
     auto* graphics=caller->GetUI();
     // The pinned SDK's custom popup has no wheel handler. Use the platform
-    // menu for this potentially long list; keep other menus custom-rendered.
+    // menu for long bank/tag lists; keep unrelated menus custom-rendered.
     auto* popup=graphics->GetPopupMenuControl();
     const bool restorePopup=popup!=nullptr;
     const auto popupText=popup ? popup->GetText() : DEFAULT_TEXT;
@@ -132,6 +136,7 @@ void Synth2::showBankMenu(IControl *caller)
     graphics->CreatePopupMenu(*caller,*presetMenu,caller->GetRECT());
     if(restorePopup)graphics->AttachPopupMenuControl(popupText);
 }
+
 void Synth2::showTagMenu(IControl *caller)
 {
     std::set<std::string> unique;
@@ -139,7 +144,7 @@ void Synth2::showTagMenu(IControl *caller)
     scoped.tag.clear();
     scoped.query.clear();
     for (auto i : catalog.search(scoped))
-        for (const auto &tag : catalog.patches()[i].tags)
+        for (const auto &tag : catalog.patches()[i].allTags())
             unique.insert(tag);
     const std::vector<std::string> tags(unique.begin(), unique.end());
     presetMenu = std::make_unique<IPopupMenu>("Tags");
@@ -157,8 +162,31 @@ void Synth2::showTagMenu(IControl *caller)
             browserStatus.clear();
             refreshBrowser();
         });
-    caller->GetUI()->CreatePopupMenu(*caller, *presetMenu, caller->GetRECT());
+    showScrollableLibraryMenu(caller);
 }
+void Synth2::showAutomaticTagMenu(IControl* caller)
+{
+    const auto found=std::find_if(catalog.patches().begin(),catalog.patches().end(),
+        [&](const auto& patch){return patch.id==selectedPatchId;});
+    if(found==catalog.patches().end())return;
+    const auto id=found->id;
+    const auto tags=found->visibleAutomaticTags();
+    presetMenu=std::make_unique<IPopupMenu>("Automatic tags");
+    if(tags.empty())presetMenu->AddItem("No automatic tags",-1,IPopupMenu::Item::kDisabled);
+    else for(const auto& tag:tags)presetMenu->AddItem(("Hide: "+tag).c_str());
+    const int restoreIndex=presetMenu->NItems();
+    presetMenu->AddItem("Restore hidden tags",-1,found->hiddenTags.empty() ? IPopupMenu::Item::kDisabled : 0);
+    presetMenu->SetFunction([this,id,tags,restoreIndex](IPopupMenu* menu) {
+        const int index=menu->GetChosenItemIdx();
+        std::string error;
+        if(index==restoreIndex)catalog.restoreAutomaticTags(id,error);
+        else if(index>=0 && index<static_cast<int>(tags.size()))catalog.hideAutomaticTag(id,tags[index],error);
+        else return;
+        browserStatus=error;refreshBrowser();
+    });
+    showScrollableLibraryMenu(caller);
+}
+
 void Synth2::stepPatch(int direction)
 {
     const auto matches = catalog.search(libraryFilter);

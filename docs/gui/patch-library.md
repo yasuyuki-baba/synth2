@@ -74,14 +74,43 @@ does not clear unsaved preset edits. Sound changes do not prompt on every auditi
 ## Metadata and storage
 
 Tags and favorites remain shared user preferences separate from source files and
-DAW sound state. Select a sound, enter comma-separated tags, then press Enter. A
-sound supports up to 32 tags of 128 UTF-8 bytes each. Tag spelling is retained and
-ASCII-case duplicates are collapsed. Metadata IDs use relative file plus ZIP-entry
-identity; safe encoded keys prevent path/underscore collisions. Existing managed
-`banks/bank-*` directories and their metadata remain readable with their original
-IDs and ordinals. Only recognized legacy records are excluded from file indexing
-to avoid duplicates. Ordinary ZIP/`.sy1` files are discovered even under `banks`,
-`tags` or `favorites`, including alongside managed records.
+DAW sound state. Library refresh infers short automatic tags for existing and new
+sounds from the patch title and resolved controls, on the library worker using an
+isolated loading bridge. It does not render audio or load the sounding processor.
+Tag inference never uses filenames, bank identity or source hashes. Invalid sources
+receive no inferred tags.
+
+Manual tags use the ordinary text color; automatic tags use the muted text color
+in the same list. Both participate in the same tag and keyword filters. Enter up
+to 32 comma-separated manual tags of 128 UTF-8 bytes each and press Enter. Manual
+tag spelling wins over an ASCII-case-equivalent automatic tag, which is shown
+only once. Removing that manual tag reveals the inference again unless hidden.
+**Auto tags...** hides individual inferred tags or restores hidden tags for the
+selected sound. Hidden automatic tags remain hidden across refresh/reopen, even
+when inference rules or the source change. Hiding a tag does not remove a manual
+copy. User overrides are published atomically in the existing `.tags` sidecar;
+legacy comma-separated tag sidecars remain readable.
+
+Name rules recognize whole English words, camel-case boundaries and selected
+leading abbreviations such as BS, LD and PD. They suggest Bass, Lead, Pad, Pluck,
+Keys, Organ, Strings, Brass, Bell, Percussion, FX and Arp. Obvious disagreements
+with envelope settings (or a disabled arpeggiator for an Arp name) defer that
+name suggestion. Other name matches remain heuristic; they are not ground truth.
+
+Feature tags include Mono and Legato as distinct modes, Unison, FM, Sync, Ring mod,
+Noise, Arp, Distortion, Slow attack, Long release, Short decay and Filter pluck.
+They describe settings, not guaranteed audible characteristics. Slow attack means
+at least 150 ms nominal amp attack; Long release means at least one second nominal
+amp release. Short decay requires fast attack, low amp sustain and decay within
+two seconds. Filter pluck considers a fast low-pass envelope with low sustain,
+positive depth and a restrained base cutoff. FM is omitted when Ring takes
+precedence. No inferred tag changes DSP settings or original patch/ZIP bytes.
+
+Metadata IDs use relative file plus ZIP-entry identity; safe encoded keys prevent
+path/underscore collisions. Existing managed `banks/bank-*` directories and their
+metadata remain readable with their original IDs and ordinals. Only recognized
+legacy records are excluded from file indexing to avoid duplicates. Ordinary
+ZIP/`.sy1` files remain discoverable alongside managed records.
 
 | Platform | Default library folder |
 | --- | --- |

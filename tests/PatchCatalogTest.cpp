@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "host/PatchCatalog.h"
 #include "host/ProcessorBridge.h"
+#include "host/PatchTagInference.h"
+#include "patch/PatchFormat.h"
 #include <miniz.h>
 #include <atomic>
 #include <chrono>
@@ -334,4 +336,74 @@ TEST(PatchCatalog, ZipDirectoryBanksKeepUtf8AndOriginalBackslashEntryNames) {
     EXPECT_EQ(catalog.search({"","Sounds.zip/音色"}).size(),0u);
     EXPECT_EQ(catalog.patches()[matches[0]].archiveEntry,"音色/Pad/2.sy1");
     EXPECT_EQ(catalog.patches()[matches[1]].archiveEntry,"音色\\Pad\\1.sy1");
+}
+
+TEST(PatchTagInference, UsesWordBoundariesAndDistinctModesWithShortFeatureNames) {
+    std::array<float,129> p{};p[27]=107;p[25]=0;p[28]=0;
+    auto has=[](const auto& tags,const auto& tag){return std::find(tags.begin(),tags.end(),tag)!=tags.end();};
+    EXPECT_FALSE(has(inferPatchTags("Bassoon compass",p),"Bass"));
+    EXPECT_TRUE(has(inferPatchTags("BS Warm",p),"Bass"));
+    EXPECT_FALSE(has(inferPatchTags("Warm BS",p),"Bass"));
+    EXPECT_TRUE(has(inferPatchTags("WarmPad",p),"Pad"));
+    p[38]=1;p[45]=100;p[73]=1;p[93]=4;p[77]=1;p[78]=0;
+    auto tags=inferPatchTags("Owned",p);
+    EXPECT_TRUE(has(tags,"Mono"));EXPECT_FALSE(has(tags,"Legato"));
+    EXPECT_TRUE(has(tags,"FM"));EXPECT_TRUE(has(tags,"Unison"));EXPECT_TRUE(has(tags,"Distortion"));
+    p[38]=2;p[7]=1;tags=inferPatchTags("Owned",p);
+    EXPECT_TRUE(has(tags,"Legato"));EXPECT_FALSE(has(tags,"Mono"));EXPECT_FALSE(has(tags,"FM"));
+    p[59]=0;EXPECT_FALSE(has(inferPatchTags("ARP Owned",p),"Arp"));
+    p[59]=1;EXPECT_TRUE(has(inferPatchTags("ARP Owned",p),"Arp"));
+    p[25]=110;EXPECT_FALSE(has(inferPatchTags("Pluck",p),"Pluck"));
+    EXPECT_TRUE(has(inferPatchTags("Owned",p),"Slow attack"));
+}
+
+TEST(PatchCatalog, AutomaticTagsRecallOverridesAndManualSpellingWinsWithoutEditingSource) {
+    CatalogFiles files;const auto root=files.dir/"Library";PatchCatalog catalog(root);
+    const auto zip=files.bank("Owned.zip",{{"Nested/1.sy1",warm}});
+    ImportResult result;std::string error;ASSERT_TRUE(catalog.importFile(zip.string(),result,error))<<error;
+    const auto id=catalog.patches().front().id;
+    const auto text=catalog.patches().front().patch.text;
+    EXPECT_EQ(catalog.search({"","","Pad"}).size(),1u);
+    ASSERT_TRUE(catalog.hideAutomaticTag(id,"Pad",error))<<error;
+    EXPECT_TRUE(catalog.search({"","","Pad"}).empty());
+    ASSERT_TRUE(catalog.reload(error))<<error;EXPECT_TRUE(catalog.search({"","","Pad"}).empty());
+    ASSERT_TRUE(catalog.setTags(id,"pAD, my own",error))<<error;
+    auto patch=catalog.patches().front();
+    EXPECT_EQ(patch.tags,(std::vector<std::string>{"pAD","my own"}));
+    const auto automatic=patch.visibleAutomaticTags();
+    EXPECT_EQ(std::find(automatic.begin(),automatic.end(),"Pad"),automatic.end());
+    EXPECT_EQ(catalog.search({"my own","","pad"}).size(),1u);
+    ASSERT_TRUE(catalog.setTags(id,"",error));ASSERT_TRUE(catalog.reload(error));
+    EXPECT_TRUE(catalog.search({"","","Pad"}).empty());
+    ASSERT_TRUE(catalog.restoreAutomaticTags(id,error));
+    EXPECT_EQ(catalog.search({"","","Pad"}).size(),1u);
+    EXPECT_EQ(catalog.patches().front().patch.text,text);
+    PatchLibrary bank;ASSERT_TRUE(bank.openFile((root/"Owned.zip").string(),error));
+    EXPECT_EQ(bank.patches().front().text,warm);
+}
+
+TEST(PatchCatalog, InferenceUsesResolvedDialsForLegacyAndContinuousSources) {
+    CatalogFiles files;const auto root=files.dir/"Library";fs::create_directories(root);
+    ProcessorBridge bridge;std::string error;ASSERT_TRUE(bridge.loadPatch(warm,error));
+    std::ofstream(root/"legacy.sy1")<<warm;
+    std::ofstream(root/"continuous.sy1")<<bridge.savePatch();
+    const auto state=bridge.saveState();
+    PatchCatalog catalog(root);ASSERT_TRUE(catalog.reload(error))<<error;ASSERT_EQ(catalog.patches().size(),2u);
+    EXPECT_EQ(catalog.patches()[0].automaticTags,catalog.patches()[1].automaticTags);
+    EXPECT_EQ(bridge.saveState(),state);
+}
+
+TEST(PatchCatalog, LegacyManualTagSidecarsRemainReadableAndCanBePromoted) {
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");ImportResult result;std::string error;
+    const auto zip=files.bank("Owned.zip",{{"Owned.sy1",warm}});
+    ASSERT_TRUE(catalog.importFile(zip.string(),result,error));const auto id=catalog.patches().front().id;
+    ASSERT_TRUE(catalog.setTags(id,"old",error));
+    for(const auto& file:fs::recursive_directory_iterator(catalog.root()/"tags"))
+        if(file.is_regular_file() && file.path().extension()==".tags")std::ofstream(file.path())<<"Legacy, pAD";
+    ASSERT_TRUE(catalog.reload(error));
+    EXPECT_EQ(catalog.patches().front().tags,(std::vector<std::string>{"Legacy","pAD"}));
+    const auto automatic=catalog.patches().front().visibleAutomaticTags();
+    EXPECT_EQ(std::find(automatic.begin(),automatic.end(),"Pad"),automatic.end());
+    ASSERT_TRUE(catalog.setTags(id,"",error));ASSERT_TRUE(catalog.reload(error));
+    EXPECT_EQ(catalog.search({"","","Pad"}).size(),1u);
 }

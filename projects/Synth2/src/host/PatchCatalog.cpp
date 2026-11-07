@@ -1,5 +1,7 @@
 #include "PatchCatalog.h"
 #include "ProcessorBridge.h"
+#include "PatchTagInference.h"
+#include "patch/PatchFormat.h"
 #include <algorithm>
 #include <chrono>
 #include <cctype>
@@ -67,9 +69,22 @@ fs::path metadataKey(const std::string& id) {
 }
 fs::path favorites(const fs::path& root,const std::string& id) {auto path=root/"favorites"/metadataKey(id);path+=".fav";return path;}
 fs::path tagPath(const fs::path& root,const std::string& id) {auto path=root/"tags"/metadataKey(id);path+=".tags";return path;}
-std::vector<std::string> tagsAt(const fs::path& root,const std::string& id) {
+struct TagOverrides {std::vector<std::string> manual,hidden;};
+TagOverrides overridesAt(const fs::path& root,const std::string& id) {
     if(root.empty() || !fs::exists(tagPath(root,id)))return {};
-    return PatchCatalog::splitTags(read(tagPath(root,id),16384));
+    const auto text=read(tagPath(root,id),16384);
+    const std::string header="Synth2 tag overrides v1\n";
+    if(!text.starts_with(header))return {PatchCatalog::splitTags(text),{}};
+    std::istringstream in(text.substr(header.size()));std::string manual,hidden,extra;
+    if(!std::getline(in,manual) || !std::getline(in,hidden) || std::getline(in,extra))
+        throw std::runtime_error("Invalid library tag overrides");
+    return {PatchCatalog::splitTags(manual),PatchCatalog::splitTags(hidden)};
+}
+std::vector<std::string> tagsAt(const fs::path& root,const std::string& id) {return overridesAt(root,id).manual;}
+void storeOverrides(const fs::path& root,const std::string& id,const TagOverrides& tags) {
+    fs::create_directories(tagPath(root,id).parent_path());
+    if(tags.manual.empty() && tags.hidden.empty())fs::remove(tagPath(root,id));
+    else replaceText(tagPath(root,id),"Synth2 tag overrides v1\n"+PatchCatalog::tagText(tags.manual)+"\n"+PatchCatalog::tagText(tags.hidden)+"\n");
 }
 bool favoriteAt(const fs::path& root,const std::string& id) {
     return !root.empty() && fs::is_regular_file(fs::symlink_status(favorites(root,id)));
@@ -77,6 +92,18 @@ bool favoriteAt(const fs::path& root,const std::string& id) {
 void requireRoot(const fs::path& root) {
     if(root.empty())throw std::runtime_error("The user library folder is unavailable.");
 }
+}
+
+std::vector<std::string> CatalogPatch::visibleAutomaticTags() const {
+    std::vector<std::string> result;
+    for(const auto& tag:automaticTags) {
+        const auto matches=[&](const auto& other){return lower(other)==lower(tag);};
+        if(std::none_of(tags.begin(),tags.end(),matches) && std::none_of(hiddenTags.begin(),hiddenTags.end(),matches))result.push_back(tag);
+    }
+    return result;
+}
+std::vector<std::string> CatalogPatch::allTags() const {
+    auto result=tags;const auto inferred=visibleAutomaticTags();result.insert(result.end(),inferred.begin(),inferred.end());return result;
 }
 
 std::filesystem::path PatchCatalog::userDirectory() {
@@ -143,6 +170,15 @@ bool PatchCatalog::reload(std::string& error) {
                 next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error,item.location});
             }
         }
+        // Runs on the catalog worker, using an isolated bridge. Never load a
+        // candidate into the sounding processor or infer from unresolved words.
+        ProcessorBridge scratch;
+        for(auto& patch:next) {
+            patch.hiddenTags=overridesAt(directory,patch.id).hidden;
+            std::string problem;
+            if(patch.error.empty() && scratch.loadPatch(patch.patch.text,problem))
+                patch.automaticTags=inferPatchTags(scratch.currentPatchName(),parseContinuousPatch(scratch.savePatch()).values);
+        }
         entries.swap(next);error.clear();return true;
     } catch(const std::exception& e) {error=e.what();return false;}
 }
@@ -183,10 +219,30 @@ bool PatchCatalog::setTags(const std::string& id,const std::string& text,std::st
         requireRoot(directory);
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library. Refresh the list.");
-        auto tags=splitTags(text);fs::create_directories(tagPath(directory,id).parent_path());
-        if(tags.empty())fs::remove(tagPath(directory,id));else replaceText(tagPath(directory,id),tagText(tags));
+        auto tags=splitTags(text);
+        storeOverrides(directory,id,{tags,found->hiddenTags});
         found->tags=std::move(tags);error.clear();return true;
     } catch(const std::exception& e){error=e.what();return false;}
+}
+bool PatchCatalog::hideAutomaticTag(const std::string& id,const std::string& tag,std::string& error) {
+    try {
+        requireRoot(directory);
+        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
+        if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
+        if(std::find(found->automaticTags.begin(),found->automaticTags.end(),tag)==found->automaticTags.end())
+            throw std::runtime_error("This automatic tag is no longer available.");
+        auto hidden=found->hiddenTags;
+        if(std::none_of(hidden.begin(),hidden.end(),[&](const auto& other){return lower(tag)==lower(other);}))hidden.push_back(tag);
+        storeOverrides(directory,id,{found->tags,hidden});found->hiddenTags=std::move(hidden);error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+bool PatchCatalog::restoreAutomaticTags(const std::string& id,std::string& error) {
+    try {
+        requireRoot(directory);
+        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
+        if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
+        storeOverrides(directory,id,{found->tags,{}});found->hiddenTags.clear();error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
 }
 bool PatchCatalog::removePatch(const std::string& id,std::string& error) {
     try {
@@ -256,8 +312,9 @@ std::vector<std::size_t> PatchCatalog::search(const CatalogFilter& filter)const 
         const auto& p=entries[i];
         if(filter.registeredOnly && std::find(filter.registeredIds.begin(),filter.registeredIds.end(),p.id)==filter.registeredIds.end())continue;
         if((!bank.empty() && p.bankId!=bank) || (filter.favoritesOnly && !p.favorite))continue;
-        if(!filter.tag.empty() && std::none_of(p.tags.begin(),p.tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
-        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.location+" "+p.archiveEntry+" "+tagText(p.tags));
+        const auto tags=p.allTags();
+        if(!filter.tag.empty() && std::none_of(tags.begin(),tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
+        const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.location+" "+p.archiveEntry+" "+tagText(tags));
         if(std::all_of(terms.begin(),terms.end(),[&](const auto& term){return haystack.find(term)!=std::string::npos;}))result.push_back(i);
     }
     return result;
