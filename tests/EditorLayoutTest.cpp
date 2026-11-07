@@ -210,3 +210,18 @@ TEST(EditorLayout, HeaderTagsPreserveManualAutomaticOriginAndCompleteTooltip)
     EXPECT_TRUE(editorPresetDisplay("Init","",false).tags.empty());
     EXPECT_EQ(editorPresetDisplay("Owned","",false,{}, {"FM"}).tooltip(),"Owned\nFM");
 }
+
+TEST(EditorBankMenu, AdjacentBanksSkipHeadingsAndStopAtEitherEnd)
+{
+    const auto rows=editorBankMenuRows(editorBankMenu({{"Set/Pads","Pads"},
+        {"Set/Pads/Deep","Deep"},{"Set/Lead","Lead"}}));
+    EXPECT_FALSE(editorAdjacentBank(rows,"",-1));
+    EXPECT_EQ(editorAdjacentBank(rows,"",1),"Set/Lead");
+    EXPECT_EQ(editorAdjacentBank(rows,"Set/Lead",-1),"");
+    EXPECT_EQ(editorAdjacentBank(rows,"Set/Lead",1),"Set/Pads");
+    EXPECT_EQ(editorAdjacentBank(rows,"Set/Pads",1),"Set/Pads/Deep");
+    EXPECT_EQ(editorAdjacentBank(rows,"Set/Pads/Deep",-1),"Set/Pads");
+    EXPECT_FALSE(editorAdjacentBank(rows,"Set/Pads/Deep",1));
+    EXPECT_FALSE(editorAdjacentBank(editorBankMenuRows({}),"",1));
+    EXPECT_EQ(editorAdjacentBank(rows,"deleted",1),"Set/Lead");
+}

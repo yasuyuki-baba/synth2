@@ -76,7 +76,11 @@ scrolling rather than the SDK custom popup, whose wheel handler is unimplemented
 Parents are disabled classification headings. A parent with direct sounds
 offers an indented **This folder** row. Selecting a bank includes only its direct sounds; **All banks**
 at the top searches across every bank while retaining tag, keyword and favorite
-filters. Empty directories are omitted. Files directly in the library root use `Library root`.
+filters. The bank selector is flanked by previous/next buttons. They follow the
+menu order, skip classification headings, include All banks at the beginning,
+and stop with a disabled button at each end. Switching banks retains keywords,
+tags, favorites and the sounding patch, clears registration-only filtering and
+resets the scroll/candidate. Empty directories are omitted. Files directly in the library root use `Library root`.
 Bank paths use forward slashes on every platform. Empty folders are omitted.
 Grouping leaves sound IDs, tags, favorites, source text and original ZIP program
 ordinals unchanged. ZIP directory grouping never expands or rewrites the archive.

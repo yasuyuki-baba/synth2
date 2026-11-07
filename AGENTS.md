@@ -56,7 +56,8 @@
   Do not bundle or privilege a factory bank. Start with Init and an empty library;
   all added banks share the same import and metadata behavior. Use a hierarchical
   bank list with indentation, classification-only parents, direct-bank selection
-  and All banks; do not use submenus. Separate the header patch title from its bank line. File deletion and
+  and All banks; provide previous/next bank buttons in selectable menu order,
+  preserving other filters and the sounding patch; do not use submenus. Separate the header patch title from its bank line. File deletion and
   renaming belong in the system file manager, not editor removal controls.
 
 ## Architecture boundaries

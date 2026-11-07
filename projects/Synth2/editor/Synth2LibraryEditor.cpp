@@ -21,6 +21,15 @@ using namespace iplug;
 using namespace iplug::igraphics;
 using namespace synth2::editor::native;
 
+namespace {
+std::vector<synth2::editor::EditorBankMenuRow> libraryBankRows(const std::vector<synth2::host::CatalogBank>& banks)
+{
+    std::vector<std::pair<std::string,std::string>> entries;
+    for(const auto& bank:banks)entries.emplace_back(bank.id,bank.name);
+    return synth2::editor::editorBankMenuRows(synth2::editor::editorBankMenu(entries));
+}
+}
+
 void Synth2::refreshBrowser()
 {
     auto *graphics = GetUI();
@@ -82,6 +91,12 @@ void Synth2::refreshBrowser()
             setButton(tag,synth2::editor::editorFitText(value,control->GetRECT().W()-24.f,measure,keepEnd));
         }
     };
+    const auto bankRows=libraryBankRows(banks);
+    for(const auto& [tag,direction]:{std::pair{previousBankTag,-1},std::pair{nextBankTag,1}})
+        if(auto* control=graphics->GetControlWithTag(tag)) {
+            control->SetDisabled(!synth2::editor::editorAdjacentBank(bankRows,libraryFilter.bankId,direction));
+            control->SetTooltip(direction<0 ? "Previous bank" : "Next bank");
+        }
     setFilterLabel(bankFilterTag,bankLabel,true);
     if(auto* control=graphics->GetControlWithTag(bankFilterTag))control->SetTooltip(bankLabel.c_str());
     if(auto* control=graphics->GetControlWithTag(librarySearchTag))
@@ -174,22 +189,30 @@ void Synth2::changeFilter(const char *query)
 
 void Synth2::showPresetMenu(IControl *) { showPage(synth2::editor::editorLibraryView); }
 
+void Synth2::selectBank(const std::string& id)
+{
+    libraryFilter.registeredOnly=false;
+    libraryFilter.registeredIds.clear();
+    libraryFilter.bankId=id;
+    keyboardPatchId.clear();resultOffset=0;browserStatus.clear();refreshBrowser();
+}
+
+void Synth2::stepBank(int direction)
+{
+    const auto next=synth2::editor::editorAdjacentBank(libraryBankRows(catalog.banks()),libraryFilter.bankId,direction);
+    if(next)selectBank(*next);
+}
+
 void Synth2::showBankMenu(IControl *caller)
 {
-    std::map<std::string,std::string> banks;
-    for(const auto& patch:catalog.patches())banks.emplace(patch.bankId,patch.bankName);
-    const auto tree=synth2::editor::editorBankMenu({banks.begin(),banks.end()});
     presetMenu = std::make_unique<IPopupMenu>("Banks");
-    const auto rows=synth2::editor::editorBankMenuRows(tree);
+    const auto rows=libraryBankRows(catalog.banks());
     presetMenu->SetFunction([this,rows](IPopupMenu* menu) {
         const auto* item=menu->GetChosenItem();
         if(!item || item->GetTag()<0 || static_cast<std::size_t>(item->GetTag())>=rows.size())return;
         const auto& row=rows[item->GetTag()];
         if(!row.selectable)return;
-        libraryFilter.registeredOnly=false;
-        libraryFilter.registeredIds.clear();
-        libraryFilter.bankId=row.bankId;
-        resultOffset=0;browserStatus.clear();refreshBrowser();
+        selectBank(row.bankId);
     });
     for(std::size_t i=0;i<rows.size();++i) {
         const auto& row=rows[i];

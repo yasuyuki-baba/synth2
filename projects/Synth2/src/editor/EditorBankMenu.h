@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <string>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -62,6 +63,21 @@ inline std::vector<EditorBankMenuRow> editorBankMenuRows(const std::vector<Edito
     };
     append(append,tree,0);
     return rows;
+}
+
+// Follow the menu's selectable rows, including All banks, without wrapping.
+inline std::optional<std::string> editorAdjacentBank(const std::vector<EditorBankMenuRow>& rows,
+    const std::string& current,int direction)
+{
+    if(rows.empty() || direction==0)return {};
+    auto found=std::find_if(rows.begin(),rows.end(),[&](const auto& row) {
+        return row.selectable && row.bankId==current;
+    });
+    auto index=found==rows.end() ? 0 : static_cast<int>(found-rows.begin());
+    const int step=direction>0 ? 1 : -1;
+    for(index+=step;index>=0 && index<static_cast<int>(rows.size());index+=step)
+        if(rows[index].selectable)return rows[index].bankId;
+    return {};
 }
 
 }
