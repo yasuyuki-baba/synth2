@@ -82,3 +82,10 @@ count/tooltip, All tags reset and DAW session recall. Refresh/reopen a large
 library twice, then add, remove and replace loose/ZIP sounds externally and
 refresh. Check that the updated list and tags reflect the current sources while
 the sounding patch and manual/hidden-tag overrides remain intact.
+
+With a filtered library, use Ctrl/Command+F, type a query and confirm it with
+Enter. Move with arrows, pages and Home/End: the candidate outline should move
+without changing the sounding title. Enter should load it; Escape should return
+to the sounding entry if still in the results. Check empty results, invalid
+sources, catalog refresh, mouse selection, software-keyboard performance, and
+ordinary text editing/host shortcuts while the editor is unfocused.

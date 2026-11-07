@@ -53,6 +53,7 @@ private:
     void showScrollableLibraryMenu(iplug::igraphics::IControl* caller);
     void showAutomaticTagMenu(iplug::igraphics::IControl* caller);
     void showTagMenu(iplug::igraphics::IControl* caller);
+    bool handleLibraryKey(const iplug::IKeyPress& key,bool up);
     void changeFilter(const char* query);
     void loadLibraryPatch(std::size_t index);
     void stepPatch(int direction);
@@ -91,7 +92,7 @@ private:
     synth2::host::CatalogFilter libraryFilter;
     bool catalogLoaded = false;
     bool catalogReloadPending = false;
-    std::string selectedPatchId;
+    std::string selectedPatchId,keyboardPatchId;
     std::size_t resultOffset = 0;
     int page = 0;
     std::string currentPatch = "Init";

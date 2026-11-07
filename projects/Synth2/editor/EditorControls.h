@@ -87,7 +87,7 @@ class CatalogListControl final : public IControl
 {
 public:
     CatalogListControl(const IRECT& bounds,const host::PatchCatalog& catalog,
-        const std::string& selected,std::function<void(std::size_t)> load,
+        const std::string& selected,const std::string& keyboardSelection,std::function<void(std::size_t)> load,
         std::function<void(const std::string&,bool)> favorite,
         std::function<void(int)> scroll,std::function<void(const char*)> import);
     void setResults(std::vector<std::size_t> results,std::size_t start);
@@ -100,6 +100,7 @@ public:
 private:
     const host::PatchCatalog& catalog;
     const std::string& selected;
+    const std::string& keyboardSelection;
     std::vector<std::size_t> matches;
     std::size_t offset=0;
     std::function<void(std::size_t)> load;

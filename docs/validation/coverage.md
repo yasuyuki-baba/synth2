@@ -152,3 +152,8 @@ machines. No filesystem watcher is part of this contract.
 Header presentation tests check selected patch tags, manual/automatic origin and
 complete tooltip text, including sounds without bank metadata. Native three-line
 header appearance requires manual verification.
+
+Library navigation tests cover empty results, initial candidates, clamped ends,
+page movement, first/last jumps and stale indices. Native keyboard checks must
+verify focus/text-entry ownership, candidate-versus-loaded display and Enter-only
+audition; portable index tests do not establish host shortcut behavior.

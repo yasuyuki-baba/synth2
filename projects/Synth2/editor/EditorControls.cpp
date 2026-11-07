@@ -166,12 +166,12 @@ void SourceChoiceControl::OnPopupMenuSelection(IPopupMenu* selection,int) {
 }
 
 CatalogListControl::CatalogListControl(const IRECT& bounds,const synth2::host::PatchCatalog& catalog,
-                   const std::string& selected,
+                   const std::string& selected,const std::string& keyboardSelection,
                    std::function<void(std::size_t)> load,
                    std::function<void(const std::string&,bool)> favorite,
                    std::function<void(int)> scroll,
                    std::function<void(const char*)> import)
-    : IControl(bounds),catalog(catalog),selected(selected),load(std::move(load)),
+    : IControl(bounds),catalog(catalog),selected(selected),keyboardSelection(keyboardSelection),load(std::move(load)),
       favorite(std::move(favorite)),scroll(std::move(scroll)),import(std::move(import)) {
     SetTooltip("Click a sound to audition. Click + / - to favorite. Scroll to change pages.");
 }
@@ -196,6 +196,8 @@ void CatalogListControl::Draw(IGraphics& g) {
             g.FillRect(accent,IRECT(mRECT.L,y,mRECT.L+4,y+libraryRowHeight));
         }
         else if(row%2==1)g.FillRect(background,bounds);
+        if(item.id==keyboardSelection && !isSelected)
+            g.DrawRect(accent,IRECT(bounds.L+1,bounds.T+1,bounds.R-1,bounds.B-1),nullptr,1.f);
         const IText text(13.f,ink,"Synth2UI",EAlign::Near);
         g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+libraryRowHeight));
         if(item.patch.color) {

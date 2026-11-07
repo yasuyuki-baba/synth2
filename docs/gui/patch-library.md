@@ -28,6 +28,24 @@ end and long bank paths at the beginning, using measured UTF-8-safe text widths
 to prevent column overlap. Row tooltips expose the full title, bank path and tags. Filtering does not change the selected
 sound or mark another row as selected.
 
+## Keyboard patch selection
+
+Ctrl+F (Windows) or Command+F (macOS) opens Library and focuses the search field.
+Enter commits the query; while editing text, ordinary edit keys stay with the
+text field. In Library outside text entry, Up/Down move the outlined candidate,
+Page Up/Down move by one result page, and Home/End jump to the first/last match.
+Movement clamps at the ends and never loads a sound. Enter loads the candidate;
+Escape clears the outline and returns the view to the sounding entry when that
+entry belongs to the current results. The filled selected row and persistent
+header continue to identify the sounding patch until a successful load.
+
+Navigation follows the active bank, keyword, tag and favorite filters, reveals
+the candidate's page and handles empty results. Mouse audition and header
+previous/next keep the keyboard candidate aligned. Shortcuts are editor-focus
+scoped, leave modified navigation keys to the host and coexist with PC-key
+performance while the software keyboard is open. No general Tab focus traversal
+is provided by this patch-selection feature.
+
 ## Files and registration
 
 The configured user directory is recursively scanned for `.sy1` files and `.sy1`
