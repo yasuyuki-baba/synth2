@@ -24,6 +24,7 @@ public:
     int UnserializeState(const iplug::IByteChunk& chunk, int start) override;
     void OnIdle() override;
     void OnUIOpen() override;
+    void OnParentWindowResize(int width,int height) override;
     void OnUIClose() override;
 
 private:
@@ -42,6 +43,7 @@ private:
     void updateKeyboardInput();
     synth2::editor::ComputerKeyboard computerKeyboard;
     bool keyboardVisible = false;
+    bool resizingParentWindow = false;
     void refreshBrowser();
     void showPresetMenu(iplug::igraphics::IControl* caller);
     void promptForBank();

@@ -40,6 +40,8 @@
   high-use controls visual priority; keep oversampling as a quiet footer selector
   beside Keyboard; use shared readable type sizes across Synth/MIDI/Library,
   reserving room for labels and values rather than shrinking choice text.
+  Window-frame dragging scales the complete GUI just like the corner handle;
+  retain logical bounds and platform-scale handling without adding zoom menus.
   Do not introduce unsupported instrument
   features merely to match a reference panel. Bundle the editor fonts rather than
   depending on installed system font families; see the

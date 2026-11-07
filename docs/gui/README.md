@@ -27,6 +27,15 @@ The standard 1280-by-840 view remains supported. Knob label/value bands reserve
 space for the larger text, and Chorus uses three full-width lower-row columns.
 Native drawing and review tools consume the shared typography policy.
 
+Window-frame resizing scales the complete logical canvas, including text and
+input hit areas, rather than enlarging an unscaled drawing area. The standalone
+window follows the dragged dimension and adjusts the other axis to retain the
+canvas aspect ratio. Plugin views fit uniformly within the host's supplied bounds
+without requesting a parent-window resize from that notification. The corner
+handle also scales the UI. Both paths use the same 0.5–4 scale limits and retain
+the scale when the software keyboard changes the logical height. Platform pixel
+scaling is accounted for separately; there is no zoom selector.
+
 The persistent footer places the oversampling selector just left of **Keyboard**.
 It uses a small muted label without a button frame, keeps the current multiplier
 visible, and opens the existing quality menu on click. Quality remains available

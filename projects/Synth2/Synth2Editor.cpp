@@ -1,5 +1,6 @@
 #include "editor/EditorLibraryColumns.h"
 #include "editor/EditorLibraryScroll.h"
+#include "editor/EditorResize.h"
 #include "Synth2.h"
 #include "editor/EditorControls.h"
 #include "editor/EditorControlTags.h"
@@ -14,6 +15,40 @@ using namespace iplug;
 using namespace iplug::igraphics;
 using namespace synth2::editor::native;
 
+void Synth2::OnParentWindowResize(int width,int height)
+{
+    auto* graphics=GetUI();
+    if(!graphics || resizingParentWindow)return;
+#if defined(APP_API)
+    constexpr bool resizeWindow=true;
+#else
+    constexpr bool resizeWindow=false;
+#endif
+    const auto scale=synth2::editor::editorResizeScale(width,height,graphics->GetPlatformWindowScale(),
+        graphics->GetDrawScale(),keyboardVisible,resizeWindow);
+    if(!scale)return;
+    resizingParentWindow=true;
+    // The parent already changed size. Suppress the SDK's relative parent
+    // adjustment, which would otherwise apply the size delta a second time.
+    graphics->Resize(PLUG_WIDTH,keyboardVisible ? 936 : PLUG_HEIGHT,*scale,false);
+    const auto windowWidth=static_cast<int>(graphics->WindowWidth()*graphics->GetPlatformWindowScale());
+    const auto windowHeight=static_cast<int>(graphics->WindowHeight()*graphics->GetPlatformWindowScale());
+#if defined(APP_API)
+#ifdef OS_WIN
+    const auto window=GetAncestor(static_cast<HWND>(graphics->GetWindow()),GA_ROOT);
+    RECT client{},frame{};
+    if(window && GetClientRect(window,&client) && GetWindowRect(window,&frame) &&
+       (client.right!=windowWidth || client.bottom!=windowHeight))
+        SetWindowPos(window,nullptr,0,0,windowWidth+frame.right-frame.left-client.right,
+            windowHeight+frame.bottom-frame.top-client.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+#else
+    EditorResizeFromUI(windowWidth,windowHeight,true);
+#endif
+#endif
+    SetEditorSize(windowWidth,windowHeight);
+    resizingParentWindow=false;
+}
+
 void Synth2::layoutEditor(IGraphics* graphics)
 {
     if (graphics->NControls()) return;
@@ -27,6 +62,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->EnableTooltips(true);
     graphics->AttachControl(new BackgroundControl(graphics->GetBounds()));
     graphics->AttachControl(new HeaderControl());
+    graphics->SetScaleConstraints(synth2::editor::editorMinimumScale,synth2::editor::editorMaximumScale);
     graphics->AttachCornerResizer(EUIResizerMode::Scale, false);
     graphics->AttachTextEntryControl();
     const IText text {Typography::input,ink,"Synth2UI"};

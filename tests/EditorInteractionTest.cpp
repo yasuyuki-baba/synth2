@@ -1,3 +1,4 @@
+#include "editor/EditorResize.h"
 #include "editor/EditorLibraryScroll.h"
 #include "editor/EditorLibraryNavigation.h"
 #include <gtest/gtest.h>
@@ -154,4 +155,22 @@ TEST(EditorLibraryScroll, RevealsOnlyTheNeededRowsAndClampsToAFullLastViewport)
     EXPECT_EQ(editorLibraryReveal(40,16,0,39),24);
     EXPECT_EQ(editorLibraryReveal(40,16,8.5,8),8);
     EXPECT_EQ(editorLibraryReveal(40,16,8.5,24),9);
+}
+
+TEST(EditorResize, ParentDimensionsScaleTheWholeCanvasWithoutResettingForDpiOrKeyboard)
+{
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1050,1,1,false,false),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(3200,2100,2,1,false,false),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1170,1,1.25f,true,false),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1049,1,1.25f,false,true),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1500,984,1,1.171875f,false,true),1.171875f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,840,1,1,false,true),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1280,1050,1,1,false,true),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1024,840,1,1,false,true),.8f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,840,1,1,false,false),1.f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(100,100,1,1,false,false),.5f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(9000,9000,1,1,false,false),4.f);
+    EXPECT_FALSE(editorResizeScale(0,840,1,1,false,false));
+    EXPECT_FALSE(editorResizeScale(1280,0,1,1,false,false));
+    EXPECT_FALSE(editorResizeScale(1280,840,0,1,false,false));
 }

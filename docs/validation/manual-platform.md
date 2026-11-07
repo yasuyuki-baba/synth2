@@ -108,3 +108,10 @@ Library, header/footer and popup menus. Exercise long choices, long patch/bank
 names and tags, extreme unit readouts, Chorus lower-row labels and the compact
 filter envelopes. Text should remain inside its control without reducing the
 choice font. Confirm numeric-entry hit areas and menu/full-value tooltips.
+
+Resize the standalone window from its frame horizontally, vertically and at a
+corner, then shrink it again. Text and controls should scale together at a stable
+aspect ratio; test the editor corner handle too. Open/close Keyboard at a changed
+scale and exercise popup, numeric-entry and note hit areas. In a DAW, resize the
+host-owned view and check uniform fit without resize-request loops. Repeat on
+displays with different platform pixel scales.
