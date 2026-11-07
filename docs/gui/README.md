@@ -16,6 +16,11 @@ View transitions invalidate the complete editor, including its background, after
 updating control visibility. Repainting must not invoke parameter edits or sound
 loading actions.
 
+The persistent footer places the oversampling selector just left of **Keyboard**.
+It uses a small muted label without a button frame, keeps the current multiplier
+visible, and opens the existing quality menu on click. Quality remains available
+in every view; moving it does not change processing, latency or session recall.
+
 The footer's **Keyboard** toggle opens/closes the software keyboard on every
 view. It starts closed; opening increases the logical editor height from 840 to
 936 while retaining the current display scale. This is an editor control, not a

@@ -37,7 +37,8 @@
   See the [shared native/preview layout](docs/gui/README.md).
 - The GUI should suggest Nord Lead 2 subtly through restrained red accents,
   warm white legends and black controls. Keep Synth2's own identity and give
-  high-use controls visual priority; do not introduce unsupported instrument
+  high-use controls visual priority; keep oversampling as a quiet footer selector
+  beside Keyboard; do not introduce unsupported instrument
   features merely to match a reference panel. Bundle the editor fonts rather than
   depending on installed system font families; see the
   [editor contract](docs/gui/README.md).
