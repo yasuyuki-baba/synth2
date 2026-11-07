@@ -1,4 +1,5 @@
 #pragma once
+#include "PatchMetadata.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -11,6 +12,7 @@ inline constexpr int currentPatchFormatVersion = 200;
 struct ContinuousPatch
 {
     std::string name;
+    std::vector<std::string> metadata;
     std::array<float,129> values{};
 };
 bool isContinuousPatch(std::string_view text);

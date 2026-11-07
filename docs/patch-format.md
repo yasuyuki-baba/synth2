@@ -45,3 +45,11 @@ and loading metadata separately from a newly exported patch.
 `ProcessorBridge::savePatch()` returns the complete text outside the audio
 callback. `loadPatch()`/`loadProgram()` accept both Synth2 and legacy files; bank
 and library import use that same validation boundary.
+
+## Opaque headers
+
+Additional `key=value` header lines, including Synth1's named `color=`, are
+accepted and retained in order on export. Duplicate unknown keys are preserved.
+`name` and `ver` remain codec-owned. Unknown color values are retained without a
+library marker. Header metadata has no DSP or host parameter mapping. Processor
+state embeds the source, retaining these headers across project recall.

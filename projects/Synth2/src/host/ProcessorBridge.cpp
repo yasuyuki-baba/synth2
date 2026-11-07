@@ -317,7 +317,7 @@ struct ProcessorBridge::Impl
     }
     std::string savePatch()const
     {
-        ContinuousPatch patch;patch.name=patchName;
+        ContinuousPatch patch;patch.name=patchName;patch.metadata=readPatchMetadata(lastLoadedPreset);
         for(int i=0;i<parameterCount;++i)patch.values[i]=values[i].load();
         // Import conversion has already happened for native files. Export the
         // resolved dials, then overlay live edits, rather than converting again

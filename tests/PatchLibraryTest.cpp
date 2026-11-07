@@ -80,3 +80,17 @@ TEST(PatchLibrary, CommaTitleIsDisplayedAndSearchable) {
     EXPECT_TRUE(library.patches()[0].name.ends_with("  -  Owned lead (wheel,aftertouch)"));
     EXPECT_EQ(library.search("wheel,aftertouch"),(std::vector<size_t>{0}));
 }
+
+TEST(PatchLibrary, ColorsAreAvailableForLooseAndArchivedSourcesWithoutChangingBytes) {
+    const std::string text="Owned color\r\nver=113\r\ncolor=magenta\r\n19,64\r\n";
+    TemporaryFile loose(".sy1"),archive(".zip");
+    ASSERT_TRUE(loose.write(text));
+    ASSERT_TRUE(writeZip(archive.path,{{"Nested/Color.sy1",text}}));
+    for(const auto& path:{loose.path,archive.path}) {
+        PatchLibrary library;std::string error;
+        ASSERT_TRUE(library.openFile(path.string(),error))<<error;
+        ASSERT_EQ(library.patches().size(),1u);
+        EXPECT_EQ(library.patches()[0].color,0xff00ffu);
+        EXPECT_EQ(library.patches()[0].text,text);
+    }
+}

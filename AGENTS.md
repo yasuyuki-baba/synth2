@@ -27,8 +27,9 @@
   products. Portable bridge tests do
   not establish that the native iPlug2 plugins build or run in a DAW.
 - Keep the GUI's Synth1-inspired functional groups on one main Synth surface;
-  MIDI routing and the library use supplementary views. Keep serialized metadata
-  out of the editor while preserving host IDs and saved values. Named controls
+  MIDI routing and the library use supplementary views. Keep reserved numeric fields
+  out of the editor while preserving host IDs and saved values. Preserve opaque patch
+  headers through export and recall; show named patch colors in the library. Named controls
   must preserve source selection values and host parameter IDs/ranges; continuous
   controls may retain fractional values in version 3 processor states.
   Use integer host/UI editing steps for discrete choices and counts; preserve
