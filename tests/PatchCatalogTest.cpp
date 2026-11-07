@@ -275,8 +275,8 @@ TEST(PatchCatalog, ZipDirectoryBanksIncludeAncestorsAndPreserveSoundIdentity) {
     for(const auto& bank:banks)ids.push_back(bank.id);
     EXPECT_EQ(ids,(std::vector<std::string>{"Collection.zip","Collection.zip/Other",
         "Collection.zip/Other/Deep","Collection.zip/Pads","Collection.zip/Pads/Deep","Collection.zip/PadsExtra"}));
-    EXPECT_EQ(catalog.search({"","Collection.zip"}).size(),5u);
-    EXPECT_EQ(catalog.search({"","Collection.zip/Pads"}).size(),2u);
+    EXPECT_EQ(catalog.search({"","Collection.zip"}).size(),1u);
+    EXPECT_EQ(catalog.search({"","Collection.zip/Pads"}).size(),1u);
     const auto deep=catalog.search({"","Collection.zip/Pads/Deep"});ASSERT_EQ(deep.size(),1u);
     const auto patch=catalog.patches()[deep.front()];
     EXPECT_EQ(patch.bankName,"Collection.zip/Pads/Deep");
@@ -289,7 +289,7 @@ TEST(PatchCatalog, ZipDirectoryBanksIncludeAncestorsAndPreserveSoundIdentity) {
     EXPECT_EQ(patch.patch.text,bass);
     ASSERT_TRUE(catalog.setFavorite(patch.id,true,error));ASSERT_TRUE(catalog.setTags(patch.id,"soft",error));
     PatchCatalog reopened(root);ASSERT_TRUE(reopened.reload(error));
-    const auto matches=reopened.search({"Bass","Collection.zip/Pads","soft",true});ASSERT_EQ(matches.size(),1u);
+    const auto matches=reopened.search({"Bass","Collection.zip/Pads/Deep","soft",true});ASSERT_EQ(matches.size(),1u);
     const auto& recalled=reopened.patches()[matches[0]];
     EXPECT_EQ(recalled.id,patch.id);EXPECT_EQ(recalled.program,patch.program);EXPECT_EQ(recalled.patch.text,bass);
     // A logical sub-bank must never delete its containing archive or sibling sounds.
@@ -310,20 +310,20 @@ TEST(PatchCatalog, OrdinaryDirectoriesAndNestedZipsShareBankHierarchy) {
     const auto zip=files.bank("Nested.zip",{{"Inside/5.sy1",warm}});
     fs::copy_file(zip,root/"Set/Pads/Nested.zip");
     PatchCatalog catalog(root);std::string error;ASSERT_TRUE(catalog.reload(error))<<error;
-    EXPECT_EQ(catalog.search({"","Set"}).size(),4u);
-    EXPECT_EQ(catalog.search({"","Set/Pads"}).size(),3u);
+    EXPECT_EQ(catalog.search({"","Set"}).size(),0u);
+    EXPECT_EQ(catalog.search({"","Set/Pads"}).size(),1u);
     EXPECT_EQ(catalog.search({"","Set/Pads/Deep"}).size(),1u);
     EXPECT_EQ(catalog.search({"","Other/Pads"}).size(),1u);
-    EXPECT_EQ(catalog.search({"","Set/Pads/Nested.zip"}).size(),1u);
+    EXPECT_EQ(catalog.search({"","Set/Pads/Nested.zip"}).size(),0u);
     EXPECT_EQ(catalog.search({"","Set/Pads/Nested.zip/Inside"}).size(),1u);
-    EXPECT_EQ(catalog.search({"","."}).size(),6u);
+    EXPECT_EQ(catalog.search({"","."}).size(),1u);
     const auto banks=catalog.banks();
     for(const auto* id:{".","Set","Set/Pads","Set/Pads/Deep","Set/PadsExtra","Other","Other/Pads", "Set/Pads/Nested.zip", "Set/Pads/Nested.zip/Inside"})
         EXPECT_NE(std::find_if(banks.begin(),banks.end(),[&](const auto& bank){return bank.id==id;}),banks.end())<<id;
     EXPECT_EQ(catalog.search({"Set/Pads/1.sy1"}).size(),1u);
     EXPECT_FALSE(catalog.removeBank("Set/Pads",error));
     ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.patches().size(),6u);
-    EXPECT_EQ(catalog.search({"Bright Lead","Set"}).size(),1u);
+    EXPECT_EQ(catalog.search({"Bright Lead","Set"}).size(),0u);
 }
 
 TEST(PatchCatalog, ZipDirectoryBanksKeepUtf8AndOriginalBackslashEntryNames) {
@@ -331,7 +331,7 @@ TEST(PatchCatalog, ZipDirectoryBanksKeepUtf8AndOriginalBackslashEntryNames) {
     PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
     ASSERT_TRUE(catalog.importFile(source.string(),result,error))<<error;
     const auto matches=catalog.search({"","Sounds.zip/音色/Pad"});ASSERT_EQ(matches.size(),2u);
-    EXPECT_EQ(catalog.search({"","Sounds.zip/音色"}).size(),2u);
+    EXPECT_EQ(catalog.search({"","Sounds.zip/音色"}).size(),0u);
     EXPECT_EQ(catalog.patches()[matches[0]].archiveEntry,"音色/Pad/2.sy1");
     EXPECT_EQ(catalog.patches()[matches[1]].archiveEntry,"音色\\Pad\\1.sy1");
 }

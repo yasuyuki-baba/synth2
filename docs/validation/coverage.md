@@ -120,3 +120,7 @@ linked diagnostic probe. This does not validate native GUI/device operation.
 `BuildVersionTests` checks release-tag and development-date metadata generation,
 prerelease numeric fields and rejection of out-of-range plugin versions without
 native SDKs. It validates generated metadata, not native bundle/DAW operation.
+
+Editor bank-menu tests cover classification-only folders, direct sounds alongside
+sub-banks, duplicate display names and root banks. Catalog tests distinguish direct
+bank filtering from All banks. Native submenu interaction requires manual verification.
