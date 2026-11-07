@@ -94,16 +94,20 @@ void Synth2::refreshBrowser()
     setButton(favoritesTag, libraryFilter.favoritesOnly ? "Favorites: on" : "Favorites: off");
     if (auto *c = graphics->GetControlWithTag(libraryListTag))
         c->As<CatalogListControl>()->setResults(matches, resultOffset);
-    setText(selectedNameTag,
-            canEdit ? "Manual tags for " + selected->patch.name + " (comma-separated; Enter to save; muted tags are automatic)"
-                    : "Select a sound to edit its tags");
+    setText(selectedNameTag,"Manual tags");
     setText(tagsEditTag, canEdit ? synth2::host::PatchCatalog::tagText(selected->tags) : "");
-    if (auto *c = graphics->GetControlWithTag(tagsEditTag))
-        c->SetDisabled(!canEdit);
+    const auto tagHelp=canEdit
+        ? "Manual tags for " + selected->patch.name + ". Separate tags with commas; Enter saves. Muted tags in the list are automatic."
+        : std::string("Select a sound to edit its tags.");
+    for(const auto tag:{selectedNameTag,tagsEditTag})
+        if(auto* control=graphics->GetControlWithTag(tag))control->SetTooltip(tagHelp.c_str());
+    if (auto *c = graphics->GetControlWithTag(tagsEditTag))c->SetDisabled(!canEdit);
+    if(auto* control=graphics->GetControlWithTag(4016))
+        control->SetTooltip("Hide or restore automatic tags for the selected sound.");
     const auto first = matches.empty() ? 0 : static_cast<std::size_t>(resultOffset) + 1;
     setText(resultsTag, std::to_string(first) + " - " +
                             std::to_string(std::min(static_cast<std::size_t>(std::ceil(resultOffset + visibleRows)), matches.size())) + " of " +
-                            std::to_string(matches.size()) + " sounds  /  + marks a favorite");
+                            std::to_string(matches.size()) + " sounds");
 }
 
 bool Synth2::handleLibraryKey(const IKeyPress& key,bool up)

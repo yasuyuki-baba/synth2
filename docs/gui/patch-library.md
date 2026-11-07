@@ -131,6 +131,11 @@ reopen; the cache does not introduce a background filesystem watcher.
 Tag inference never uses filenames, bank identity or source hashes. Invalid sources
 receive no inferred tags.
 
+The manual-tag editor is a compact single footer row with a muted label and
+secondary automatic-tag button. Its tooltip identifies the sound and explains
+comma separation and Enter to save, keeping repeated patch names and editing
+instructions out of the visible footer.
+
 Manual tags use the ordinary text color; automatic tags use the muted text color
 in the same list. Both participate in the same tag and keyword filters. Enter up
 to 32 comma-separated manual tags of 128 UTF-8 bytes each and press Enter. Manual

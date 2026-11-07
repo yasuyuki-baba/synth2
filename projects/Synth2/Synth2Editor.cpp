@@ -141,17 +141,18 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](double offset) {
             resultOffset=offset;refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
-    graphics->AttachControl(new ITextControl(IRECT(20,712,1020,736),"Select a sound to edit its tags",text.WithSize(12.f).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(20,742,1128,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new ITextControl(IRECT(20,724,112,752),"Manual tags",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),selectedNameTag);
+    graphics->AttachControl(new SearchControl(IRECT(116,724,1128,752),"",text.WithSize(12.f).WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(1140,742,1260,778),[this](IControl* caller) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1140,724,1260,752),[this](IControl* caller) {
         showAutomaticTagMenu(caller);
-    },"Auto tags...",style),4016);
-    graphics->AttachControl(new ITextControl(IRECT(20,780,1260,798),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
+    },"Auto tags...",style.WithColor(kFG,background).WithColor(kFR,background)
+        .WithLabelText(text.WithSize(11.f).WithFGColor(muted))),4016);
+    graphics->AttachControl(new ITextControl(IRECT(20,760,1260,780),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
     if(!catalogLoaded)reloadCatalog();
     showPage(page);
     refreshBrowser();
