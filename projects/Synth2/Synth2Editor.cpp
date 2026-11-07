@@ -39,10 +39,6 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
     graphics->AttachControl(new ITextControl(IRECT(20,82,592,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
-    auto* quality=new ActionButtonControl(IRECT(600,82,744,112),[this](IControl* caller){showOversamplingMenu(caller);},
-        ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),style);
-    quality->SetTooltip("Higher factors reduce aliasing and use more CPU. Saved with the project.");
-    graphics->AttachControl(quality,oversamplingTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new PresetDisplayControl(IRECT(240,16,878,78),[this](IControl* caller) {
@@ -92,9 +88,15 @@ void Synth2::layoutEditor(IGraphics* graphics)
             graphics->AttachControl(knob,parameterTag+index);
         }
     }
-    graphics->AttachControl(new ITextControl(IRECT(20,802,700,826),"",text.WithFGColor(muted).WithSize(12.f).WithAlign(EAlign::Near)),statusTag);
-    graphics->AttachControl(new ITextControl(IRECT(720,802,1090,826),"Click a value to type  /  Drag corner to scale",
+    graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(12.f).WithAlign(EAlign::Near)),statusTag);
+    graphics->AttachControl(new ITextControl(IRECT(542,802,930,826),"Click a value to type  /  Drag corner to scale",
         text.WithFGColor(muted).WithSize(11.f).WithAlign(EAlign::Far)));
+    auto* quality=new ActionButtonControl(IRECT(944,802,1088,830),[this](IControl* caller){showOversamplingMenu(caller);},
+        ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),
+        style.WithColor(kBG,background).WithColor(kFG,background).WithColor(kFR,background)
+            .WithDrawFrame(false).WithLabelText(text.WithSize(11.f).WithFGColor(muted)));
+    quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
+    graphics->AttachControl(quality,oversamplingTag);
     auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
     keyboard->SetText(text);
     graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
