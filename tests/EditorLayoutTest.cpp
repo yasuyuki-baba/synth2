@@ -198,3 +198,15 @@ TEST(EditorLayout, LibraryColumnsLeaveGuttersAndRoomForTags)
     EXPECT_GE(C::bankRight-C::bankLeft,250);
     EXPECT_GE(1232-C::tagsLeft,500);
 }
+
+TEST(EditorLayout, HeaderTagsPreserveManualAutomaticOriginAndCompleteTooltip)
+{
+    const auto display=editorPresetDisplay("Warm Pad","Folder/Bank",true,{"Choice"},{"Pad","Unison"});
+    ASSERT_EQ(display.tags.size(),3u);
+    EXPECT_EQ(display.tags[0].text,"Choice");EXPECT_FALSE(display.tags[0].automatic);
+    EXPECT_EQ(display.tags[1].text,"Pad");EXPECT_TRUE(display.tags[1].automatic);
+    EXPECT_EQ(display.tags[2].text,"Unison");EXPECT_TRUE(display.tags[2].automatic);
+    EXPECT_EQ(display.tooltip(),"Warm Pad *\nFolder/Bank\nChoice, Pad, Unison");
+    EXPECT_TRUE(editorPresetDisplay("Init","",false).tags.empty());
+    EXPECT_EQ(editorPresetDisplay("Owned","",false,{}, {"FM"}).tooltip(),"Owned\nFM");
+}

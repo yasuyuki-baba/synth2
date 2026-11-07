@@ -148,3 +148,7 @@ same-timestamp content updates, additions/deletions, ZIP-entry changes, cached
 invalid-source diagnostics and corrupt-cache rebuilding without losing overrides.
 Portable checks do not certify native menu interaction or scan timing on other
 machines. No filesystem watcher is part of this contract.
+
+Header presentation tests check selected patch tags, manual/automatic origin and
+complete tooltip text, including sounds without bank metadata. Native three-line
+header appearance requires manual verification.

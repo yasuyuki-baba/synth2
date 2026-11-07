@@ -44,12 +44,12 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(quality,oversamplingTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
-    graphics->AttachControl(new PresetDisplayControl(IRECT(240,20,878,66),[this](IControl* caller) {
+    graphics->AttachControl(new PresetDisplayControl(IRECT(240,16,878,78),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
         .WithLabelText(text.WithFont("Synth2Mono").WithSize(16.f).WithFGColor(color(appearance.displayText)))),presetTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(890,20,934,66),[this](IControl*) { stepPatch(-1); },"<",style));
-    graphics->AttachControl(new ActionButtonControl(IRECT(944,20,988,66),[this](IControl*) { stepPatch(1); },">",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(890,16,934,78),[this](IControl*) { stepPatch(-1); },"<",style));
+    graphics->AttachControl(new ActionButtonControl(IRECT(944,16,988,78),[this](IControl*) { stepPatch(1); },">",style));
 
     std::vector<const char*> labels(synth2::editor::editorViews.begin(),synth2::editor::editorViews.end());
     auto* tabs = new IVTabSwitchControl(IRECT(900,82,1260,112),[this](IControl* control) {
