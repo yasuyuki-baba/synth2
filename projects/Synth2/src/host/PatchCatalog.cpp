@@ -81,14 +81,10 @@ TagOverrides overridesAt(const fs::path& root,const std::string& id) {
         throw std::runtime_error("Invalid library tag overrides");
     return {PatchCatalog::splitTags(manual),PatchCatalog::splitTags(hidden)};
 }
-std::vector<std::string> tagsAt(const fs::path& root,const std::string& id) {return overridesAt(root,id).manual;}
 void storeOverrides(const fs::path& root,const std::string& id,const TagOverrides& tags) {
     fs::create_directories(tagPath(root,id).parent_path());
     if(tags.manual.empty() && tags.hidden.empty())fs::remove(tagPath(root,id));
     else replaceText(tagPath(root,id),"Synth2 tag overrides v1\n"+PatchCatalog::tagText(tags.manual)+"\n"+PatchCatalog::tagText(tags.hidden)+"\n");
-}
-bool favoriteAt(const fs::path& root,const std::string& id) {
-    return !root.empty() && fs::is_regular_file(fs::symlink_status(favorites(root,id)));
 }
 void requireRoot(const fs::path& root) {
     if(root.empty())throw std::runtime_error("The user library folder is unavailable.");
@@ -147,7 +143,7 @@ bool PatchCatalog::reload(std::string& error) {
                     if(text.empty())throw std::runtime_error("The library contains an empty patch.");
                     if(next.size()>=maximumCatalogPatches || text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
                     total+=text.size();const auto id=bankId+"/"+key;
-                    next.push_back({id,bankId,bankName,{read(bank/(key+".name"),16384),std::move(text)},ordinal,favoriteAt(directory,id),tagsAt(directory,id)});
+                    next.push_back({id,bankId,bankName,{read(bank/(key+".name"),16384),std::move(text)},ordinal,false,{}});
                 }
             }
         }
@@ -155,7 +151,7 @@ bool PatchCatalog::reload(std::string& error) {
             PresetFiles files(directory);if(!files.scan(error,false))return false;
             for(const auto& item:files.entries()) {
                 if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
-                total+=item.text.size();auto relative=item.file.lexically_relative(fs::weakly_canonical(directory));
+                total+=item.text.size();auto relative=item.file.lexically_relative(files.directory());
                 // ZIP entries and loose files share one directory-bank hierarchy.
                 // Sound IDs, original entry names and source program ordinals stay intact.
                 auto bankId=portablePath(relative.parent_path());
@@ -168,7 +164,7 @@ bool PatchCatalog::reload(std::string& error) {
                 }
                 if(bankId.empty())bankId=".";
                 const auto bankName=bankId=="." ? "Library root" : bankId;
-                next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error,item.location});
+                next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,false,{},item.file,item.archiveEntry,item.error,item.location});
             }
         }
         // Cache exact source text to detect even same-size/same-timestamp edits.
@@ -192,10 +188,33 @@ bool PatchCatalog::reload(std::string& error) {
                 }
             }
         }catch(...) {cached.clear();}
+        // Metadata is sparse: discover override files once rather than issuing
+        // multiple filesystem queries for every sound in a large archive.
+        const auto metadataPathKey=[](const fs::path& path) {
+            auto key=utf8(path.lexically_normal());
+#ifdef _WIN32
+            key=lower(key);
+#endif
+            return key;
+        };
+        const auto discoverMetadata=[&](const char* folder,const char* extension) {
+            std::unordered_set<std::string> files;
+            if(!directory.empty() && fs::is_directory(directory/folder))
+                for(const auto& file:fs::recursive_directory_iterator(directory/folder))
+                    if(fs::is_regular_file(file.symlink_status()) && lower(file.path().extension().string())==extension)
+                        files.insert(metadataPathKey(file.path()));
+            return files;
+        };
+        const auto overrideFiles=discoverMetadata("tags",".tags");
+        const auto favoriteFiles=discoverMetadata("favorites",".fav");
         ProcessorBridge scratch;TagCacheStats stats;
         std::ostringstream updated;updated<<cacheHeader;
         for(auto& patch:next) {
-            patch.hiddenTags=overridesAt(directory,patch.id).hidden;
+            patch.favorite=favoriteFiles.contains(metadataPathKey(favorites(directory,patch.id)));
+            if(overrideFiles.contains(metadataPathKey(tagPath(directory,patch.id)))) {
+                auto overrides=overridesAt(directory,patch.id);
+                patch.tags=std::move(overrides.manual);patch.hiddenTags=std::move(overrides.hidden);
+            }
             if(!patch.error.empty())continue;
             const auto found=cached.find(patch.id);
             if(found!=cached.end() && found->second.source==patch.patch.text) {
