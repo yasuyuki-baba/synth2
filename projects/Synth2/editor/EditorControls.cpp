@@ -48,14 +48,14 @@ void PresetDisplayControl::Draw(IGraphics& g)
         return;
     }
     fitted(title,display.title,IRECT(mRECT.L+10,mRECT.T+2,mRECT.R-10,mRECT.T+26));
-    const auto small=IText(11.f,muted,"Synth2UI",EAlign::Near);
+    const auto detailText=IText(11.f,muted,"Synth2UI",EAlign::Near);
     if(!display.detail.empty())
-        fitted(small,display.detail,IRECT(mRECT.L+10,mRECT.T+26,mRECT.R-10,
+        fitted(detailText,display.detail,IRECT(mRECT.L+10,mRECT.T+26,mRECT.R-10,
             display.tags.empty() ? mRECT.B-2 : mRECT.T+42),true);
     float x=mRECT.L+10;
     const float y=display.detail.empty() ? mRECT.T+26 : mRECT.T+42;
     for(const auto& tag:display.tags) {
-        const auto style=small.WithFGColor(tag.automatic ? muted : ink);
+        const auto style=detailText.WithFGColor(tag.automatic ? muted : ink);
         IRECT measured;g.MeasureText(style,tag.text.c_str(),measured);
         const float width=measured.W()+10;
         if(x+width>mRECT.R-10) {
