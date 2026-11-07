@@ -16,6 +16,7 @@ Check out the pinned iPlug2 SDK and required format dependencies as described in
 | --- | --- | --- |
 | Windows | `windows`, `windows-app` | VST3, CLAP, standalone APP |
 | macOS | `macos`, `macos-app` | VST3, CLAP, AUv2, standalone APP |
+| Linux (experimental) | `linux`, `linux-app` | VST3, CLAP, standalone APP |
 
 For example, run `cmake --preset windows`, then
 `cmake --build --preset windows`. Repeat with the applicable APP/macOS preset.

@@ -9,6 +9,7 @@ ZIP/XML support uses the bundled miniz/tinyxml2 implementations.
 | --- | --- |
 | Windows | VST3, CLAP, standalone APP |
 | macOS | VST3, CLAP, AUv2, standalone APP |
+| Linux (experimental) | VST3, CLAP, standalone APP |
 
 Use the root CMake presets for the configured toolchain/SDK. `core` disables the
 native wrapper and builds the SDK-independent core/tests. Native format presets
@@ -48,10 +49,14 @@ C++11 requirement; C ZIP support is independent of C++ settings.
 ## SDK checkout and additional dependencies
 
 `iPlug2/` is a Git submodule pinned to the revision in
-[dependencies.lock.json](../dependencies.lock.json). Initialize the recorded
+[dependencies.lock.json](../dependencies.lock.json). Windows, macOS and Linux all
+use [yasuyuki-baba/iPlug2](https://github.com/yasuyuki-baba/iPlug2/tree/fix/linux-pr1336-app-build),
+branch `fix/linux-pr1336-app-build`. This SDK branch is under development; use
+the recorded commit rather than its moving tip. Initialize the recorded
 revision from the product repository root:
 
 ```sh
+git submodule sync -- iPlug2
 git submodule update --init iPlug2
 ```
 
@@ -95,6 +100,8 @@ Return to the Synth2 root and select the preset for the desired format:
 | Windows | `windows-app` | `build-oos-app` | APP |
 | macOS | `macos` | `build-oos-mac` | VST3, CLAP, AUv2 |
 | macOS | `macos-app` | `build-oos-mac-app` | APP |
+| Linux | `linux` | `build-oos-linux` | VST3, CLAP |
+| Linux | `linux-app` | `build-oos-linux-app` | APP |
 
 For example:
 
@@ -106,6 +113,48 @@ cmake --build --preset macos
 Use the corresponding Windows or APP preset on that platform. Native build
 presets select Release and disable portable tests. Portable validation uses
 `cmake --preset core`, `cmake --build --preset core` and `ctest --preset core`.
+
+## Experimental Linux build
+
+Linux uses the same `iPlug2/` submodule, `iplug2` lock entry and `native_sdks`
+revisions as Windows and macOS. Initialize the pinned submodule and prepare its
+format SDKs using the common instructions above.
+
+Install CMake 3.25+, a C++20 compiler, Python 3, Git and the Linux development
+packages (Ubuntu/Debian names):
+
+```sh
+sudo apt-get install ninja-build pkg-config \
+  libfreetype-dev libfontconfig-dev \
+  libx11-dev libx11-xcb-dev libxcb1-dev libxi-dev libxext-dev libxrender-dev \
+  libxrandr-dev libxfixes-dev libxcursor-dev libgl-dev libgtk-3-dev \
+  libasound2-dev libjack-jackd2-dev libpulse-dev
+```
+
+From the product root:
+
+```sh
+git submodule sync -- iPlug2
+git submodule update --init iPlug2
+python3 tools/prepare_native_sdks.py --output build/linux-dependencies.json
+cmake --preset linux
+cmake --build --preset linux --parallel 4
+cmake --preset linux-app
+cmake --build --preset linux-app --parallel 4
+```
+
+Linux native builds are opt-in: these presets enable `SYNTH2_BUILD_IPLUG2` while
+a plain Linux configure keeps the portable default. Both use X11 and NanoVG/GL3;
+a Wayland desktop needs XWayland. Native Wayland, Skia and WebView are outside the
+fork's Linux support scope. GTK3 and audio development packages are needed even
+for plugin-only configurations because the SDK discovers standalone support too.
+
+Artifacts stay under the respective build directory's `out/`;
+`IPLUG_DEPLOY_PLUGINS` defaults to `OFF`. Copy the complete VST3 bundle to
+`~/.vst3/` or the CLAP binary to `~/.clap/` for manual installation. Keep any
+adjacent binary-specific `.resources` directory with its flat binary. APP audio
+requires a working ALSA device or JACK server. A successful build or smoke host
+run does not certify a DAW session, physical audio/MIDI devices or latency.
 
 ## Host boundary and verification
 

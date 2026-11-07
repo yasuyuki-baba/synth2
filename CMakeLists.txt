@@ -5,6 +5,7 @@ synth2_configure_version("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_D
 project(Synth2 VERSION ${SYNTH2_NUMERIC_VERSION} LANGUAGES C CXX)
 # Out-of-source layout based on iPlug2/iPlug2OOS (see dependencies.lock.json).
 set(IPLUG2_DIR "${CMAKE_CURRENT_SOURCE_DIR}/iPlug2" CACHE PATH "Path to the iPlug2 framework checkout")
+# Experimental Linux native builds are selected through the linux presets.
 if(WIN32 OR APPLE)
     set(synth2_plugin_default ON)
 else()
