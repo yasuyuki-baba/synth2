@@ -120,3 +120,7 @@ linked diagnostic probe. This does not validate native GUI/device operation.
 `BuildVersionTests` checks release-tag and development-date metadata generation,
 prerelease numeric fields and rejection of out-of-range plugin versions without
 native SDKs. It validates generated metadata, not native bundle/DAW operation.
+
+`PatchFormatTest.cpp` checks opaque header and named color decoding, duplicate
+unknown keys, export after edits, renaming, project recall and metadata clearing
+on replacement. Native library marker drawing requires manual GUI verification.

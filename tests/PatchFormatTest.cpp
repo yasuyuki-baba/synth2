@@ -147,3 +147,57 @@ TEST(PatchFormat, ContinuousFileEnablesFractionalModeAfterLegacyStateRestore)
     ASSERT_TRUE(synth2::readMappedSynthParams(p,mapped));
     EXPECT_FLOAT_EQ(mapped.cutoffIndex,(37.25f/127.f)*1023.f);
 }
+
+TEST(PatchFormat, MetadataSurvivesEditsExportAndProjectRecall)
+{
+    ProcessorBridge source;std::string error;
+    const std::string legacy="Owned metadata patch\nver=113\ncolor=cyan\nfuture=opaque # literal; value\nfuture=second\n19,64\n";
+    ASSERT_TRUE(source.loadPatch(legacy,error))<<error;
+    const auto expected=synth2::readPatchMetadata(legacy);
+    source.setNormalizedValue(19,37.25/127.0);
+    auto exported=synth2::parseContinuousPatch(source.savePatch());
+    EXPECT_EQ(exported.metadata,expected);
+    EXPECT_EQ(synth2::patchColor(exported.metadata),0x00ffffu);
+    ProcessorBridge restored;
+    const auto state=source.saveState();
+    restored.restoreState(state.data(),static_cast<int>(state.size()));
+    EXPECT_EQ(restored.savePatch(),source.savePatch());
+    exported.name="Renamed # patch";
+    ASSERT_TRUE(restored.loadPatch(synth2::formatContinuousPatch(exported),error))<<error;
+    EXPECT_EQ(synth2::parseContinuousPatch(restored.savePatch()).metadata,expected);
+    EXPECT_EQ(synth2::parseContinuousPatch(restored.savePatch()).name,exported.name);
+    ProcessorBridge plain;
+    ASSERT_TRUE(restored.loadPatch(plain.savePatch(),error))<<error;
+    EXPECT_TRUE(synth2::parseContinuousPatch(restored.savePatch()).metadata.empty());
+}
+
+TEST(PatchFormat, NamedColorsAndOpaqueUnknownValues)
+{
+    const std::vector<std::string> names{"red","green","blue","yellow","magenta","cyan"};
+    const unsigned expected[]{0xff0000,0x00ff00,0x0000ff,0xffff00,0xff00ff,0x00ffff};
+    for(std::size_t i=0;i<names.size();++i)
+        EXPECT_EQ(synth2::patchColor({"color="+names[i]}),expected[i]);
+    for(const auto* value:{"default","unknown","16711680",""})
+        EXPECT_FALSE(synth2::patchColor({std::string("color=")+value}));
+    ProcessorBridge processor;
+    auto patch=synth2::parseContinuousPatch(processor.savePatch());
+    patch.metadata={"color=unknown","custom=value","custom=another"};
+    EXPECT_EQ(synth2::parseContinuousPatch(synth2::formatContinuousPatch(patch)).metadata,patch.metadata);
+    for(const auto* line:{"ver=113","name=duplicate","color=red\n19,1"})
+    {
+        patch.metadata={line};
+        EXPECT_THROW(synth2::formatContinuousPatch(patch),std::runtime_error);
+    }
+}
+
+TEST(PatchFormat, HeadersDoNotChangeLoadedControlsOrAudio)
+{
+    ProcessorBridge plain,colored;std::string error;
+    const std::string body="ver=113\n19,64\n29,80\n";
+    ASSERT_TRUE(plain.loadPatch("Owned\n"+body,error))<<error;
+    ASSERT_TRUE(colored.loadPatch("Owned\n"+body+"color=green\nfuture=opaque\n",error))<<error;
+    EXPECT_EQ(synth2::parseContinuousPatch(plain.savePatch()).values,
+              synth2::parseContinuousPatch(colored.savePatch()).values);
+    plain.prepare(44100,64);colored.prepare(44100,64);
+    for(int block=0;block<450;++block)EXPECT_EQ(render(plain,block),render(colored,block));
+}

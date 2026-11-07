@@ -65,7 +65,7 @@ bool isContinuousPatch(std::string_view text)
 }
 ContinuousPatch parseContinuousPatch(std::string_view text)
 {
-    ContinuousPatch patch;std::array<bool,129> seen{};
+    ContinuousPatch patch;patch.metadata=readPatchMetadata(text);std::array<bool,129> seen{};
     std::istringstream input{std::string(text)};bool header=false,first=true,named=false;
     for(std::string line;std::getline(input,line);)
     {
@@ -88,6 +88,7 @@ ContinuousPatch parseContinuousPatch(std::string_view text)
                 throw std::runtime_error("Unsupported or duplicate patch version");
             header=true;continue;
         }
+        if(header && line.find('=')!=std::string::npos)continue;
         const auto comma=line.find(',');
         if(!header || comma==std::string::npos)throw std::runtime_error("Malformed Synth2 patch entry");
         const int index=number<int>(trimPatchLine(line.substr(0,comma)));
@@ -110,6 +111,14 @@ std::string formatContinuousPatch(const ContinuousPatch& patch)
     std::ostringstream out;out.imbue(std::locale::classic());
     out<<std::setprecision(std::numeric_limits<float>::max_digits10);
     out<<"ver="<<currentPatchFormatVersion<<"\nname="<<std::quoted(patch.name.empty() ? "Untitled" : patch.name)<<'\n';
+    for(const auto& line:patch.metadata)
+    {
+        const auto equals=line.find('=');
+        if(line.find_first_of("\r\n")!=std::string::npos || equals==std::string::npos || equals==0
+            || line.front()=='#' || line.front()==';' || line.substr(0,equals)=="ver" || line.substr(0,equals)=="name")
+            throw std::runtime_error("Invalid opaque patch header");
+        out<<line<<'\n';
+    }
     for(int i=0;i<129;++i)if(i!=126){validate(i,patch.values[i]);out<<i<<','<<patch.values[i]<<'\n';}
     return out.str();
 }
