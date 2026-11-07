@@ -5,6 +5,7 @@
 #include "EditorControlTags.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorBankMenu.h"
+#include "editor/EditorLibraryNavigation.h"
 #include "editor/EditorTextFit.h"
 #include "editor/EditorPresetDisplay.h"
 #include <algorithm>
@@ -93,9 +94,62 @@ void Synth2::refreshBrowser()
                             std::to_string(matches.size()) + " sounds  /  + marks a favorite");
 }
 
+bool Synth2::handleLibraryKey(const IKeyPress& key,bool up)
+{
+    auto* graphics=GetUI();
+    if(!graphics || graphics->GetControlInTextEntry())return false;
+    if(auto* menu=graphics->GetPopupMenuControl();menu && menu->GetExpanded())return false;
+    if(key.C && !key.A && !key.S && (key.VK=='F' || key.VK=='f')) {
+        if(!up) {
+            releaseComputerNotes();showPage(synth2::editor::editorLibraryView);
+            if(auto* search=graphics->GetControlWithTag(librarySearchTag)) {
+                auto* control=search->As<SearchControl>();
+                graphics->CreateTextEntry(*control,control->GetText(),control->GetRECT(),control->GetStr());
+            }
+        }
+        return true;
+    }
+    if(page!=synth2::editor::editorLibraryView || key.C || key.A || key.S)return false;
+    using Action=synth2::editor::LibraryNavigation;
+    std::optional<Action> action;
+    switch(key.VK) {
+        case kVK_UP:action=Action::previous;break;
+        case kVK_DOWN:action=Action::next;break;
+        case kVK_PRIOR:action=Action::pagePrevious;break;
+        case kVK_NEXT:action=Action::pageNext;break;
+        case kVK_HOME:action=Action::first;break;
+        case kVK_END:action=Action::last;break;
+        case kVK_RETURN:case kVK_ESCAPE:break;
+        default:return false;
+    }
+    if(up)return true;
+    const auto matches=catalog.search(libraryFilter);
+    if(matches.empty())return true;
+    const auto locate=[&](const std::string& id)->std::optional<std::size_t> {
+        for(std::size_t i=0;i<matches.size();++i)if(catalog.patches()[matches[i]].id==id)return i;
+        return {};
+    };
+    if(key.VK==kVK_ESCAPE) {
+        keyboardPatchId.clear();
+        if(auto current=locate(selectedPatchId))resultOffset=(*current/visibleRows)*visibleRows;
+        refreshBrowser();return true;
+    }
+    auto current=locate(keyboardPatchId);
+    if(!current)current=locate(selectedPatchId);
+    if(key.VK==kVK_RETURN) {
+        const auto position=current.value_or(std::min(resultOffset,matches.size()-1));
+        keyboardPatchId=catalog.patches()[matches[position]].id;
+        loadLibraryPatch(matches[position]);return true;
+    }
+    const auto next=synth2::editor::editorLibraryNavigation(matches.size(),visibleRows,current,resultOffset,*action);
+    keyboardPatchId=catalog.patches()[matches[*next]].id;
+    resultOffset=(*next/visibleRows)*visibleRows;refreshBrowser();return true;
+}
+
 void Synth2::changeFilter(const char *query)
 {
     libraryFilter.query = query;
+    keyboardPatchId.clear();
     resultOffset = 0;
     browserStatus.clear();
     showPage(synth2::editor::editorLibraryView);
@@ -244,7 +298,7 @@ void Synth2::loadLibraryPatch(std::size_t index)
         refreshBrowser();
         return;
     }
-    selectedPatchId = item.id;
+    selectedPatchId = item.id;keyboardPatchId=item.id;
     currentPatch = item.patch.name;
     browserStatus.clear();
     stateRestored.store(false);

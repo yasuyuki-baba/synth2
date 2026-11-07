@@ -37,6 +37,7 @@ ISOLATED_HEADERS = {
     'editor/EditorInteraction.h': EDITOR_FORBIDDEN,
     'editor/EditorLayout.h': EDITOR_FORBIDDEN,
     'editor/EditorLibraryColumns.h': EDITOR_FORBIDDEN,
+    'editor/EditorLibraryNavigation.h': EDITOR_FORBIDDEN,
     'editor/EditorTextFit.h': EDITOR_FORBIDDEN,
     'editor/EditorPages.h': EDITOR_FORBIDDEN,
     'editor/EditorPresetDisplay.h': EDITOR_FORBIDDEN,

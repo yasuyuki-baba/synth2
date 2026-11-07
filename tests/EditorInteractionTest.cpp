@@ -1,3 +1,4 @@
+#include "editor/EditorLibraryNavigation.h"
 #include <gtest/gtest.h>
 #include "editor/EditorInteraction.h"
 #include "editor/EditorValueDisplay.h"
@@ -121,4 +122,20 @@ TEST(EditorInteraction, ContinuousUnitReadoutsKeepFractionalPositions)
     EXPECT_EQ(editorValueDisplay(62,64.5),"0.2 dB");
     EXPECT_EQ(editorValueDisplay(63,63.5),"3.16 Q");
     EXPECT_EQ(editorValueDisplay(19,64.25),"64.25");
+}
+
+TEST(EditorLibraryNavigation, EmptyClampedAndPagedMovementNeverWraps)
+{
+    using namespace synth2::editor;using A=LibraryNavigation;
+    EXPECT_FALSE(editorLibraryNavigation(0,16,{},0,A::next));
+    EXPECT_EQ(editorLibraryNavigation(40,16,{},0,A::next),0u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,{},16,A::previous),16u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,0,0,A::previous),0u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,39,32,A::next),39u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,5,0,A::pageNext),21u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,5,0,A::pagePrevious),0u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,30,16,A::pageNext),39u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,30,16,A::first),0u);
+    EXPECT_EQ(editorLibraryNavigation(40,16,0,0,A::last),39u);
+    EXPECT_EQ(editorLibraryNavigation(3,16,12,99,A::next),2u);
 }

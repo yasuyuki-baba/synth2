@@ -95,7 +95,7 @@ BEGIN
         MENUITEM "&Live Edit Mode\tCtrl+E",     ID_LIVE_EDIT
         MENUITEM "&Show Control Bounds\tCtrl+B", ID_SHOW_BOUNDS
         MENUITEM "&Show Drawn Area\tCtrl+D",    ID_SHOW_DRAWN
-        MENUITEM "&Show FPS\tCtrl+F",           ID_SHOW_FPS
+        MENUITEM "&Show FPS\tCtrl+Shift+F",     ID_SHOW_FPS
         MENUITEM SEPARATOR
         MENUITEM "&Save Screenshot\tCtrl+Shift+S", ID_SCREENSHOT
     END
@@ -180,7 +180,7 @@ BEGIN
     VK_OEM_COMMA,   ID_PREFERENCES,         VIRTKEY, CONTROL, NOINVERT
     "B",            ID_SHOW_BOUNDS,         VIRTKEY, CONTROL, NOINVERT
     "D",            ID_SHOW_DRAWN,          VIRTKEY, CONTROL, NOINVERT
-    "F",            ID_SHOW_FPS,            VIRTKEY, CONTROL, NOINVERT
+    "F",            ID_SHOW_FPS,            VIRTKEY, CONTROL, SHIFT, NOINVERT
     "E",            ID_LIVE_EDIT,           VIRTKEY, CONTROL, NOINVERT
     "S",            ID_SCREENSHOT,          VIRTKEY, CONTROL, SHIFT, NOINVERT
 END
