@@ -1,5 +1,6 @@
 #include "../Synth2.h"
 #include "EditorControls.h"
+#include "IPopupMenuControl.h"
 #include "EditorControlTags.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorBankMenu.h"
@@ -121,7 +122,15 @@ void Synth2::showBankMenu(IControl *caller)
             libraryFilter.bankId==row.bankId ? IPopupMenu::Item::kChecked : 0;
         presetMenu->AddItem(new IPopupMenu::Item(label.c_str(),flags,static_cast<int>(i)));
     }
-    caller->GetUI()->CreatePopupMenu(*caller, *presetMenu, caller->GetRECT());
+    auto* graphics=caller->GetUI();
+    // The pinned SDK's custom popup has no wheel handler. Use the platform
+    // menu for this potentially long list; keep other menus custom-rendered.
+    auto* popup=graphics->GetPopupMenuControl();
+    const bool restorePopup=popup!=nullptr;
+    const auto popupText=popup ? popup->GetText() : DEFAULT_TEXT;
+    graphics->RemovePopupMenuControl();
+    graphics->CreatePopupMenu(*caller,*presetMenu,caller->GetRECT());
+    if(restorePopup)graphics->AttachPopupMenuControl(popupText);
 }
 void Synth2::showTagMenu(IControl *caller)
 {

@@ -33,7 +33,9 @@ bank is a directory: loose `.sy1` files in the same folder share a bank, and
 ZIP entry subdirectories form banks under the archive's relative filename.
 For example, `Pads/Collection.zip/Analog/Soft` is distinct from
 `Leads/Collection.zip/Analog/Soft`. The bank menu shows directory and ZIP hierarchy in one indented list, without
-submenus. Parents are disabled classification headings. A parent with direct sounds
+submenus. The bank selector uses the platform popup menu so long lists use OS
+scrolling rather than the SDK custom popup, whose wheel handler is unimplemented.
+Parents are disabled classification headings. A parent with direct sounds
 offers an indented **This folder** row. Selecting a bank includes only its direct sounds; **All banks**
 at the top searches across every bank while retaining tag, keyword and favorite
 filters. Empty directories are omitted. Files directly in the library root use `Library root`.
