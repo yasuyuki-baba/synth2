@@ -35,13 +35,33 @@ void PresetDisplayControl::Draw(IGraphics& g)
 {
     ActionButtonControl::Draw(g);
     const auto title=IText(16.f,color(appearance.displayText),"Synth2Mono",EAlign::Near);
-    if(display.detail.empty()) {
-        g.DrawText(title,display.title.c_str(),IRECT(mRECT.L+10,mRECT.T,mRECT.R-10,mRECT.B));
+    const auto fitted=[&](const IText& style,const std::string& value,const IRECT& bounds,bool keepEnd=false) {
+        const auto measure=[&](std::string_view text) {
+            IRECT measured;const std::string copy(text);g.MeasureText(style,copy.c_str(),measured);return measured.W();
+        };
+        const auto label=synth2::editor::editorFitText(value,bounds.W(),measure,keepEnd);
+        g.DrawText(style,label.c_str(),bounds);
+    };
+    if(display.detail.empty() && display.tags.empty()) {
+        fitted(title,display.title,IRECT(mRECT.L+10,mRECT.T,mRECT.R-10,mRECT.B));
         return;
     }
-    g.DrawText(title,display.title.c_str(),IRECT(mRECT.L+10,mRECT.T+3,mRECT.R-10,mRECT.T+27));
-    g.DrawText(IText(11.f,muted,"Synth2UI",EAlign::Near),display.detail.c_str(),
-               IRECT(mRECT.L+10,mRECT.T+27,mRECT.R-10,mRECT.B-3));
+    fitted(title,display.title,IRECT(mRECT.L+10,mRECT.T+2,mRECT.R-10,mRECT.T+26));
+    const auto small=IText(11.f,muted,"Synth2UI",EAlign::Near);
+    if(!display.detail.empty())
+        fitted(small,display.detail,IRECT(mRECT.L+10,mRECT.T+26,mRECT.R-10,
+            display.tags.empty() ? mRECT.B-2 : mRECT.T+42),true);
+    float x=mRECT.L+10;
+    const float y=display.detail.empty() ? mRECT.T+26 : mRECT.T+42;
+    for(const auto& tag:display.tags) {
+        const auto style=small.WithFGColor(tag.automatic ? muted : ink);
+        IRECT measured;g.MeasureText(style,tag.text.c_str(),measured);
+        const float width=measured.W()+10;
+        if(x+width>mRECT.R-10) {
+            fitted(style,"...",IRECT(x,y,mRECT.R-10,mRECT.B-2));break;
+        }
+        g.DrawText(style,tag.text.c_str(),IRECT(x,y,x+width,mRECT.B-2));x+=width;
+    }
 }
 
 BackgroundControl::BackgroundControl(const IRECT& bounds) : IPanelControl(bounds,background) {}

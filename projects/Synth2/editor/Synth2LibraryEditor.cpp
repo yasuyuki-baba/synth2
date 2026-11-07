@@ -56,7 +56,9 @@ void Synth2::refreshBrowser()
                                        [&](const auto &p) { return p.id == selectedPatchId; });
     const bool canEdit = selected != catalog.patches().end();
     const auto bankName = canEdit ? selected->bankName : std::string{};
-    const auto display=synth2::editor::editorPresetDisplay(currentPatch,bankName,browser.modified(processor));
+    const auto display=synth2::editor::editorPresetDisplay(currentPatch,bankName,browser.modified(processor),
+        canEdit ? selected->tags : std::vector<std::string>{},
+        canEdit ? selected->visibleAutomaticTags() : std::vector<std::string>{});
     if(auto* c=graphics->GetControlWithTag(presetTag))
         c->As<PresetDisplayControl>()->setDisplay(display);
     setText(statusTag,
