@@ -14,10 +14,11 @@ portable CTest entries. Required Probe/comparator executables are included by th
 test configuration. Linux also runs actionlint and the independent DSP header
 audit. No virtual display or native audio/GUI packages are needed.
 
-After portable checks pass, the reusable `native.yml` builds Windows VST3/CLAP/APP
-and macOS VST3/CLAP/AUv2/APP. Windows uses MSVC x64; macOS uses the Xcode Apple Silicon
-arm64 preset and macOS 13 deployment target. NanoVG uses its platform
-default renderer (GL2/Metal). The unused SDK WebView extra is disabled so its
+After portable checks pass, the reusable `native.yml` builds Linux VST3/CLAP/APP,
+Windows VST3/CLAP/APP and macOS VST3/CLAP/AUv2/APP. Linux uses Ubuntu 24.04
+x86_64 with X11 and NanoVG/GL3; its job installs the required development libraries.
+Windows uses MSVC x64; macOS uses the Xcode Apple Silicon arm64 preset and macOS 13
+deployment target. Windows/macOS use their NanoVG default renderers (GL2/Metal). The unused SDK WebView extra is disabled so its
 WIL/WebView2 downloads do not enter configuration. Plugin deployment to system folders stays disabled.
 Native jobs do not configure the portable test target again.
 
@@ -48,13 +49,15 @@ cmake --preset macos -B build "-DSYNTH2_IPLUG2_FORMATS=VST3;CLAP;AU;APP"
 cmake --build build --config Release --parallel 4
 python tools/package_native.py --build build --platform windows --manifest build/dependencies.json --output dist
 # Use --platform macos on macOS.
+# On Linux, use --preset linux with VST3;CLAP;APP and --platform linux.
 ```
 
 ## Candidate artifacts and releases
 
 Native jobs require every selected product and package only the known product
-names from `build/out`. Windows packages use ZIP; macOS packages use tar.gz to
-retain bundle permissions and symlinks. Archives include the dependency manifest,
+names from `build/out`. Windows packages use ZIP; Linux and macOS packages use tar.gz to
+retain executable permissions and symlinks. Linux archives also retain any
+adjacent binary-specific `.resources` directories. Archives include the dependency manifest,
 project license, dependency notices and [installation instructions](../INSTALL.md),
 including unsigned-build steps. Failure diagnostics are uploaded separately.
 Before packaging, macOS checks every product with `lipo` and requires exactly
@@ -65,17 +68,19 @@ Branch/PR builds use dated development labels; source files carry no maintained
 release version. See [build versions](desktop-build.md#build-versions).
 
 `release.yml` runs on `v*` tags or manual dispatch and reuses the complete build
-pipeline. After a successful tag build, `publish-release.yml` downloads its Windows
+pipeline. After a successful tag build, `publish-release.yml` downloads its Linux, Windows
 and macOS artifacts and publishes the native packages plus `SHA256SUMS` to the
 matching GitHub Release. Only the publisher has `contents: write`; build jobs keep
 read-only access. The publisher checks the upstream repository, workflow path,
 push event, completed success status and tag-to-commit identity before downloading
-packages. It does not check out or execute code from an upstream artifact.
+packages. All three native archives must be present before publication.
+It does not check out or execute code from an upstream artifact.
 
 To publish an already completed tag build, manually dispatch **Publish release
-packages** on main and provide its Actions run ID. For example, the original
-v0.1.0 build is run `42220916639`. Its artifacts must still be available. This
-publishes the packages from that build without moving the tag or rebuilding it.
+packages** on main and provide its Actions run ID. Its artifacts must still be
+available and contain all three native packages. Older Windows/macOS-only runs
+are not eligible. This publishes the packages from that build without moving
+the tag or rebuilding it.
 A manual candidate build from a branch cannot be published through this path.
 Repeated publication updates the same tag's assets; repository visibility is
 unchanged. Distribution follows the [publication requirements](publication/README.md).

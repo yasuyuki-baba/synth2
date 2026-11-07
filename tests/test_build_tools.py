@@ -94,6 +94,41 @@ class CandidatePackages(unittest.TestCase):
             self.assertEqual(archive.extractfile('Synth2/INSTALL.md').read(),
                              (self.root / 'INSTALL.md').read_bytes())
 
+    @unittest.skipIf(os.name == 'nt', 'Unix archive modes and symlinks require Unix')
+    def test_linux_preserves_products_resources_modes_and_symlinks(self):
+        self.binary('Synth2.vst3/Contents/x86_64-linux/Synth2.so')
+        self.binary('Synth2.clap')
+        self.binary('Synth2')
+        resource = self.binary('Synth2.clap.resources/fonts/editor.ttf')
+        self.binary('Synth2.resources/img/panel.png')
+        (resource.parent / 'current.ttf').symlink_to('editor.ttf')
+        self.binary('unrelated.so')
+        result = packager.package(self.root, self.build, 'linux',
+                                  self.manifest, self.output)
+        self.assertEqual(result.name, 'Synth2-linux.tar.gz')
+        with tarfile.open(result) as archive:
+            for name in ['Synth2/Synth2', 'Synth2/Synth2.clap',
+                         'Synth2/Synth2.vst3/Contents/x86_64-linux/Synth2.so']:
+                self.assertEqual(archive.getmember(name).mode & 0o111, 0o111)
+            link = archive.getmember('Synth2/Synth2.clap.resources/fonts/current.ttf')
+            self.assertTrue(link.issym())
+            self.assertEqual(link.linkname, 'editor.ttf')
+            self.assertEqual(archive.extractfile('Synth2/Synth2.resources/img/panel.png').read(),
+                             b'Self-authored binary placeholder')
+            self.assertEqual(archive.extractfile('Synth2/dependencies.json').read(),
+                             self.manifest.read_bytes())
+            self.assertIn('Synth2/INSTALL.md', archive.getnames())
+            self.assertIn('Synth2/notices/iPlug2/WDL/license.txt', archive.getnames())
+            self.assertNotIn('Synth2/unrelated.so', archive.getnames())
+
+    def test_linux_rejects_a_missing_or_wrong_architecture_bundle(self):
+        self.binary('Synth2.clap')
+        self.binary('Synth2')
+        self.binary('Synth2.vst3/Contents/MacOS/Synth2')
+        with self.assertRaisesRegex(ValueError, 'Missing native product'):
+            packager.package(self.root, self.build, 'linux', self.manifest, self.output)
+        self.assertFalse(self.output.exists())
+
     def test_partial_bundles_cannot_become_successful_candidates(self):
         self.binary('Synth2.clap')
         self.binary('Synth2.exe')

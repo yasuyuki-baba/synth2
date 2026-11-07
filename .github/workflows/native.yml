@@ -13,6 +13,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: ubuntu-24.04
+            platform: linux
+            preset: linux
+            formats: VST3;CLAP;APP
           - os: windows-2022
             platform: windows
             preset: windows
@@ -34,6 +38,15 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
+      - name: Install Linux native dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config \
+            libfreetype-dev libfontconfig-dev \
+            libx11-dev libx11-xcb-dev libxcb1-dev libxi-dev libxext-dev libxrender-dev \
+            libxrandr-dev libxfixes-dev libxcursor-dev libgl-dev libgtk-3-dev \
+            libasound2-dev libjack-jackd2-dev libpulse-dev
       - name: Prepare pinned format SDKs
         run: python tools/prepare_native_sdks.py --output build/dependencies.json
       - name: Configure native products
