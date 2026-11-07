@@ -61,11 +61,8 @@ void Synth2::refreshBrowser()
         canEdit ? selected->visibleAutomaticTags() : std::vector<std::string>{});
     if(auto* c=graphics->GetControlWithTag(presetTag))
         c->As<PresetDisplayControl>()->setDisplay(display);
-    setText(statusTag,
-            browserStatus.empty()
-                ? (catalog.patches().empty() ? "No sounds yet. Use Add sounds... to import a bank or patch."
-                                             : std::to_string(matches.size()) + " matching sounds")
-                : browserStatus);
+    setText(statusTag,browserStatus);
+    setText(libraryMatchesTag,std::to_string(matches.size())+" matching sounds");
     setText(librarySearchTag, libraryFilter.query);
     std::string bankLabel = "All banks";
     for (const auto &bank : banks)

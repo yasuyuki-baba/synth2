@@ -123,7 +123,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ActionButtonControl(IRECT(1164,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
-    graphics->AttachControl(new ITextControl(IRECT(20,180,1260,200),"Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the list.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
+    graphics->AttachControl(new ITextControl(IRECT(244,180,1260,200),"Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the list.",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4010);
+    graphics->AttachControl(new ITextControl(IRECT(20,180,226,200),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),libraryMatchesTag);
     using Columns=synth2::editor::EditorLibraryColumns;
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::bankLeft,204,20+Columns::bankRight,226),"BANK",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4012);

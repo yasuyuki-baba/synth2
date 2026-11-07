@@ -1,6 +1,8 @@
 # Persistent sound library
 
-The Library view combines bank, tag, keyword and favorites filters. The tag menu
+The Library view combines bank, tag, keyword and favorites filters. The matching
+sound count sits directly below these filters and is visible only in Library;
+the shared bottom status line is reserved for operation messages and errors. The tag menu
 uses checkmarks to toggle up to 32 selections; a sound must contain every selected
 tag (AND). All tags clears only the tag selections. The button shows the active
 count and its tooltip lists the selections. Selections survive session recall;
