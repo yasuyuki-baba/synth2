@@ -14,7 +14,9 @@ line, with the selected entry's bank path on a smaller second line. Init and sou
 without a matching catalog entry show only the patch name. The tooltip includes
 both lines. The full display remains clickable to open the Library view. The
 selected result row uses a contrasting background, a left accent stripe and a bold
-title; favorites remain a separate indicator. Filtering does not change the selected
+title; favorites remain a separate indicator. Long titles are ellipsized at the
+end and long bank paths at the beginning, using measured UTF-8-safe text widths
+to prevent column overlap. Row tooltips expose the full title, bank path and tags. Filtering does not change the selected
 sound or mark another row as selected.
 
 ## Files and registration

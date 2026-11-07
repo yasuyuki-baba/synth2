@@ -137,3 +137,7 @@ Catalog tests cover inference across legacy and version 200, combined search,
 manual precedence, legacy sidecars, persistent suppression/restore and unchanged
 source text and sounding processor state. Native tag colors and popup interaction
 require manual verification; these tests do not establish classifier accuracy.
+
+Editor layout checks verify shared result/header column boundaries and measured
+text fitting, including UTF-8 truncation, narrow cells and preserved bank suffixes.
+Native rendering and row tooltips require manual verification.
