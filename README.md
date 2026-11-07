@@ -6,6 +6,8 @@ sounds from a single-panel interface.
 Synth2 starts with Init and an empty library. Add your own patches or banks;
 all imported sounds can be tagged, favorited and removed through the same UI.
 
+![Synth2 editor showing the Init patch](docs/images/synth2.png)
+
 The editor combines Synth1-inspired functional groups with restrained red accents,
 warm-white legends and black controls. MIDI routing and the sound library have
 their own supplementary views; serialized metadata stays outside the editor.
