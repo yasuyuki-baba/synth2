@@ -1,6 +1,7 @@
 #include "editor/EditorLayout.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorAppearance.h"
+#include "editor/EditorTypography.h"
 #include "editor/EditorValueDisplay.h"
 #include "editor/ParameterPresentation.h"
 #include "host/ProcessorBridge.h"
@@ -26,7 +27,11 @@ int main()
         if (!firstColor) std::cout << ','; firstColor=false;
         std::cout << std::quoted(color.first) << ':' << std::quoted(color.second);
     }
-    std::cout << "},\"panels\":[";
+    using T=synth2::editor::EditorTypography;
+    std::cout << "},\"typography\":{\"auxiliary\":" << T::auxiliary
+              << ",\"label\":" << T::label << ",\"value\":" << T::value
+              << ",\"button\":" << T::button << ",\"heading\":" << T::heading
+              << ",\"patchTitle\":" << T::patchTitle << "},\"panels\":[";
     bool firstPanel=true;
     for (const auto& panel:synth2::editor::editorPanels())
     {

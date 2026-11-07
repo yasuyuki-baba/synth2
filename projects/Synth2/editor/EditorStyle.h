@@ -1,5 +1,6 @@
 #pragma once
 #include "editor/EditorAppearance.h"
+#include "editor/EditorTypography.h"
 #include "editor/EditorLayout.h"
 #include "IGraphicsStructs.h"
 #include <string>
@@ -7,6 +8,7 @@
 namespace synth2::editor::native
 {
 using namespace iplug::igraphics;
+using Typography=synth2::editor::EditorTypography;
 inline IRECT rect(const synth2::editor::EditorBounds& b) { return IRECT(b.x,b.y,b.x+b.width,b.y+b.height); }
 inline IColor color(const char* hex)
 {

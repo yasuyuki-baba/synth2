@@ -35,7 +35,7 @@ void PresetDisplayControl::setDisplay(const synth2::editor::EditorPresetDisplay&
 void PresetDisplayControl::Draw(IGraphics& g)
 {
     ActionButtonControl::Draw(g);
-    const auto title=IText(16.f,color(appearance.displayText),"Synth2Mono",EAlign::Near);
+    const auto title=IText(Typography::patchTitle,color(appearance.displayText),"Synth2Mono",EAlign::Near);
     const auto fitted=[&](const IText& style,const std::string& value,const IRECT& bounds,bool keepEnd=false) {
         const auto measure=[&](std::string_view text) {
             IRECT measured;const std::string copy(text);g.MeasureText(style,copy.c_str(),measured);return measured.W();
@@ -48,7 +48,7 @@ void PresetDisplayControl::Draw(IGraphics& g)
         return;
     }
     fitted(title,display.title,IRECT(mRECT.L+10,mRECT.T+2,mRECT.R-10,mRECT.T+26));
-    const auto detailText=IText(11.f,muted,"Synth2UI",EAlign::Near);
+    const auto detailText=IText(Typography::label,muted,"Synth2UI",EAlign::Near);
     if(!display.detail.empty())
         fitted(detailText,display.detail,IRECT(mRECT.L+10,mRECT.T+26,mRECT.R-10,
             display.tags.empty() ? mRECT.B-2 : mRECT.T+42),true);
@@ -88,12 +88,13 @@ void SectionControl::Draw(IGraphics& g) {
     g.FillRoundRect(surface,mRECT,3.f);
     g.DrawRoundRect(color(appearance.border),mRECT,3.f,nullptr,0.5f);
     const auto heading=IRECT(mRECT.L+14,mRECT.T+9,mRECT.R-12,mRECT.T+25);
-    g.DrawText(IText(13.f,color(section.accent),"Synth2UIBold",EAlign::Near),section.title,heading);
+    g.DrawText(IText(Typography::heading,color(section.accent),"Synth2UIBold",EAlign::Near),section.title,heading);
     g.DrawLine(color(appearance.border),heading.L,mRECT.T+32,heading.R,mRECT.T+32,nullptr,0.5f);
 }
 
 PanelKnobControl::PanelKnobControl(const IRECT& bounds,int parameter,const char* label,const IVStyle& style)
-    : IVKnobControl(bounds,parameter,label,style,true,false) {
+    : IVKnobControl(bounds,parameter,label,style.WithLabelText(style.labelText.WithSize(Typography::label))
+        .WithValueText(style.valueText.WithSize(Typography::value)),true,false) {
     mTrackToHandleDistance=2.5f;
     SetTooltip("Drag to adjust. Click value to edit the original source number.");
 }
@@ -101,9 +102,9 @@ PanelKnobControl::PanelKnobControl(const IRECT& bounds,int parameter,const char*
 void PanelKnobControl::OnResize() {
     IVKnobControl::OnResize();
     const float diameter=static_cast<float>(synth2::editor::editorKnobDiameter(GetParamIdx(),static_cast<int>(mRECT.H())));
-    mLabelBounds=IRECT(mRECT.L,mRECT.T,mRECT.R,mRECT.T+13);
-    mWidgetBounds=IRECT(mRECT.MW()-diameter/2,mRECT.T+15,mRECT.MW()+diameter/2,mRECT.T+15+diameter);
-    mValueBounds=IRECT(mRECT.L,mRECT.T+16+diameter,mRECT.R,mRECT.T+28+diameter);
+    mLabelBounds=IRECT(mRECT.L,mRECT.T,mRECT.R,mRECT.T+16);
+    mWidgetBounds=IRECT(mRECT.MW()-diameter/2,mRECT.T+17,mRECT.MW()+diameter/2,mRECT.T+17+diameter);
+    mValueBounds=IRECT(mRECT.L,mRECT.T+18+diameter,mRECT.R,mRECT.T+32+diameter);
 }
 
 void PanelKnobControl::DrawValue(IGraphics& g,bool mouseOver) {
@@ -136,16 +137,22 @@ SourceChoiceControl::SourceChoiceControl(const IRECT& bounds,int parameter,const
 void SourceChoiceControl::Draw(IGraphics& g) {
     const auto raw=GetParam()->FromNormalized(GetValue());
     const auto value=synth2::editor::editorChoiceDisplay(toggle,raw,choices);
-    g.DrawText(IText(11.f,muted,"Synth2UI"),label,
+    g.DrawText(IText(Typography::label,muted,"Synth2UI"),label,
                IRECT(mRECT.L,mRECT.T,mRECT.R,mRECT.T+16));
-    const auto box=IRECT(mRECT.L+4,mRECT.T+19,mRECT.R-4,std::min(mRECT.B-6,mRECT.T+46));
+    const auto box=IRECT(mRECT.L+4,mRECT.T+20,mRECT.R-4,std::min(mRECT.B-4,mRECT.T+48));
     g.FillRoundRect(color(appearance.control),box,3.f);
     g.DrawRoundRect(color(appearance.controlEdge),box,3.f,nullptr,0.5f);
     const auto textColor=ink;
     if (toggle)
         g.FillCircle(raw!=0 ? accent : color(appearance.track),box.L+8,box.MH(),2.f);
-    const float size=std::clamp(box.W()/(std::max<std::size_t>(value.size(),1)*0.6f),9.5f,12.f);
-    g.DrawText(IText(size,textColor,"Synth2UI"),value.c_str(),box.GetPadded(-3.f));
+    const auto choiceText=IText(Typography::button,textColor,"Synth2UI");
+    const auto measure=[&](std::string_view text) {
+        IRECT bounds;const std::string copy(text);g.MeasureText(choiceText,copy.c_str(),bounds);return bounds.W();
+    };
+    const auto display=value=="Random smooth" ? std::string("Rnd smooth") : value;
+    const auto fitted=synth2::editor::editorFitText(display,box.W()-10.f,measure);
+    g.DrawText(choiceText,fitted.c_str(),box.GetPadded(-3.f));
+    SetTooltip((std::string(label)+": "+value).c_str());
 }
 
 void SourceChoiceControl::OnMouseDown(float,float,const IMouseMod&) {
@@ -237,7 +244,7 @@ void CatalogListControl::Draw(IGraphics& g) {
         else if(row%2==1)g.FillRect(background,bounds);
         if(item.id==keyboardSelection && !isSelected)
             g.DrawRect(accent,IRECT(bounds.L+1,bounds.T+1,bounds.R-1,bounds.B-1),nullptr,1.f);
-        const IText text(13.f,ink,"Synth2UI",EAlign::Near);
+        const IText text(Typography::body,ink,"Synth2UI",EAlign::Near);
         g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+libraryRowHeight));
         if(item.patch.color) {
             const auto rgb=*item.patch.color;
@@ -255,13 +262,13 @@ void CatalogListControl::Draw(IGraphics& g) {
             g.DrawText(style,fitted.c_str(),cell);
         };
         drawFitted(titleText,label,IRECT(mRECT.L+Columns::nameLeft,y,mRECT.L+Columns::nameRight,y+libraryRowHeight));
-        drawFitted(text.WithSize(11.f).WithFGColor(muted),item.bankName,
+        drawFitted(text.WithSize(Typography::label).WithFGColor(muted),item.bankName,
                    IRECT(mRECT.L+Columns::bankLeft,y,mRECT.L+Columns::bankRight,y+libraryRowHeight),true);
         float tagX=mRECT.L+Columns::tagsLeft;
         const float tagRight=mRECT.R-26;
         const auto drawTag=[&](const std::string& tag,bool automatic) {
             if(tagX>=tagRight)return;
-            const auto tagText=text.WithSize(11.f).WithFGColor(automatic ? muted : ink);
+            const auto tagText=text.WithSize(Typography::label).WithFGColor(automatic ? muted : ink);
             IRECT measured;g.MeasureText(tagText,tag.c_str(),measured);
             const float width=measured.W()+10;
             if(tagX+width>tagRight) {

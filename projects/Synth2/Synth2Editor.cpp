@@ -29,22 +29,22 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new HeaderControl());
     graphics->AttachCornerResizer(EUIResizerMode::Scale, false);
     graphics->AttachTextEntryControl();
-    const IText text {14.f,ink,"Synth2UI"};
+    const IText text {Typography::input,ink,"Synth2UI"};
     graphics->AttachPopupMenuControl(text);
     const auto style = DEFAULT_STYLE.WithColor(kBG,panel).WithColor(kFG,color(appearance.control))
         .WithColor(kPR,accent).WithColor(kFR,panel).WithColor(kHL,accent)
-        .WithDrawShadows(false).WithLabelText(text.WithSize(12.f))
-        .WithValueText(text.WithSize(10.f).WithVAlign(EVAlign::Bottom)).WithRoundness(0.1f);
+        .WithDrawShadows(false).WithLabelText(text.WithSize(Typography::button))
+        .WithValueText(text.WithSize(Typography::value).WithVAlign(EVAlign::Bottom)).WithRoundness(0.1f);
     graphics->AttachControl(new ITextControl(IRECT(20,16,214,65),"SYNTH2",text.WithFont("Synth2UIBold").WithSize(29.f).WithAlign(EAlign::Near)));
-    graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(9.f).WithAlign(EAlign::Near)));
+    graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(11.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
-    graphics->AttachControl(new ITextControl(IRECT(20,82,592,112),"",text.WithSize(12.f).WithAlign(EAlign::Near)),bankTag);
+    graphics->AttachControl(new ITextControl(IRECT(20,82,592,112),"",text.WithSize(Typography::label).WithAlign(EAlign::Near)),bankTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new PresetDisplayControl(IRECT(240,16,878,78),[this](IControl* caller) {
         showPresetMenu(caller);
     },"",style.WithColor(kBG,color(appearance.display)).WithColor(kFG,color(appearance.display))
-        .WithLabelText(text.WithFont("Synth2Mono").WithSize(16.f).WithFGColor(color(appearance.displayText)))),presetTag);
+        .WithLabelText(text.WithFont("Synth2Mono").WithSize(Typography::patchTitle).WithFGColor(color(appearance.displayText)))),presetTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(890,16,934,78),[this](IControl*) { stepPatch(-1); },"<",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(944,16,988,78),[this](IControl*) { stepPatch(1); },">",style));
 
@@ -88,13 +88,13 @@ void Synth2::layoutEditor(IGraphics* graphics)
             graphics->AttachControl(knob,parameterTag+index);
         }
     }
-    graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(12.f).WithAlign(EAlign::Near)),statusTag);
+    graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near)),statusTag);
     graphics->AttachControl(new ITextControl(IRECT(542,802,930,826),"Click a value to type  /  Drag corner to scale",
-        text.WithFGColor(muted).WithSize(11.f).WithAlign(EAlign::Far)));
+        text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Far)));
     auto* quality=new ActionButtonControl(IRECT(944,802,1088,830),[this](IControl* caller){showOversamplingMenu(caller);},
         ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),
         style.WithColor(kBG,background).WithColor(kFG,background).WithColor(kFR,background)
-            .WithDrawFrame(false).WithLabelText(text.WithSize(11.f).WithFGColor(muted)));
+            .WithDrawFrame(false).WithLabelText(text.WithSize(Typography::auxiliary).WithFGColor(muted)));
     quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
     graphics->AttachControl(quality,oversamplingTag);
     auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
@@ -130,12 +130,12 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ActionButtonControl(IRECT(1150,136,1260,172),[this](IControl*) {
         libraryFilter={};resultOffset=0;browserStatus.clear();refreshBrowser();
     },"Clear filters",style),4009);
-    graphics->AttachControl(new ITextControl(IRECT(244,180,1260,200),"Ctrl/Cmd+F: Search   /   Up/Down: Browse   /   Enter: Load",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Far)),4010);
-    graphics->AttachControl(new ITextControl(IRECT(20,180,226,200),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),libraryMatchesTag);
+    graphics->AttachControl(new ITextControl(IRECT(244,180,1260,200),"Ctrl/Cmd+F: Search   /   Up/Down: Browse   /   Enter: Load",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Far)),4010);
+    graphics->AttachControl(new ITextControl(IRECT(20,180,226,200),"",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),libraryMatchesTag);
     using Columns=synth2::editor::EditorLibraryColumns;
-    graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
-    graphics->AttachControl(new ITextControl(IRECT(20+Columns::bankLeft,204,20+Columns::bankRight,226),"BANK",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4012);
-    graphics->AttachControl(new ITextControl(IRECT(20+Columns::tagsLeft,204,1252,226),"TAGS",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),4013);
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::bankLeft,204,20+Columns::bankRight,226),"BANK",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4012);
+    graphics->AttachControl(new ITextControl(IRECT(20+Columns::tagsLeft,204,1252,226),"TAGS",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4013);
     graphics->AttachControl(new CatalogListControl(IRECT(20,228,1260,708),catalog,selectedPatchId,keyboardPatchId,
         [this](std::size_t index) { loadLibraryPatch(index); },
         [this](const std::string& id,bool favorite) {
@@ -145,8 +145,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](double offset) {
             resultOffset=offset;refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
-    graphics->AttachControl(new ITextControl(IRECT(20,724,112,752),"Manual tags",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(116,724,1128,752),"",text.WithSize(12.f).WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new ITextControl(IRECT(20,724,112,752),"Manual tags",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),selectedNameTag);
+    graphics->AttachControl(new SearchControl(IRECT(116,724,1128,752),"",text.WithSize(Typography::button).WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
@@ -155,8 +155,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ActionButtonControl(IRECT(1140,724,1260,752),[this](IControl* caller) {
         showAutomaticTagMenu(caller);
     },"Auto tags...",style.WithColor(kFG,background).WithColor(kFR,background)
-        .WithLabelText(text.WithSize(11.f).WithFGColor(muted))),4016);
-    graphics->AttachControl(new ITextControl(IRECT(20,760,1260,780),"",text.WithSize(11.f).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
+        .WithLabelText(text.WithSize(Typography::auxiliary).WithFGColor(muted))),4016);
+    graphics->AttachControl(new ITextControl(IRECT(20,760,1260,780),"",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
     if(!catalogLoaded)reloadCatalog();
     showPage(page);
     refreshBrowser();

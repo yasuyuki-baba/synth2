@@ -16,6 +16,17 @@ View transitions invalidate the complete editor, including its background, after
 updating control visibility. Repainting must not invoke parameter edits or sound
 loading actions.
 
+Typography uses shared logical sizes: 12 for values and auxiliary text, 13 for
+parameter labels and bank/tag metadata, 14 for controls, headings and list titles,
+15 for text entry and SDK menus, and 18 for the selected patch title. Native
+bank/tag popups retain the platform's standard menu typography. Secondary controls
+stay quiet through color and placement rather than tiny type. Choice values use
+measured ellipsis at a fixed size, with full values in tooltips; Random smooth
+uses the short display name Rnd smooth. Source words and saved controls are unchanged.
+The standard 1280-by-840 view remains supported. Knob label/value bands reserve
+space for the larger text, and Chorus uses three full-width lower-row columns.
+Native drawing and review tools consume the shared typography policy.
+
 The persistent footer places the oversampling selector just left of **Keyboard**.
 It uses a small muted label without a button frame, keeps the current multiplier
 visible, and opens the existing quality menu on click. Quality remains available
