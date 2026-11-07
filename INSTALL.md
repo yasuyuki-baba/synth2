@@ -43,7 +43,7 @@ Create missing folders. Keep any `Synth2.clap.resources` directory beside
 Keep the VST3 bundle intact, including `Contents/x86_64-linux/Synth2.so` and its
 resources. Run the standalone binary from its extracted folder; audio requires a
 working ALSA device or JACK server. Use the portable source build on platforms
-outside this binary baseline; see the [build guide](docs/desktop-build.md).
+outside this binary baseline; see the [build guide](https://github.com/yasuyuki-baba/synth2/blob/main/docs/desktop-build.md).
 
 ## macOS
 
