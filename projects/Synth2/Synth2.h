@@ -49,6 +49,8 @@ private:
     void showImportMenu(iplug::igraphics::IControl* caller);
     void importBank(const std::string& path);
     void reloadCatalog(bool queueIfBusy = false);
+    void stepBank(int direction);
+    void selectBank(const std::string& id);
     void showBankMenu(iplug::igraphics::IControl* caller);
     void showScrollableLibraryMenu(iplug::igraphics::IControl* caller);
     void showAutomaticTagMenu(iplug::igraphics::IControl* caller);

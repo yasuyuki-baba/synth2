@@ -161,3 +161,6 @@ audition; portable index tests do not establish host shortcut behavior.
 Library scroll tests cover fractional offsets, empty/short lists, full final
 viewports and minimal candidate reveal across viewport edges. Native clipping,
 scrollbar dragging, wheel deltas and animation timing require manual checks.
+
+Bank navigation tests verify menu-order stepping, classification heading skips,
+selectable parent folders, All banks, empty catalogs and non-wrapping ends.

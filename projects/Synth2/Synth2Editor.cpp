@@ -117,7 +117,9 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new SearchControl(IRECT(20,136,320,172),libraryFilter.query.c_str(),text.WithAlign(EAlign::Near),[this](const char* query) {
         changeFilter(query);
     },"Search sounds..."),librarySearchTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(332,136,672,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(332,136,364,172),[this](IControl*) { stepBank(-1); },"<",style),previousBankTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(640,136,672,172),[this](IControl*) { stepBank(1); },">",style),nextBankTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(368,136,636,172),[this](IControl* caller) { showBankMenu(caller); },"All banks",style),bankFilterTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(684,136,874,172),[this](IControl* caller) { showTagMenu(caller); },"All tags",style),tagFilterTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(886,136,1034,172),[this](IControl*) {
         libraryFilter.favoritesOnly=!libraryFilter.favoritesOnly;resultOffset=0;browserStatus.clear();refreshBrowser();

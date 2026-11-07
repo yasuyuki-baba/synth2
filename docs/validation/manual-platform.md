@@ -97,3 +97,8 @@ Move the keyboard candidate across either viewport edge: reveal only the needed
 rows with a short transition, keeping the sounding patch unchanged until Enter.
 Check that refresh/filter changes clamp the viewport and session recall restores
 the first visible row after scanning. No page buttons should remain.
+
+Use the bank selector arrows alongside its menu. Check identical selectable
+ordering, parent folders with direct sounds, All banks and disabled end buttons.
+Keywords/tags/favorites and the sounding patch must survive a bank change, while
+the registration-only restriction and scroll/candidate reset.
