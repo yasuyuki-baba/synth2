@@ -16,15 +16,17 @@ View transitions invalidate the complete editor, including its background, after
 updating control visibility. Repainting must not invoke parameter edits or sound
 loading actions.
 
-Typography uses shared logical sizes: 12 for values and auxiliary text, 13 for
-parameter labels and bank/tag metadata, 14 for controls, headings and list titles,
-15 for text entry and SDK menus, and 18 for the selected patch title. Native
+Typography uses shared logical sizes: 12 for auxiliary text, 13 for values,
+14 for parameter labels and bank/tag metadata, 15 for controls, headings and list
+titles, 16 for text entry and SDK menus, and 19 for the selected patch title. Native
 bank/tag popups retain the platform's standard menu typography. Secondary controls
 stay quiet through color and placement rather than tiny type. Choice values use
 measured ellipsis at a fixed size, with full values in tooltips; Random smooth
 uses the short display name Rnd smooth. Source words and saved controls are unchanged.
 The standard 1280-by-840 view remains supported. Knob label/value bands reserve
-space for the larger text, and Chorus uses three full-width lower-row columns.
+space for the larger text. Panel side padding is 8 units and controls start 38
+units below the panel top; the middle row uses the available space between panels.
+Chorus uses three full-width lower-row columns.
 Native drawing and review tools consume the shared typography policy.
 
 Window-frame resizing scales the complete logical canvas, including text and
