@@ -102,3 +102,9 @@ Use the bank selector arrows alongside its menu. Check identical selectable
 ordering, parent folders with direct sounds, All banks and disabled end buttons.
 Keywords/tags/favorites and the sounding patch must survive a bank change, while
 the registration-only restriction and scroll/candidate reset.
+
+At the standard editor size, check the shared larger type across Synth, MIDI,
+Library, header/footer and popup menus. Exercise long choices, long patch/bank
+names and tags, extreme unit readouts, Chorus lower-row labels and the compact
+filter envelopes. Text should remain inside its control without reducing the
+choice font. Confirm numeric-entry hit areas and menu/full-value tooltips.

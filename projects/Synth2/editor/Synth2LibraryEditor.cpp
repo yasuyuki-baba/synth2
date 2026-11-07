@@ -86,7 +86,7 @@ void Synth2::refreshBrowser()
         if(auto* control=graphics->GetControlWithTag(tag)) {
             const auto measure=[&](std::string_view text) {
                 IRECT bounds;const std::string copy(text);
-                graphics->MeasureText(IText(12.f,ink,"Synth2UI"),copy.c_str(),bounds);return bounds.W();
+                graphics->MeasureText(IText(Typography::button,ink,"Synth2UI"),copy.c_str(),bounds);return bounds.W();
             };
             setButton(tag,synth2::editor::editorFitText(value,control->GetRECT().W()-24.f,measure,keepEnd));
         }

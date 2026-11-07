@@ -33,6 +33,7 @@ EDITOR_FORBIDDEN = ('/host/', '/SynthEngine.h', '/SynthVoice.h', '/RenderControl
 # Each extracted header must compile first, without another header supplying its includes.
 ISOLATED_HEADERS = {
     'editor/EditorAppearance.h': EDITOR_FORBIDDEN,
+    'editor/EditorTypography.h': EDITOR_FORBIDDEN,
     'editor/EditorFonts.h': EDITOR_FORBIDDEN,
     'editor/EditorInteraction.h': EDITOR_FORBIDDEN,
     'editor/EditorLayout.h': EDITOR_FORBIDDEN,

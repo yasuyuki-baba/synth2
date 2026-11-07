@@ -59,15 +59,15 @@ inline std::vector<EditorChoice> editorChoices(int index)
 inline const std::vector<EditorPanel>& editorPanels()
 {
     static const std::vector<EditorPanel> panels {
-        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#ded7cc",{20,124,500,260},6,
+        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#ded7cc",{20,124,500,264},6,
             {{0,"Wave 1"},{76,"Detune 1"},{45,"FM"},{1,"Wave 2"},{2,"Pitch 2"},{3,"Fine 2"},
              {4,"Track"},{6,"Sync"},{7,"Ring"},{5,"Mix"},{8,"Width"},{9,"Key shift"},
              {10,"Mod env"},{71,"Env to"},{11,"Amount"},{12,"Attack"},{13,"Decay"},{72,"Fine"},
              {95,"Sub level"},{96,"Sub wave"},{97,"Sub octave"},{91,"Phase"}}},
-        {"FILTER","Tone & filter envelope","#ed8b88",{532,124,356,260},4,
+        {"FILTER","Tone & filter envelope","#ed8b88",{532,124,356,264},4,
             {{14,"Type"},{19,"Cutoff"},{20,"Resonance"},{23,"Drive"},{15,"Attack"},{16,"Decay"},
              {17,"Sustain"},{18,"Release"},{21,"Env depth"},{22,"Key track"},{24,"Velocity"}}},
-        {"AMPLIFIER","Level & amplitude envelope","#ded7cc",{900,124,360,260},4,
+        {"AMPLIFIER","Level & amplitude envelope","#ded7cc",{900,124,360,264},4,
             {{25,"Attack"},{26,"Decay"},{27,"Sustain"},{28,"Release"},{29,"Level"},{30,"Velocity"}}},
         {"LFO 1","Independent modulation","#ded7cc",{20,396,244,204},3,
             {{57,"Enabled"},{42,"Wave"},{41,"To"},{43,"Rate"},{44,"Amount"},{67,"Tempo"},{68,"Key sync"}}},
@@ -96,25 +96,25 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
     {
         const int x=panel.bounds.x,y=panel.bounds.y;
         const int parameter=panel.controls[cell].parameter;
-        if (parameter==19) return {x+10,y+44,140,100};
-        if (parameter==20) return {x+154,y+44,94,100};
-        if (parameter==14) return {x+252,y+44,94,44};
-        if (parameter==23) return {x+252,y+88,94,56};
-        if (parameter>=15 && parameter<=18) return {x+10+(parameter-15)*84,y+144,84,50};
+        if (parameter==19) return {x+10,y+40,140,98};
+        if (parameter==20) return {x+154,y+40,94,98};
+        if (parameter==14) return {x+252,y+40,94,44};
+        if (parameter==23) return {x+252,y+84,94,54};
+        if (parameter>=15 && parameter<=18) return {x+10+(parameter-15)*84,y+138,84,56};
         const int column=parameter==21 ? 0 : parameter==22 ? 1 : 2;
-        return {x+10+column*112,y+194,112,54};
+        return {x+10+column*112,y+194,112,58};
     }
     if (std::string(panel.title)=="EFFECT")
     {
-        const int x=panel.bounds.x+10,y=panel.bounds.y+44;
-        const int width=(panel.bounds.width-20)/3,height=(panel.bounds.height-52)/2;
+        const int x=panel.bounds.x+10,y=panel.bounds.y+40;
+        const int width=(panel.bounds.width-20)/3,height=(panel.bounds.height-48)/2;
         if (cell==0) return {x,y,width,height};
         if (cell==1) return {x+width,y,width*2,height};
         return {x+(cell==2 ? 2 : static_cast<int>(cell)-3)*width,y+height,width,height};
     }
     if (std::string(panel.title)=="LFO 1" || std::string(panel.title)=="LFO 2")
     {
-        const int x=panel.bounds.x+10,y=panel.bounds.y+44;
+        const int x=panel.bounds.x+10,y=panel.bounds.y+40;
         const int inner=panel.bounds.width-20;
         if (cell==0 || cell==5 || cell==6)
         {
@@ -123,12 +123,17 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
         }
         const bool knob=cell==3 || cell==4;
         const int column=knob ? static_cast<int>(cell)-3 : static_cast<int>(cell)-1;
-        return {x+column*(inner/2),y+(knob ? 88 : 44),inner/2,knob ? 64 : 44};
+        return {x+column*(inner/2),y+(knob ? 88 : 44),inner/2,knob ? 68 : 44};
+    }
+    if(std::string(panel.title)=="CHORUS" && cell>=4)
+    {
+        const int width=(panel.bounds.width-20)/3,height=(panel.bounds.height-48)/2;
+        return {panel.bounds.x+10+static_cast<int>(cell-4)*width,panel.bounds.y+40+height,width,height};
     }
     const int rows=(static_cast<int>(panel.controls.size())+panel.columns-1)/panel.columns;
     const int width=(panel.bounds.width-20)/panel.columns;
-    const int height=(panel.bounds.height-52)/rows;
+    const int height=(panel.bounds.height-48)/rows;
     return {panel.bounds.x+10+static_cast<int>(cell%panel.columns)*width,
-            panel.bounds.y+44+static_cast<int>(cell/panel.columns)*height,width,height};
+            panel.bounds.y+40+static_cast<int>(cell/panel.columns)*height,width,height};
 }
 }

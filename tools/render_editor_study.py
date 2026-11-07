@@ -11,6 +11,7 @@ from preview_editor import ROOT, load_model
 
 def render(model):
     a = model["appearance"]
+    t = model["typography"]
     nodes = ['<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="920" viewBox="0 0 1280 920">',
              f'<rect width="1280" height="920" rx="5" fill="{a["background"]}"/>',
              f'<path d="M0,5 Q0,0 5,0 H1275 Q1280,0 1280,5 V118 H0 Z" fill="{a["header"]}"/>',
@@ -32,7 +33,7 @@ def render(model):
     text(126, 53, "2", 29, weight="bold")
     text(20, 74, "VIRTUAL ANALOG SYNTHESIZER", 9)
     box(240, 20, 638, 46, a["display"])
-    text(256, 48, "Init", 16,a["displayText"],font="monospace")
+    text(256, 48, "Init", t["patchTitle"],a["displayText"],font="monospace")
     text(858, 48, "⌄", 14, a["muted"], "middle")
     for x, label in [(890, "‹"), (944, "›")]:
         box(x, 20, 44, 46)
@@ -53,26 +54,27 @@ def render(model):
         x,y,w,h = section["bounds"]
         tone = section["accent"]
         box(x,y,w,h,a["filterPanel"] if section["title"]=="FILTER" else a["panel"],3,a["border"])
-        text(x+14,y+21,section["title"],13,tone,weight="bold")
+        text(x+14,y+21,section["title"],t["heading"],tone,weight="bold")
         nodes.append(f'<path d="M{x+14},{y+32} H{x+w-12}" stroke="{a["border"]}" stroke-width=".5"/>')
         for control in section["controls"]:
             x,y,w,h = control["bounds"]
             index = control["parameter"]
             meta = model["parameters"][index]
             value = values[index]
-            text(x+w/2,y+11,control["label"],11,a["muted"],"middle")
+            text(x+w/2,y+11,control["label"],t["label"],a["muted"],"middle")
             if meta["toggle"] or meta["choices"]:
-                box(x+4,y+19,w-8,27,radius=4)
+                box(x+4,y+20,w-8,min(28,h-24),radius=4)
                 label = "ON" if value else "OFF"
                 if not meta["toggle"]:
                     label = next((label for v,label in meta["choices"] if v==value),"Default" if value==0 else "Custom")
-                size = max(9.5,min(12,(w-14)/max(1,len(label))/.6))
+                label = "Rnd smooth" if label == "Random smooth" else label
+                size = t["button"]
                 text(x+w/2,y+37,label,size,align="middle")
                 if meta["toggle"]:
                     nodes.append(f'<circle cx="{x+12}" cy="{y+32.5}" r="2" fill="{a["accent"] if value else a["track"]}"/>')
             else:
                 diameter = control["diameter"]
-                cx,cy = x+w/2,y+15+diameter/2
+                cx,cy = x+w/2,y+17+diameter/2
                 radius = diameter/2-1
                 normalized = (value-meta["minimum"])/(meta["maximum"]-meta["minimum"])
                 end = math.radians(135+normalized*270)
@@ -86,7 +88,7 @@ def render(model):
                 x2,y2 = point(end,(radius-3)*.96)
                 nodes.append(f'<path d="M{x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f}" stroke="{a["pointer"]}" stroke-width="1.8"/>')
                 readout = meta["unitDisplay"][max(0,min(127,int(value+.5)))] if meta["unitDisplay"] else f"{value:g}"
-                text(cx,y+25+diameter,readout,10,a["muted"],"middle")
+                text(cx,y+29+diameter,readout,t["value"],a["muted"],"middle")
     text(20,818,"No sounds yet. Use Add sounds...",11,a["muted"])
     text(1090,818,"Click a value to type  /  Drag corner to scale",10,a["muted"],"end")
     box(1100,802,160,28,a["control"],4,a["accent"])
