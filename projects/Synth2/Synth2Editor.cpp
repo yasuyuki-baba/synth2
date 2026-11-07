@@ -139,12 +139,15 @@ void Synth2::layoutEditor(IGraphics* graphics)
             refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
     graphics->AttachControl(new ITextControl(IRECT(20,712,1020,736),"Select a sound to edit its tags",text.WithSize(12.f).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(20,742,1048,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new SearchControl(IRECT(20,742,916,778),"",text.WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
+    graphics->AttachControl(new ActionButtonControl(IRECT(928,742,1048,778),[this](IControl* caller) {
+        showAutomaticTagMenu(caller);
+    },"Auto tags...",style),4016);
     graphics->AttachControl(new ActionButtonControl(IRECT(1060,742,1152,778),[this](IControl*) {
         resultOffset=resultOffset>=visibleRows ? resultOffset-visibleRows : 0;refreshBrowser();
     },"Page <",style),4014);

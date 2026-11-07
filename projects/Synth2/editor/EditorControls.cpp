@@ -185,8 +185,20 @@ void CatalogListControl::Draw(IGraphics& g) {
         const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
         g.DrawText(titleText,label.c_str(),IRECT(mRECT.L+50,y,mRECT.L+565,y+40));
         g.DrawText(text.WithSize(11.f).WithFGColor(muted),item.bankName.c_str(),IRECT(mRECT.L+580,y,mRECT.L+760,y+40));
-        const auto tags=synth2::host::PatchCatalog::tagText(item.tags);
-        g.DrawText(text.WithSize(11.f).WithFGColor(muted),tags.c_str(),IRECT(mRECT.L+780,y,mRECT.R-8,y+40));
+        float tagX=mRECT.L+780;
+        const float tagRight=mRECT.R-8;
+        const auto drawTag=[&](const std::string& tag,bool automatic) {
+            if(tagX>=tagRight)return;
+            const auto tagText=text.WithSize(11.f).WithFGColor(automatic ? muted : ink);
+            IRECT measured;g.MeasureText(tagText,tag.c_str(),measured);
+            const float width=measured.W()+10;
+            if(tagX+width>tagRight) {
+                g.DrawText(tagText,"...",IRECT(tagX,y,tagRight,y+40));tagX=tagRight;return;
+            }
+            g.DrawText(tagText,tag.c_str(),IRECT(tagX,y,tagX+width,y+40));tagX+=width;
+        };
+        for(const auto& tag:item.tags)drawTag(tag,false);
+        for(const auto& tag:item.visibleAutomaticTags())drawTag(tag,true);
     }
 }
 

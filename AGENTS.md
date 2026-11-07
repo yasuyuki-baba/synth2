@@ -43,7 +43,9 @@
   [editor contract](docs/gui/README.md).
 - Imported sounds accumulate in a user library. Keep tags/favorites separate
   from original `.sy1` files and DAW sound state; combine bank, tag and keyword
-  filters without loading a sound. See [library behavior](docs/gui/patch-library.md).
+  filters without loading a sound. Infer tags on the catalog worker from names and
+  resolved dials; retain manual precedence and persistent hidden-tag overrides.
+  Show automatic tags in muted text within the shared tag list. See [library behavior](docs/gui/patch-library.md).
   Do not bundle or privilege a factory bank. Start with Init and an empty library;
   all added banks share the same import and metadata behavior. Use a hierarchical
   bank list with indentation, classification-only parents, direct-bank selection

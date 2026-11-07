@@ -130,3 +130,10 @@ sub-banks, duplicate display names and root banks. Catalog tests distinguish dir
 bank filtering from All banks. Flat-row tests cover indentation, disabled headings, This folder and empty-library
 All banks. Header tests separate title/edit markers from bank text. Native popup
 and header appearance require manual verification.
+
+Automatic tag tests use self-authored names and controls to check word/prefix
+boundaries, distinct Mono/Legato modes, Ring/FM precedence and deferred conflicts.
+Catalog tests cover inference across legacy and version 200, combined search,
+manual precedence, legacy sidecars, persistent suppression/restore and unchanged
+source text and sounding processor state. Native tag colors and popup interaction
+require manual verification; these tests do not establish classifier accuracy.

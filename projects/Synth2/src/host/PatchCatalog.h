@@ -13,6 +13,10 @@ struct CatalogPatch {
     std::vector<std::string> tags;
     std::filesystem::path file;
     std::string archiveEntry, error, location;
+    std::vector<std::string> automaticTags, hiddenTags;
+    std::vector<std::string> visibleAutomaticTags() const;
+    std::vector<std::string> allTags() const;
+
 };
 struct CatalogBank { std::string id, name; };
 struct CatalogFilter {
@@ -39,6 +43,8 @@ public:
     bool saveFile(const std::filesystem::path&, const std::string&, bool replace, std::string& id, std::string& error);
     bool setFavorite(const std::string& id, bool favorite, std::string& error);
     bool setTags(const std::string& id, const std::string& tags, std::string& error);
+    bool hideAutomaticTag(const std::string& id,const std::string& tag,std::string& error);
+    bool restoreAutomaticTags(const std::string& id,std::string& error);
     bool removePatch(const std::string& id, std::string& error);
     bool removeBank(const std::string& bankId, std::string& error);
     const std::vector<CatalogPatch>& patches() const noexcept { return entries; }
