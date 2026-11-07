@@ -34,6 +34,7 @@ EDITOR_FORBIDDEN = ('/host/', '/SynthEngine.h', '/SynthVoice.h', '/RenderControl
 ISOLATED_HEADERS = {
     'editor/EditorAppearance.h': EDITOR_FORBIDDEN,
     'editor/EditorTypography.h': EDITOR_FORBIDDEN,
+    'editor/EditorResize.h': EDITOR_FORBIDDEN,
     'editor/EditorFonts.h': EDITOR_FORBIDDEN,
     'editor/EditorInteraction.h': EDITOR_FORBIDDEN,
     'editor/EditorLayout.h': EDITOR_FORBIDDEN,

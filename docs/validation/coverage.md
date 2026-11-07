@@ -164,3 +164,7 @@ scrollbar dragging, wheel deltas and animation timing require manual checks.
 
 Bank navigation tests verify menu-order stepping, classification heading skips,
 selectable parent folders, All banks, empty catalogs and non-wrapping ends.
+
+Editor resize tests cover proportional scaling, platform pixel ratios, keyboard
+height, standalone drag-axis selection, host-bound fitting, limits and zero sizes.
+Native window notifications, dragging and scaled hit testing require manual checks.
