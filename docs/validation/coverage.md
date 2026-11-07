@@ -141,3 +141,10 @@ require manual verification; these tests do not establish classifier accuracy.
 Editor layout checks verify shared result/header column boundaries and measured
 text fitting, including UTF-8 truncation, narrow cells and preserved bank suffixes.
 Native rendering and row tooltips require manual verification.
+
+Multi-tag/cache tests check AND matching across manual and automatic tags, filter
+composition and session recall, warm/new-instance cache reuse, same-size and
+same-timestamp content updates, additions/deletions, ZIP-entry changes, cached
+invalid-source diagnostics and corrupt-cache rebuilding without losing overrides.
+Portable checks do not certify native menu interaction or scan timing on other
+machines. No filesystem watcher is part of this contract.

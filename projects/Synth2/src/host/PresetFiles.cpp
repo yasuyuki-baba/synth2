@@ -213,7 +213,7 @@ bool PresetFiles::isManagedPatch(const fs::path &directory, const fs::path &file
         return false;
     return fs::is_regular_file(fs::symlink_status(bank / (key + ".name")));
 }
-bool PresetFiles::scan(std::string &error)
+bool PresetFiles::scan(std::string &error, bool validateSources)
 {
     try
     {
@@ -261,7 +261,7 @@ bool PresetFiles::scan(std::string &error)
                 catch (const std::exception &)
                 {
                 }
-                auto problem = validate(patch.text);
+                auto problem = validateSources ? validate(patch.text) : std::string{};
                 if (docName.size() > 16384)
                 {
                     docName = utf8(item.path().filename());
@@ -501,7 +501,10 @@ std::string PresetBrowserState::serialize() const
     e->SetAttribute("version", 1);
     e->SetAttribute("query", query.c_str());
     e->SetAttribute("bank", bankId.c_str());
-    e->SetAttribute("tag", tag.c_str());
+    e->SetAttribute("tag", selectedTags.empty() ? tag.c_str() : selectedTags.front().c_str());
+    for(const auto& selected:selectedTags) {
+        auto* child=d.NewElement("tag");child->SetAttribute("name",selected.c_str());e->InsertEndChild(child);
+    }
     e->SetAttribute("favorites", favoritesOnly);
     e->SetAttribute("selected", selectedId.c_str());
     e->SetAttribute("name", patchName.c_str());
@@ -545,6 +548,11 @@ bool PresetBrowserState::deserialize(const std::string &text, PresetBrowserState
     next.query = attr("query");
     next.bankId = attr("bank");
     next.tag = attr("tag");
+    for(auto* child=e->FirstChildElement("tag");child;child=child->NextSiblingElement("tag")) {
+        const auto* name=child->Attribute("name");
+        if(!name || !*name || std::string_view(name).size()>128 || next.selectedTags.size()>=32)return false;
+        next.selectedTags.emplace_back(name);
+    }
     next.favoritesOnly = e->BoolAttribute("favorites");
     next.selectedId = attr("selected");
     next.patchName = attr("name");

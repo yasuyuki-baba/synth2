@@ -1,6 +1,10 @@
 # Persistent sound library
 
-The Library view combines bank, tag, keyword and favorites filters. All search
+The Library view combines bank, tag, keyword and favorites filters. The tag menu
+uses checkmarks to toggle up to 32 selections; a sound must contain every selected
+tag (AND). All tags clears only the tag selections. The button shows the active
+count and its tooltip lists the selections. Selections survive session recall;
+older single-tag sessions remain readable. All search
 words match independently against the title, relative file/ZIP entry location and
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
 bytes. The bounded result page and mouse wheel browse results; previous/next selects
@@ -76,9 +80,22 @@ does not clear unsaved preset edits. Sound changes do not prompt on every auditi
 ## Metadata and storage
 
 Tags and favorites remain shared user preferences separate from source files and
-DAW sound state. Library refresh infers short automatic tags for existing and new
-sounds from the patch title and resolved controls, on the library worker using an
-isolated loading bridge. It does not render audio or load the sounding processor.
+DAW sound state. Library refresh discovers current files and ZIP entries, then
+reuses cached validation results and automatic tags for unchanged source contents.
+Only added or changed sounds are loaded and classified using an isolated bridge
+on the library worker. Removed sounds disappear from the cache. No audio is
+rendered and the sounding processor is not loaded.
+
+The disposable `.synth2-tags.cache` in the library root compares exact source bytes,
+including ZIP-entry contents, so same-size/same-timestamp edits are detected. The
+cache has an explicit inference/loading revision; rule or loading changes must
+bump that revision. Cache publication is atomic. Missing, corrupt or incompatible
+caches rebuild; an unwritable cache does not block library use. The cache is bounded
+to 64 MiB; entries beyond the bound remain usable and are reclassified next scan.
+It contains copies of source text and derived tags/errors, while manual tags and
+hidden-tag overrides stay in separate user metadata. Backups may omit the cache.
+External additions, deletions and replacements are detected on Refresh or editor
+reopen; the cache does not introduce a background filesystem watcher.
 Tag inference never uses filenames, bank identity or source hashes. Invalid sources
 receive no inferred tags.
 

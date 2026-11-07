@@ -249,3 +249,17 @@ TEST(PresetFiles, InstancesKeepSeparateBrowserStateAndScanningDoesNotChangeSound
     EXPECT_EQ(before, a.saveState());
     EXPECT_EQ(y.query, "Lead");
 }
+
+TEST(PresetFiles, MultipleSelectedTagsSurviveSessionRecallAndLegacyTagStillLoads) {
+    synth2::host::ProcessorBridge source,restored;
+    synth2::host::PresetBrowserState browser;browser.capture(source);
+    browser.selectedTags={"Pad","FM","My own"};
+    const auto bytes=synth2::host::savePresetSession(source,browser);
+    synth2::host::PresetBrowserState recalled;
+    ASSERT_GT(synth2::host::restorePresetSession(bytes.data(),static_cast<int>(bytes.size()),restored,recalled),0);
+    EXPECT_EQ(recalled.selectedTags,browser.selectedTags);
+    EXPECT_EQ(recalled.tag,"Pad"); // Compatibility hint for older readers.
+    browser.selectedTags.clear();browser.tag="Old tag";
+    ASSERT_TRUE(synth2::host::PresetBrowserState::deserialize(browser.serialize(),recalled));
+    EXPECT_EQ(recalled.tag,"Old tag");EXPECT_TRUE(recalled.selectedTags.empty());
+}

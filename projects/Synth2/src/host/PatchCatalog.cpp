@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -151,7 +152,7 @@ bool PatchCatalog::reload(std::string& error) {
             }
         }
         if(!directory.empty()) {
-            PresetFiles files(directory);if(!files.scan(error))return false;
+            PresetFiles files(directory);if(!files.scan(error,false))return false;
             for(const auto& item:files.entries()) {
                 if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
                 total+=item.text.size();auto relative=item.file.lexically_relative(fs::weakly_canonical(directory));
@@ -170,15 +171,52 @@ bool PatchCatalog::reload(std::string& error) {
                 next.push_back({item.id,bankId,bankName,{item.name,item.text,item.archiveEntry},item.program,favoriteAt(directory,item.id),tagsAt(directory,item.id),item.file,item.archiveEntry,item.error,item.location});
             }
         }
-        // Runs on the catalog worker, using an isolated bridge. Never load a
-        // candidate into the sounding processor or infer from unresolved words.
-        ProcessorBridge scratch;
+        // Cache exact source text to detect even same-size/same-timestamp edits.
+        // The cache is bounded and disposable; user overrides live separately.
+        const auto cachePath=directory/".synth2-tags.cache";
+        const std::string cacheHeader="Synth2 tag cache "+std::to_string(patchTagCacheVersion)+"\n";
+        constexpr std::size_t cacheLimit=64*1024*1024;
+        struct CachedTags {std::string source,error;std::vector<std::string> tags;};
+        std::map<std::string,CachedTags> cached;
+        std::string oldCache;
+        try {
+            oldCache=read(cachePath,cacheLimit);
+            if(oldCache.starts_with(cacheHeader)) {
+                std::istringstream in(oldCache.substr(cacheHeader.size()));
+                for(std::string id,source,problem,tags;in>>std::ws && !in.eof();) {
+                    if(cached.size()>=maximumCatalogPatches || !(in>>std::quoted(id)>>std::quoted(source)>>std::quoted(problem)>>std::quoted(tags)))
+                        throw std::runtime_error("Invalid tag cache");
+                    if(id.size()>32768 || source.size()>PatchLibrary::maximumPatchBytes || problem.size()>16384)
+                        throw std::runtime_error("Invalid tag cache record");
+                    cached.emplace(std::move(id),CachedTags{std::move(source),std::move(problem),splitTags(tags)});
+                }
+            }
+        }catch(...) {cached.clear();}
+        ProcessorBridge scratch;TagCacheStats stats;
+        std::ostringstream updated;updated<<cacheHeader;
         for(auto& patch:next) {
             patch.hiddenTags=overridesAt(directory,patch.id).hidden;
-            std::string problem;
-            if(patch.error.empty() && scratch.loadPatch(patch.patch.text,problem))
-                patch.automaticTags=inferPatchTags(scratch.currentPatchName(),parseContinuousPatch(scratch.savePatch()).values);
+            if(!patch.error.empty())continue;
+            const auto found=cached.find(patch.id);
+            if(found!=cached.end() && found->second.source==patch.patch.text) {
+                patch.automaticTags=found->second.tags;patch.error=found->second.error;++stats.reused;
+            }else {
+                ++stats.rebuilt;
+                if(scratch.loadPatch(patch.patch.text,patch.error))
+                    patch.automaticTags=inferPatchTags(scratch.currentPatchName(),parseContinuousPatch(scratch.savePatch()).values);
+            }
+            std::ostringstream record;
+            record<<std::quoted(patch.id)<<' '<<std::quoted(patch.patch.text)<<' '
+                  <<std::quoted(patch.error)<<' '<<std::quoted(tagText(patch.automaticTags))<<'\n';
+            const auto bytes=record.str();
+            if(static_cast<std::size_t>(updated.tellp())+bytes.size()<=cacheLimit)updated<<bytes;
         }
+        // Missing IDs disappear from this snapshot, pruning deleted sources.
+        const auto newCache=updated.str();
+        if(newCache!=oldCache && !directory.empty()) {
+            try {fs::create_directories(directory);replaceText(cachePath,newCache);}catch(...) { /* Read-only libraries still work. */ }
+        }
+        cacheStats=stats;
         entries.swap(next);error.clear();return true;
     } catch(const std::exception& e) {error=e.what();return false;}
 }
@@ -313,7 +351,11 @@ std::vector<std::size_t> PatchCatalog::search(const CatalogFilter& filter)const 
         if(filter.registeredOnly && std::find(filter.registeredIds.begin(),filter.registeredIds.end(),p.id)==filter.registeredIds.end())continue;
         if((!bank.empty() && p.bankId!=bank) || (filter.favoritesOnly && !p.favorite))continue;
         const auto tags=p.allTags();
-        if(!filter.tag.empty() && std::none_of(tags.begin(),tags.end(),[&](const auto& tag){return lower(tag)==lower(filter.tag);}))continue;
+        const auto contains=[&](const auto& selected) {
+            return std::any_of(tags.begin(),tags.end(),[&](const auto& tag){return lower(tag)==lower(selected);});
+        };
+        if((!filter.tag.empty() && !contains(filter.tag)) ||
+            !std::all_of(filter.selectedTags.begin(),filter.selectedTags.end(),contains))continue;
         const auto haystack=lower(p.patch.name+" "+p.bankName+" "+p.location+" "+p.archiveEntry+" "+tagText(tags));
         if(std::all_of(terms.begin(),terms.end(),[&](const auto& term){return haystack.find(term)!=std::string::npos;}))result.push_back(i);
     }
