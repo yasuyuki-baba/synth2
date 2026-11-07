@@ -73,11 +73,22 @@ void Synth2::refreshBrowser()
             bankLabel = bank.name;
             break;
         }
-    setButton(bankFilterTag, bankLabel);
+    const auto setFilterLabel=[&](int tag,const std::string& value,bool keepEnd=false) {
+        if(auto* control=graphics->GetControlWithTag(tag)) {
+            const auto measure=[&](std::string_view text) {
+                IRECT bounds;const std::string copy(text);
+                graphics->MeasureText(IText(12.f,ink,"Synth2UI"),copy.c_str(),bounds);return bounds.W();
+            };
+            setButton(tag,synth2::editor::editorFitText(value,control->GetRECT().W()-24.f,measure,keepEnd));
+        }
+    };
+    setFilterLabel(bankFilterTag,bankLabel,true);
+    if(auto* control=graphics->GetControlWithTag(bankFilterTag))control->SetTooltip(bankLabel.c_str());
+    if(auto* control=graphics->GetControlWithTag(librarySearchTag))
+        control->SetTooltip("Search names, banks and tags. Use several words to narrow results. Drop .zip or .sy1 files onto the sound list to add sounds.");
     const auto& selectedTags=libraryFilter.selectedTags;
     const auto tagLabel=selectedTags.empty() ? std::string("All tags") : selectedTags.size()==1 ? selectedTags.front() : "Tags: "+std::to_string(selectedTags.size())+" (all)";
-    const auto measureTag=[&](std::string_view value) {IRECT bounds;const std::string copy(value);graphics->MeasureText(IText(12.f,ink,"Synth2UI"),copy.c_str(),bounds);return bounds.W();};
-    setButton(tagFilterTag,synth2::editor::editorFitText(tagLabel,184.f,measureTag));
+    setFilterLabel(tagFilterTag,tagLabel);
     if(auto* control=graphics->GetControlWithTag(tagFilterTag))
         control->SetTooltip(("Match all selected tags: "+synth2::host::PatchCatalog::tagText(selectedTags)).c_str());
     setButton(favoritesTag, libraryFilter.favoritesOnly ? "Favorites: on" : "Favorites: off");
