@@ -6,6 +6,8 @@
 #include "editor/EditorPages.h"
 #include "editor/EditorBankMenu.h"
 #include "editor/EditorLibraryNavigation.h"
+#include "editor/EditorLibraryScroll.h"
+#include <cmath>
 #include "editor/EditorTextFit.h"
 #include "editor/EditorPresetDisplay.h"
 #include <algorithm>
@@ -33,8 +35,7 @@ void Synth2::refreshBrowser()
                      [&](const auto &patch) { return patch.bankId == libraryFilter.bankId; }))
         libraryFilter.bankId.clear();
     const auto matches = catalog.search(libraryFilter);
-    if (catalogLoaded && resultOffset >= matches.size())
-        resultOffset = matches.empty() ? 0 : ((matches.size() - 1) / visibleRows) * visibleRows;
+    if(catalogLoaded)resultOffset=synth2::editor::editorLibraryScrollOffset(matches.size(),visibleRows,resultOffset);
     const auto setText = [&](int tag, const std::string &value)
     {
         if (auto *c = graphics->GetControlWithTag(tag))
@@ -88,9 +89,9 @@ void Synth2::refreshBrowser()
     setText(tagsEditTag, canEdit ? synth2::host::PatchCatalog::tagText(selected->tags) : "");
     if (auto *c = graphics->GetControlWithTag(tagsEditTag))
         c->SetDisabled(!canEdit);
-    const auto first = matches.empty() ? 0 : resultOffset + 1;
+    const auto first = matches.empty() ? 0 : static_cast<std::size_t>(resultOffset) + 1;
     setText(resultsTag, std::to_string(first) + " - " +
-                            std::to_string(std::min(resultOffset + visibleRows, matches.size())) + " of " +
+                            std::to_string(std::min(static_cast<std::size_t>(std::ceil(resultOffset + visibleRows)), matches.size())) + " of " +
                             std::to_string(matches.size()) + " sounds  /  + marks a favorite");
 }
 
@@ -131,19 +132,19 @@ bool Synth2::handleLibraryKey(const IKeyPress& key,bool up)
     };
     if(key.VK==kVK_ESCAPE) {
         keyboardPatchId.clear();
-        if(auto current=locate(selectedPatchId))resultOffset=(*current/visibleRows)*visibleRows;
+        if(auto current=locate(selectedPatchId))resultOffset=synth2::editor::editorLibraryReveal(matches.size(),visibleRows,resultOffset,*current);
         refreshBrowser();return true;
     }
     auto current=locate(keyboardPatchId);
     if(!current)current=locate(selectedPatchId);
     if(key.VK==kVK_RETURN) {
-        const auto position=current.value_or(std::min(resultOffset,matches.size()-1));
+        const auto position=current.value_or(std::min(static_cast<std::size_t>(resultOffset),matches.size()-1));
         keyboardPatchId=catalog.patches()[matches[position]].id;
         loadLibraryPatch(matches[position]);return true;
     }
-    const auto next=synth2::editor::editorLibraryNavigation(matches.size(),visibleRows,current,resultOffset,*action);
+    const auto next=synth2::editor::editorLibraryNavigation(matches.size(),visibleRows,current,static_cast<std::size_t>(resultOffset),*action);
     keyboardPatchId=catalog.patches()[matches[*next]].id;
-    resultOffset=(*next/visibleRows)*visibleRows;refreshBrowser();return true;
+    resultOffset=synth2::editor::editorLibraryReveal(matches.size(),visibleRows,resultOffset,*next);refreshBrowser();return true;
 }
 
 void Synth2::changeFilter(const char *query)
@@ -262,7 +263,7 @@ void Synth2::stepPatch(int direction)
             ? (direction > 0 ? 0 : static_cast<int>(matches.size()) - 1)
             : (static_cast<int>(found - matches.begin()) + direction + static_cast<int>(matches.size())) %
                   static_cast<int>(matches.size());
-    resultOffset = (next / visibleRows) * visibleRows;
+    resultOffset = synth2::editor::editorLibraryReveal(matches.size(),visibleRows,resultOffset,next);
     loadLibraryPatch(matches[next]);
 }
 

@@ -1,3 +1,4 @@
+#include "editor/EditorLibraryScroll.h"
 #include "editor/EditorLibraryNavigation.h"
 #include <gtest/gtest.h>
 #include "editor/EditorInteraction.h"
@@ -138,4 +139,19 @@ TEST(EditorLibraryNavigation, EmptyClampedAndPagedMovementNeverWraps)
     EXPECT_EQ(editorLibraryNavigation(40,16,30,16,A::first),0u);
     EXPECT_EQ(editorLibraryNavigation(40,16,0,0,A::last),39u);
     EXPECT_EQ(editorLibraryNavigation(3,16,12,99,A::next),2u);
+}
+
+TEST(EditorLibraryScroll, RevealsOnlyTheNeededRowsAndClampsToAFullLastViewport)
+{
+    EXPECT_EQ(editorLibraryScrollOffset(0,16,8),0);
+    EXPECT_EQ(editorLibraryScrollOffset(3,16,8),0);
+    EXPECT_EQ(editorLibraryScrollOffset(40,16,99),24);
+    EXPECT_EQ(editorLibraryScrollOffset(40,16,-2),0);
+    EXPECT_EQ(editorLibraryScrollOffset(40,16,2.25),2.25);
+    EXPECT_EQ(editorLibraryReveal(40,16,0,15),0);
+    EXPECT_EQ(editorLibraryReveal(40,16,0,16),1);
+    EXPECT_EQ(editorLibraryReveal(40,16,8,7),7);
+    EXPECT_EQ(editorLibraryReveal(40,16,0,39),24);
+    EXPECT_EQ(editorLibraryReveal(40,16,8.5,8),8);
+    EXPECT_EQ(editorLibraryReveal(40,16,8.5,24),9);
 }

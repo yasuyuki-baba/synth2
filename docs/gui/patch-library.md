@@ -9,8 +9,11 @@ count and its tooltip lists the selections. Selections survive session recall;
 older single-tag sessions remain readable. All search
 words match independently against the title, relative file/ZIP entry location and
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
-bytes. The result page shows 16 rows at the standard editor size, preserving font sizes
-with compact 30-unit row spacing. The mouse wheel browses result pages; previous/next selects
+bytes. The result viewport fits 16 rows at the standard editor size, preserving font sizes
+with compact 30-unit row spacing. A right-hand scrollbar shows the position within
+all matching sounds; drag its thumb or click its track to jump. The mouse wheel
+scrolls continuously (including fractional trackpad deltas), with a short visual
+transition rather than replacing pages. Previous/next selects
 within that filter. Only explicit sound selection loads a sound. Registration,
 refresh, filtering and metadata edits preserve the sounding processor.
 The processor starts with Init and the library starts empty; no factory bank is
@@ -40,7 +43,10 @@ entry belongs to the current results. The filled selected row and persistent
 header continue to identify the sounding patch until a successful load.
 
 Navigation follows the active bank, keyword, tag and favorite filters, reveals
-the candidate's page and handles empty results. Mouse audition and header
+the candidate with the smallest necessary scroll and handles empty results.
+Arrows keep the viewport still while the candidate is fully visible; crossing
+an edge scrolls by the required rows with a short transition. Wheel and scrollbar
+movement never load a sound. Dedicated page buttons are not shown. Mouse audition and header
 previous/next keep the keyboard candidate aligned. Shortcuts are editor-focus
 scoped, leave modified navigation keys to the host and coexist with PC-key
 performance while the software keyboard is open. No general Tab focus traversal
@@ -175,11 +181,11 @@ not host program ordinals; ZIP entries retain their source-bank ordinal.
 ## Session recall
 
 Each plugin instance saves its query, bank/tag/favorite filters, registration IDs,
-selection, result-page offset, view and edit baseline in wrapper state v2. Wrapper
+selection, first visible row, view and edit baseline in wrapper state v2. Wrapper
 v1 remains readable and retains the processor's patch name. The existing processor
 state independently embeds the sounding source and edits. Recall never reloads a
 selected library file, so moved/deleted/replaced files cannot overwrite the saved
-sound. A scan completes before the restored result offset is clamped. A project
+sound. Sub-row scroll fractions are not saved. A scan completes before the restored result offset is clamped. A project
 restore also supersedes pending jobs' browser/baseline updates.
 
 Standalone APP stores the same complete session on normal teardown and restores

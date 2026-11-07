@@ -157,3 +157,7 @@ Library navigation tests cover empty results, initial candidates, clamped ends,
 page movement, first/last jumps and stale indices. Native keyboard checks must
 verify focus/text-entry ownership, candidate-versus-loaded display and Enter-only
 audition; portable index tests do not establish host shortcut behavior.
+
+Library scroll tests cover fractional offsets, empty/short lists, full final
+viewports and minimal candidate reveal across viewport edges. Native clipping,
+scrollbar dragging, wheel deltas and animation timing require manual checks.

@@ -1,3 +1,4 @@
+#include "editor/EditorLibraryScroll.h"
 #include "../Synth2.h"
 #include "EditorControls.h"
 #include "EditorControlTags.h"
@@ -169,15 +170,50 @@ CatalogListControl::CatalogListControl(const IRECT& bounds,const synth2::host::P
                    const std::string& selected,const std::string& keyboardSelection,
                    std::function<void(std::size_t)> load,
                    std::function<void(const std::string&,bool)> favorite,
-                   std::function<void(int)> scroll,
+                   std::function<void(double)> scroll,
                    std::function<void(const char*)> import)
     : IControl(bounds),catalog(catalog),selected(selected),keyboardSelection(keyboardSelection),load(std::move(load)),
       favorite(std::move(favorite)),scroll(std::move(scroll)),import(std::move(import)) {
-    SetTooltip("Click a sound to audition. Click + / - to favorite. Scroll to change pages.");
+    SetTooltip("Click a sound to audition. Click + / - to favorite. Scroll to browse sounds. Drag the scrollbar to jump.");
 }
 
-void CatalogListControl::setResults(std::vector<std::size_t> results,std::size_t start) {
-    matches=std::move(results);offset=start;SetDirty(false);
+void CatalogListControl::setResults(std::vector<std::size_t> results,double start) {
+    const bool changed=matches!=results;
+    matches=std::move(results);
+    start=synth2::editor::editorLibraryScrollOffset(matches.size(),visibleRows,start);
+    if(changed || draggingScroll) {
+        OnEndAnimation();offset=drawOffset=start;
+    } else if(start!=offset) {
+        animationStart=drawOffset;offset=start;
+        SetAnimation([this](IControl*) {
+            const auto progress=std::min(GetAnimationProgress(),1.);
+            const auto eased=1.-std::pow(1.-progress,3.);
+            drawOffset=animationStart+(offset-animationStart)*eased;
+            SetDirty(false);
+            if(progress>=1.) { drawOffset=offset;OnEndAnimation(); }
+        },100);
+    }
+    SetDirty(false);
+}
+
+IRECT CatalogListControl::scrollTrack() const {
+    return IRECT(mRECT.R-14,mRECT.T+3,mRECT.R-3,mRECT.B-3);
+}
+
+IRECT CatalogListControl::scrollThumb() const {
+    const auto track=scrollTrack();
+    const auto height=std::min(track.H(),std::max(24.f,track.H()*visibleRows/std::max<std::size_t>(matches.size(),1)));
+    const auto limit=synth2::editor::editorLibraryScrollLimit(matches.size(),visibleRows);
+    const auto top=track.T+(limit>0 ? drawOffset/limit : 0.)*(track.H()-height);
+    return IRECT(track.L,top,track.R,top+height);
+}
+
+void CatalogListControl::dragScroll(float y) {
+    const auto track=scrollTrack(),thumb=scrollThumb();
+    const auto travel=track.H()-thumb.H();
+    if(travel<=0)return;
+    scroll(std::clamp(static_cast<double>((y-track.T-scrollGrab)/travel),0.,1.)*
+           synth2::editor::editorLibraryScrollLimit(matches.size(),visibleRows));
 }
 
 void CatalogListControl::Draw(IGraphics& g) {
@@ -186,10 +222,13 @@ void CatalogListControl::Draw(IGraphics& g) {
         g.DrawText(IText(15.f,muted,"Synth2UI"),"No matching sounds. Clear a filter or add a sound bank.",mRECT);
         return;
     }
-    for(std::size_t row=0;row<visibleRows && offset+row<matches.size();++row) {
-        const auto& item=catalog.patches()[matches[offset+row]];
-        const auto y=mRECT.T+row*libraryRowHeight;
-        const IRECT bounds(mRECT.L,y,mRECT.R,y+libraryRowHeight);
+    const auto first=static_cast<std::size_t>(drawOffset);
+    g.PathClipRegion(IRECT(mRECT.L,mRECT.T,mRECT.R-18,mRECT.B));
+    for(std::size_t row=first;row<matches.size();++row) {
+        const auto y=mRECT.T+static_cast<float>((row-drawOffset)*libraryRowHeight);
+        if(y>=mRECT.B)break;
+        const auto& item=catalog.patches()[matches[row]];
+        const IRECT bounds(mRECT.L,y,mRECT.R-18,y+libraryRowHeight);
         const bool isSelected=item.id==selected;
         if(isSelected) {
             g.FillRect(color(appearance.selectedRow),bounds);
@@ -219,7 +258,7 @@ void CatalogListControl::Draw(IGraphics& g) {
         drawFitted(text.WithSize(11.f).WithFGColor(muted),item.bankName,
                    IRECT(mRECT.L+Columns::bankLeft,y,mRECT.L+Columns::bankRight,y+libraryRowHeight),true);
         float tagX=mRECT.L+Columns::tagsLeft;
-        const float tagRight=mRECT.R-8;
+        const float tagRight=mRECT.R-26;
         const auto drawTag=[&](const std::string& tag,bool automatic) {
             if(tagX>=tagRight)return;
             const auto tagText=text.WithSize(11.f).WithFGColor(automatic ? muted : ink);
@@ -233,27 +272,49 @@ void CatalogListControl::Draw(IGraphics& g) {
         for(const auto& tag:item.tags)drawTag(tag,false);
         for(const auto& tag:item.visibleAutomaticTags())drawTag(tag,true);
     }
+    g.PathClipRegion(IRECT());
+    g.FillRoundRect(background,scrollTrack(),4.f);
+    if(matches.size()>visibleRows)g.FillRoundRect(draggingScroll ? accent : muted,scrollThumb(),4.f);
 }
 
 void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
-    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight);
-    if(row>=visibleRows || offset+row>=matches.size())return;
-    const auto index=matches[offset+row];const auto item=catalog.patches()[index];
+    if(x>=mRECT.R-18) {
+        if(matches.size()<=visibleRows)return;
+        OnEndAnimation();drawOffset=offset;
+        const auto thumb=scrollThumb();
+        draggingScroll=true;
+        scrollGrab=thumb.Contains(x,y) ? y-thumb.T : thumb.H()/2;
+        dragScroll(y);return;
+    }
+    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight+drawOffset);
+    if(row>=matches.size())return;
+    const auto index=matches[row];const auto item=catalog.patches()[index];
     if(x<mRECT.L+32)favorite(item.id,!item.favorite);
     else load(index);
 }
 
+void CatalogListControl::OnMouseDrag(float,float y,float,float,const IMouseMod&) {
+    if(draggingScroll)dragScroll(y);
+}
+
+void CatalogListControl::OnMouseUp(float,float,const IMouseMod&) {
+    draggingScroll=false;SetDirty(false);
+}
+
 void CatalogListControl::OnMouseOver(float x,float y,const IMouseMod& mod) {
-    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight);
-    if(row<visibleRows && offset+row<matches.size()) {
-        const auto& item=catalog.patches()[matches[offset+row]];
+    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight+drawOffset);
+    if(x>=mRECT.R-18)SetTooltip("Drag to scroll through matching sounds.");
+    else if(row<matches.size()) {
+        const auto& item=catalog.patches()[matches[row]];
         const auto tooltip=item.patch.name+"\n"+item.bankName+"\n"+host::PatchCatalog::tagText(item.allTags());
         SetTooltip(tooltip.c_str());
     }
     IControl::OnMouseOver(x,y,mod);
 }
 
-void CatalogListControl::OnMouseWheel(float,float,const IMouseMod&,float delta) {if(delta!=0)scroll(delta>0 ? -1 : 1);}
+void CatalogListControl::OnMouseWheel(float,float,const IMouseMod&,float delta) {
+    if(delta!=0)scroll(synth2::editor::editorLibraryScrollOffset(matches.size(),visibleRows,offset-delta*3.));
+}
 
 void CatalogListControl::OnDrop(const char* path) {import(path);}
 
