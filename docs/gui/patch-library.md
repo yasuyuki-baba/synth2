@@ -7,7 +7,8 @@ count and its tooltip lists the selections. Selections survive session recall;
 older single-tag sessions remain readable. All search
 words match independently against the title, relative file/ZIP entry location and
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
-bytes. The bounded result page and mouse wheel browse results; previous/next selects
+bytes. The result page shows 16 rows at the standard editor size, preserving font sizes
+with compact 30-unit row spacing. The mouse wheel browses result pages; previous/next selects
 within that filter. Only explicit sound selection loads a sound. Registration,
 refresh, filtering and metadata edits preserve the sounding processor.
 The processor starts with Init and the library starts empty; no factory bank is

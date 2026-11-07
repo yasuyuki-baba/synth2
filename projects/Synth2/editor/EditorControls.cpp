@@ -168,20 +168,20 @@ void CatalogListControl::Draw(IGraphics& g) {
     }
     for(std::size_t row=0;row<visibleRows && offset+row<matches.size();++row) {
         const auto& item=catalog.patches()[matches[offset+row]];
-        const auto y=mRECT.T+row*40.f;
-        const IRECT bounds(mRECT.L,y,mRECT.R,y+40.f);
+        const auto y=mRECT.T+row*libraryRowHeight;
+        const IRECT bounds(mRECT.L,y,mRECT.R,y+libraryRowHeight);
         const bool isSelected=item.id==selected;
         if(isSelected) {
             g.FillRect(color(appearance.selectedRow),bounds);
-            g.FillRect(accent,IRECT(mRECT.L,y,mRECT.L+4,y+40.f));
+            g.FillRect(accent,IRECT(mRECT.L,y,mRECT.L+4,y+libraryRowHeight));
         }
         else if(row%2==1)g.FillRect(background,bounds);
         const IText text(13.f,ink,"Synth2UI",EAlign::Near);
-        g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+40));
+        g.DrawText(IText(16.f,item.favorite ? accent : muted,"Synth2UI"),item.favorite ? "+" : "-",IRECT(mRECT.L,y,mRECT.L+32,y+libraryRowHeight));
         if(item.patch.color) {
             const auto rgb=*item.patch.color;
             g.FillRect(IColor(255,(rgb>>16)&255,(rgb>>8)&255,rgb&255),
-                       IRECT(mRECT.L+34,y+15,mRECT.L+42,y+25));
+                       IRECT(mRECT.L+34,y+libraryRowHeight/2-5,mRECT.L+42,y+libraryRowHeight/2+5));
         }
         const auto label=item.patch.name+(item.error.empty() ? "" : " [Cannot load]");
         const auto titleText=isSelected ? text.WithFont("Synth2UIBold").WithFGColor(color(appearance.displayText)) : text;
@@ -193,9 +193,9 @@ void CatalogListControl::Draw(IGraphics& g) {
             const auto fitted=synth2::editor::editorFitText(value,cell.W(),measure,keepEnd);
             g.DrawText(style,fitted.c_str(),cell);
         };
-        drawFitted(titleText,label,IRECT(mRECT.L+Columns::nameLeft,y,mRECT.L+Columns::nameRight,y+40));
+        drawFitted(titleText,label,IRECT(mRECT.L+Columns::nameLeft,y,mRECT.L+Columns::nameRight,y+libraryRowHeight));
         drawFitted(text.WithSize(11.f).WithFGColor(muted),item.bankName,
-                   IRECT(mRECT.L+Columns::bankLeft,y,mRECT.L+Columns::bankRight,y+40),true);
+                   IRECT(mRECT.L+Columns::bankLeft,y,mRECT.L+Columns::bankRight,y+libraryRowHeight),true);
         float tagX=mRECT.L+Columns::tagsLeft;
         const float tagRight=mRECT.R-8;
         const auto drawTag=[&](const std::string& tag,bool automatic) {
@@ -204,9 +204,9 @@ void CatalogListControl::Draw(IGraphics& g) {
             IRECT measured;g.MeasureText(tagText,tag.c_str(),measured);
             const float width=measured.W()+10;
             if(tagX+width>tagRight) {
-                drawFitted(tagText,"...",IRECT(tagX,y,tagRight,y+40));tagX=tagRight;return;
+                drawFitted(tagText,"...",IRECT(tagX,y,tagRight,y+libraryRowHeight));tagX=tagRight;return;
             }
-            g.DrawText(tagText,tag.c_str(),IRECT(tagX,y,tagX+width,y+40));tagX+=width;
+            g.DrawText(tagText,tag.c_str(),IRECT(tagX,y,tagX+width,y+libraryRowHeight));tagX+=width;
         };
         for(const auto& tag:item.tags)drawTag(tag,false);
         for(const auto& tag:item.visibleAutomaticTags())drawTag(tag,true);
@@ -214,7 +214,7 @@ void CatalogListControl::Draw(IGraphics& g) {
 }
 
 void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
-    const auto row=static_cast<std::size_t>((y-mRECT.T)/40.f);
+    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight);
     if(row>=visibleRows || offset+row>=matches.size())return;
     const auto index=matches[offset+row];const auto item=catalog.patches()[index];
     if(x<mRECT.L+32)favorite(item.id,!item.favorite);
@@ -222,7 +222,7 @@ void CatalogListControl::OnMouseDown(float x,float y,const IMouseMod&) {
 }
 
 void CatalogListControl::OnMouseOver(float x,float y,const IMouseMod& mod) {
-    const auto row=static_cast<std::size_t>((y-mRECT.T)/40.f);
+    const auto row=static_cast<std::size_t>((y-mRECT.T)/libraryRowHeight);
     if(row<visibleRows && offset+row<matches.size()) {
         const auto& item=catalog.patches()[matches[offset+row]];
         const auto tooltip=item.patch.name+"\n"+item.bankName+"\n"+host::PatchCatalog::tagText(item.allTags());
