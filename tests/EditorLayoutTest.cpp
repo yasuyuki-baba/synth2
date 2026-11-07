@@ -3,6 +3,7 @@
 #include "editor/EditorPages.h"
 #include "editor/EditorValueDisplay.h"
 #include "editor/EditorPresetDisplay.h"
+#include "editor/EditorBankMenu.h"
 #include "patch/Synth1SourceRange.h"
 #include <Synth1PatchIo.h>
 #include <array>
@@ -132,4 +133,23 @@ TEST(EditorLayout, UnitReadoutsFollowTimingTuningAndEqMappings)
     EXPECT_EQ(editorValueDisplay(19,64.25),"64.25");
     EXPECT_EQ(editorValueDisplay(19,64.0000000001),"64");
     EXPECT_EQ(editorValueDisplay(9,-12.0000000001),"-12");
+}
+
+TEST(EditorBankMenu, GroupsParentsAndKeepsOnlyRealBanksSelectable)
+{
+    const auto tree=editorBankMenu({{"Collection.zip/Analog/Bass","Collection.zip/Analog/Bass"},
+        {"Collection.zip/Analog/Lead","Collection.zip/Analog/Lead"},
+        {"Collection.zip/Pads","Collection.zip/Pads"},
+        {"Collection.zip/Analog","Collection.zip/Analog"},{".","Library root"}});
+    ASSERT_EQ(tree.size(),2u);
+    const auto& collection=tree[0];EXPECT_EQ(collection.label,"Collection.zip");
+    EXPECT_TRUE(collection.bankId.empty());ASSERT_EQ(collection.children.size(),2u);
+    const auto& analog=collection.children[0];EXPECT_EQ(analog.label,"Analog");
+    EXPECT_EQ(analog.bankId,"Collection.zip/Analog");ASSERT_EQ(analog.children.size(),2u);
+    EXPECT_EQ(analog.children[0].bankId,"Collection.zip/Analog/Bass");
+    EXPECT_EQ(analog.children[1].label,"Lead");
+    EXPECT_EQ(tree[1].bankId,".");
+    EXPECT_TRUE(editorBankMenu({}).empty());
+    const auto duplicates=editorBankMenu({{"bank-a","Same"},{"bank-b","Same"}});
+    ASSERT_EQ(duplicates.size(),2u);EXPECT_NE(duplicates[0].bankId,duplicates[1].bankId);
 }

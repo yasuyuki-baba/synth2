@@ -124,3 +124,7 @@ native SDKs. It validates generated metadata, not native bundle/DAW operation.
 `PatchFormatTest.cpp` checks opaque header and named color decoding, duplicate
 unknown keys, export after edits, renaming, project recall and metadata clearing
 on replacement. Native library marker drawing requires manual GUI verification.
+
+Editor bank-menu tests cover classification-only folders, direct sounds alongside
+sub-banks, duplicate display names and root banks. Catalog tests distinguish direct
+bank filtering from All banks. Native submenu interaction requires manual verification.

@@ -45,7 +45,8 @@
   from original `.sy1` files and DAW sound state; combine bank, tag and keyword
   filters without loading a sound. See [library behavior](docs/gui/patch-library.md).
   Do not bundle or privilege a factory bank. Start with Init and an empty library;
-  all added banks share the same import and metadata behavior. File deletion and
+  all added banks share the same import and metadata behavior. Use a hierarchical
+  bank menu with classification-only parents, direct-bank selection and All banks. File deletion and
   renaming belong in the system file manager, not editor removal controls.
 
 ## Architecture boundaries
