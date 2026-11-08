@@ -93,7 +93,7 @@ namespace synth2::midi
             interval = nextInterval;
             idleGate=params.gate;
             nativeRandomTiming=nativeClockTiming && params.nativeRandom && params.type==4 && nativeRandomSource!=nullptr;
-            nativeIdleTiming=nativeClockTiming && ((params.type>=1 && params.type<=3) || nativeRandomTiming) && idleGate>0 && (idleGate<127 || (nativeRandomTiming && idleGate==127));
+            nativeIdleTiming=nativeClockTiming && ((params.type>=1 && params.type<=3) || nativeRandomTiming) && idleGate>0 && idleGate<=127;
             if(!nativeIdleTiming)for(auto& ch:channels)ch.idleNext=infinity;
             idleGateFrames=nativeIdleTiming ? std::max(1,dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),idleGate)) : 0;
             if (params.enabled != enabled)
@@ -150,11 +150,12 @@ namespace synth2::midi
                         if(std::ceil(ch.idleNext-1e-8)<=sample)
                         {
                             boundary(start+static_cast<int>(sample-begin));
-                            if(nativeRandomTiming && idleGate==127)
+                            if(idleGate==127)
                             {
-                                // Full gate has one empty octave draw per
-                                // period and no separate gate-off transition.
-                                nativeRandomSource->next();ch.idleNext+=interval;
+                                // Full gate keeps one idle boundary per period.
+                                // Only random order consumes an octave draw.
+                                if(nativeRandomTiming)nativeRandomSource->next();
+                                ch.idleNext+=interval;
                             }
                             else
                             {

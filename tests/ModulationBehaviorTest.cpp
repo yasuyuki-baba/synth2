@@ -728,3 +728,54 @@ TEST(AmplitudeInputs, RepeatedGainSpansStopAtTheDeclaredEventBoundary)
     EXPECT_EQ(actual.getCounter(),expected.getCounter());
     EXPECT_EQ(actual.getLevel(),expected.getLevel());
 }
+
+TEST(ModulationInputs, RingRetainsPhysicalFmSlewAndResumesWhenDisabled)
+{
+    using namespace synth2::dsp;
+    synth2::RenderControls controls;controls.ringMod=1;controls.osc1FmAmount=0;
+    auto config=synth2::render::oscillatorControls(controls,44100,false);
+    FrequencyModulation state;state.settle=false;state.current=state.target=4096.25;
+    state.elapsed=44;
+    VoiceControlBuffer envelope{},depth{};VoiceSpanBuffer spans{};
+    for(int i=0;i<256;++i)spans[i]=256-i;
+    OscillatorControlRenderer::fm(config,{},state,256,envelope,spans,depth);
+    for(double value:depth)EXPECT_EQ(value,4096.25);
+    EXPECT_EQ(state.target,0);EXPECT_EQ(state.current,4096.25);
+    EXPECT_EQ(state.remaining,44);EXPECT_EQ(state.elapsed,44);
+    // A different physical core must still advance while this core uses Ring.
+    auto independent=state;
+    controls.ringMod=0;config=synth2::render::oscillatorControls(controls,44100,false);
+    OscillatorControlRenderer::fm(config,{},independent,256,envelope,spans,depth);
+    EXPECT_EQ(independent.current,0);EXPECT_EQ(independent.remaining,0);
+    EXPECT_EQ(state.current,4096.25);EXPECT_EQ(state.remaining,44);
+    OscillatorControlRenderer::fm(config,{},state,256,envelope,spans,depth);
+    EXPECT_EQ(depth.front(),4096.25);EXPECT_EQ(depth.back(),0);
+    EXPECT_EQ(state.current,0);EXPECT_EQ(state.remaining,0);
+}
+
+TEST(ModulationInputs, GlidePublishesNestedFmDispatchSpansWithoutChangingPitch)
+{
+    using namespace synth2::dsp;
+    OscillatorControlSettings config;config.portamentoDial=40;config.applyPortamento=true;
+    Portamento state;state.setDuration(Portamento::timeSeconds(40),44100);
+    state.note=60;state.setNote(72,true);
+    auto reference=state;
+    VoiceSpanBuffer spans{};VoiceControlBuffer pitch{},expected{};
+    // Two upstream regions: glide must retain their boundary while refining it.
+    for(int i=0;i<64;++i)spans[i]=(i<45 ? 45 : 64)-i;
+    std::vector<int> ends;int position=0;
+    for(int frames:{45,19})reference.render(frames,[&](double value,int count){
+        std::fill_n(expected.data()+position,count,value);position+=count;ends.push_back(position);
+    });
+    OscillatorControlRenderer::glide(config,{},state,64,spans,pitch);
+    int begin=0;for(int end:ends){for(int i=begin;i<end;++i){EXPECT_EQ(spans[i],end-i);EXPECT_EQ(pitch[i],expected[i]);}begin=end;}
+    ASSERT_GT(ends.size(),2u);EXPECT_EQ(state.elapsed,reference.elapsed);
+    // A pending FM transition must see the first glide request horizon, not 64.
+    config.fmAmount=0;FrequencyModulation fm;fm.settle=false;fm.current=fm.target=1024.5;
+    fm.elapsed=44;VoiceControlBuffer envelope{},actual{},manual{};
+    auto expectedFm=fm;position=0;begin=0;
+    for(int end:ends){expectedFm.render(0,end-begin,44100,[&](double value){manual[position++]=value;});begin=end;}
+    OscillatorControlRenderer::fm(config,{},fm,64,envelope,spans,actual);
+    for(int i=0;i<64;++i)EXPECT_EQ(actual[i],manual[i]);
+    EXPECT_EQ(fm.elapsed,expectedFm.elapsed);EXPECT_EQ(fm.remaining,expectedFm.remaining);
+}

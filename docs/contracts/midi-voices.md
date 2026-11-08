@@ -14,8 +14,11 @@ Equal-value controller setters may still split rendering or restart receivers.
 Keep per-note velocity gain and actual physical-core ownership through program
 changes. Combine root region limits before advancing shared modulation state.
 
-Native ARP stop clears held keys and pedal state, but restarts the empty clock and
-consumes its shared draw. An absent-key Note Off can also restart that clock.
+Native ARP stop clears held keys and pedal state, but restarts the empty clock.
+Random order consumes its shared draw; ordered modes do not draw random values.
+An absent-key Note Off can also restart that clock. Ordered and admitted random
+ARP retain empty-keyboard render boundaries at partial and full gate. Full gate
+has one boundary per period, including while existing voices are releasing.
 Preserve upstream LFO key/pedal tracking. Connected full-gate assignments retain
 the observed note-off/on ordering without releasing the core between assignments.
 Deterministic LFO waveforms do not by themselves invalidate the running ARP clock.

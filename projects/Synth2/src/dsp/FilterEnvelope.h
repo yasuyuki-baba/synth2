@@ -50,7 +50,9 @@ namespace synth2::dsp
         void noteOn() noexcept
         {
             phase=Phase::Attack;
-            counter=level!=0 && peak>0 ? static_cast<int>(static_cast<double>(attack)*level/peak) : 0;
+            // Restart position is discrete metadata; retain the real level.
+            const double restartLevel=std::trunc(level);
+            counter=level!=0 && peak>0 ? static_cast<int>(static_cast<double>(attack)*restartLevel/peak) : 0;
         }
         void noteOff() noexcept
         {

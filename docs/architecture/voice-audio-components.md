@@ -76,3 +76,19 @@ retains per-core/unison positions only, without a separate global sum factor.
 OutputPipelineSettings has no native-performance flag selecting static balance. Keep
 source/history-aware scheduling separate from that kernel and retain the
 mono/stereo coefficient rules.
+
+Ring takes precedence over FM audio processing. Its control dispatch still updates
+FM targets and elapsed receiver time, but retains the physical FM slew value and
+remaining samples. Disabling Ring resumes that same slew. Retained FM depth also
+participates in waveform-specific Ring wrapper gain selection.
+
+OscillatorControlRenderer refines modulation-envelope spans with each portamento
+region before FM rendering. Those spans are scheduling metadata, independent of
+whether adjacent real pitch values are equal. FM must retain the nested glide
+dispatch boundaries; all-core envelope, glide, FM and filter ordering is preserved.
+
+FM product correction preserves the float-product/truncated integer knots of real
+phase-depth coordinates. Fractional depth interpolates adjacent knots before the
+existing bounded carry/feedback step. Sync/noise retains its compatible reference
+clock. Filter-envelope retrigger uses a discrete whole-level restart anchor while
+keeping the real retained level through peak edits and note assignment.

@@ -32,7 +32,9 @@ TEST(FmPhaseCorrection, ConstantCoefficientDoesNotAccumulateQuantizationDrift)
     uint32_t phase=0;int64_t difference=0;
     constexpr float depth=123456.75f,source=.3f;
     const int32_t native=static_cast<int32_t>(depth*source);
-    const double bound=31*std::abs(static_cast<double>(depth)*source-native)+1;
+    // Adjacent compatible products for 123456 and 123457 are 37036/37037.
+    const double interpolated=37036.75;
+    const double bound=31*std::abs(interpolated-native)+1;
     for(int i=0;i<20000;++i)
     {
         const auto result=correction.advance(depth,source,400000,phase,true);
@@ -52,7 +54,7 @@ TEST(FmPhaseCorrection, ReferenceClockPreservesSynchronizedNoiseHistory)
         const float nativeSource=nativeNoise.sample()*.65f;
         const float source=correctedNoise.sample()*.65f;
         ASSERT_EQ(source,nativeSource);
-        const float depth=static_cast<float>((i/64)%16)*100000;
+        const float depth=static_cast<float>((i/64)%16)*100000+.25f;
         const auto result=correction.advance(depth,source,400000,phase,true);
         const uint32_t next=(nativePhase+400000+static_cast<uint32_t>(static_cast<int32_t>(depth*nativeSource)))&mask;
         EXPECT_EQ(result.referenceBefore,nativePhase);EXPECT_EQ(result.referenceAfter,next);
@@ -76,7 +78,7 @@ TEST(FmPhaseCorrection, OscillatorUsesReferencePhaseForNoiseSync)
     bool phaseDiffers=false;
     for(int frame=0;frame<20000;++frame)
     {
-        const float depth=static_cast<float>((frame/64)%16)*100000;
+        const float depth=static_cast<float>((frame/64)%16)*100000+.25f;
         const auto render=[&](auto& oscillator,bool correcting) {
             return oscillator.processSample(261.625f,261.625f,.5f,1,depth,true,false,
                 0,0,0,nullptr,-1,0,0,false,correcting);
@@ -247,7 +249,8 @@ TEST(FmPhaseCorrection, AudioAdapterRetainsWideDepthWithCompatibleSyncReference)
     }
     synth2::dsp::OscillatorAudioInput input{};
     input.firstFrequency=input.secondFrequency=261.625f;
-    input.pulseWidth=.5f;input.mix=1;input.sync=true;input.fmDepth=67108863.25;
+    input.pulseWidth=.5f;input.mix=1;input.sync=true;// This coordinate spans distinct float-product knots at wide depth.
+    input.fmDepth=67108861.25;
     synth2::dsp::OscillatorAudioSettings config{};config.correctFmPhase=true;
     config.subOctave=0;
     bool phaseDiffers=false;
@@ -264,4 +267,32 @@ TEST(FmPhaseCorrection, AudioAdapterRetainsWideDepthWithCompatibleSyncReference)
         phaseDiffers|=wide.getOsc1Phase()!=narrow.getOsc1Phase();
     }
     EXPECT_TRUE(phaseDiffers);
+}
+
+TEST(FmPhaseCorrection, IntegerDepthKnotsKeepFractionalSourceNativeIncrements)
+{
+    for(double depth:{0.,1.,12345.,67108863.})for(float source:{-.731f,-.123f,.123f,.731f})
+    {
+        synth2::dsp::FmPhaseCorrection state;uint32_t phase=1234;
+        const auto native=static_cast<uint32_t>(static_cast<int32_t>(static_cast<float>(depth)*source));
+        for(int i=0;i<128;++i){auto result=state.advance(depth,source,400000,phase,true);
+            EXPECT_EQ(result.audibleOffset,native);EXPECT_EQ(result.referenceOffset,native);
+            phase=(phase+400000+result.audibleOffset)&mask;EXPECT_EQ(phase,result.referenceAfter);}
+    }
+}
+TEST(FmPhaseCorrection, FractionalDepthInterpolatesAdjacentIntegerProductKnots)
+{
+    for(double depth:{12345.25,12345.75,-12345.25})for(float source:{-.731f,.731f})
+    {
+        const int low=static_cast<int>(std::floor(depth));
+        const double first=static_cast<int32_t>(static_cast<float>(low)*source);
+        const double second=static_cast<int32_t>(static_cast<float>(low+1)*source);
+        const double target=first+(second-first)*(depth-low);
+        const int native=static_cast<int32_t>(static_cast<float>(depth)*source);
+        synth2::dsp::FmPhaseCorrection state;uint32_t phase=0;int64_t delta=0;
+        for(int i=0;i<1024;++i){auto result=state.advance(depth,source,400000,phase,true);
+            delta+=offset(result.audibleOffset)-offset(result.referenceOffset);
+            phase=(phase+400000+result.audibleOffset)&mask;}
+        EXPECT_NEAR(static_cast<double>(delta),31*(target-native),1.01);
+    }
 }

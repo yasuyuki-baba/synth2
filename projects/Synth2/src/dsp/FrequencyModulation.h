@@ -33,7 +33,7 @@ namespace synth2::dsp
                 return compatibleControlCurve(control,[&](int modulation){return depth(source,modulation);});
             });
         }
-        template<class Segment> int render(double desired,int frames,int rate,Segment&& segment,bool oneRegion=false) noexcept
+        template<class Segment> int render(double desired,int frames,int rate,Segment&& segment,bool oneRegion=false,bool advanceSlew=true) noexcept
         {
             const int requested=frames;
             while(frames>0)
@@ -54,7 +54,9 @@ namespace synth2::dsp
                 for(int i=0;i<count;++i)
                 {
                     segment(current);
-                    if(slewing && remaining>0)
+                    // Ring dispatch retains the receiver clock and target, but its
+                    // audio kernel does not consume the FM slew.
+                    if(advanceSlew && slewing && remaining>0)
                     {
                         if((remaining&31)==0)
                         {

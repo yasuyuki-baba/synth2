@@ -128,3 +128,37 @@ TEST(Arpeggiator, ParameterMappingConnectsAllImportedControls)
     EXPECT_TRUE(p.arpeggiator.enabled); EXPECT_EQ(p.arpeggiator.type,3);
     EXPECT_EQ(p.arpeggiator.range,2); EXPECT_EQ(p.arpeggiator.beat,14); EXPECT_EQ(p.arpeggiator.gate,96);
 }
+
+TEST(Arpeggiator, OrderedFullGateKeepsIdlePeriodsWithoutRandomDraws)
+{
+    using synth2::audio::MidiMessage;
+    // At 1 kHz and 120 BPM, a sixteenth-note period is 125 frames.
+    for(int type:{1,2,3})for(int block:{1,64,257})for(int release:{0,1,2})
+    {
+        auto p=defaults();p.type=type;p.gate=127;p.range=0;
+        auto input=held({60});
+        if(release==1)input.addEvent(MidiMessage::controllerEvent(1,64,127),10);
+        input.addEvent(MidiMessage::noteOff(1,60),37);
+        if(release==1)input.addEvent(MidiMessage::controllerEvent(1,64,0),87);
+        if(release==2)input.addEvent(MidiMessage::allSoundOff(1),87);
+        const int emptyAt=release==0 ? 37 : 87;
+        synth2::midi::Arpeggiator arp;arp.prepare(1000);
+        synth2::dsp::CrtRandom random;random.state=12345;arp.setNativeRandomSource(&random);
+        std::vector<int> idle;Events events;
+        for(int pos=0;pos<500;pos+=block)
+        {
+            const int count=std::min(block,500-pos);constexpr int prefix=7;
+            synth2::audio::MidiBuffer part;
+            for(auto event:input)if(event.samplePosition>=pos && event.samplePosition<pos+count)
+                part.addEvent(event.getMessage(),event.samplePosition-pos+prefix);
+            arp.process(part,prefix,count,p,120,[&](const auto& message,int frame){capture(events,message,pos+frame-prefix);},
+                [&](int frame){const int absolute=pos+frame-prefix;if(absolute>emptyAt)idle.push_back(absolute);});
+        }
+        std::vector<int> expected;for(int frame=emptyAt+125;frame<500;frame+=125)expected.push_back(frame);
+        EXPECT_EQ(idle,expected);EXPECT_EQ(random.state,12345u);
+        for(const auto& event:notes(events))EXPECT_LT(std::get<0>(event),emptyAt);
+        p.enabled=false;synth2::audio::MidiBuffer empty;idle.clear();
+        arp.process(empty,0,500,p,120,[](const auto&,int){},[&](int frame){idle.push_back(frame);});
+        EXPECT_TRUE(idle.empty());
+    }
+}
