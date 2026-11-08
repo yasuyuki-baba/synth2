@@ -15,6 +15,7 @@ namespace synth2::dsp
         float portamentoDial {-1};
         double sampleRate {44100.0};
         float fmAmount {};
+        bool ringMod {};
     };
     // Caller-owned buffers and state; no global clocks, RNG or voice lifecycle.
     struct OscillatorControlRenderer
@@ -38,7 +39,7 @@ namespace synth2::dsp
             }
         }
         static void glide(const OscillatorControlSettings& config,const ReceiverLfoView& lfos,
-            Portamento& state,int count,const VoiceSpanBuffer& remaining,VoiceControlBuffer& pitch)
+            Portamento& state,int count,VoiceSpanBuffer& remaining,VoiceControlBuffer& pitch)
         {
             std::fill_n(pitch.data(),count,0);
             if(config.portamentoDial<0)return;
@@ -52,6 +53,9 @@ namespace synth2::dsp
                 if(config.oscillatorLfo)frames=lfos.oscillatorFrames(position,frames);
                 state.render(frames,[&](double control,int size) {
                     if(config.applyPortamento)std::fill_n(pitch.data()+position,size,control);
+                    // FM dispatch is nested inside each glide region, even
+                    // when consecutive pitch values happen to be equal.
+                    for(int i=0;i<size;++i)remaining[position+i]=size-i;
                     position+=size;
                 });
             }
@@ -79,7 +83,7 @@ namespace synth2::dsp
                 const int start=position;
                 state.render(FrequencyModulation::depth(static_cast<double>(fractionalDial(config.fmAmount)),control),
                     frames,static_cast<int>(config.sampleRate),
-                    [&](double value){depth[position++]=value;},coarse!=nullptr);
+                    [&](double value){depth[position++]=value;},coarse!=nullptr,!config.ringMod);
                 if(coarse!=nullptr)
                 {
                     std::fill(exponents->begin()+start,exponents->begin()+position,coarse->cached);

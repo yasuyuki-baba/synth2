@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "CompatibleControlCurve.h"
 
 namespace synth2::dsp
 {
@@ -29,7 +30,11 @@ namespace synth2::dsp
             {
                 ready=true;reference=phase;phaseError=phaseCarry=0;
             }
-            const double product=depth*static_cast<double>(source);
+            // Preserve compatible integer depth knots, interpolating real depth
+            // through the same mapping rather than changing the phase policy.
+            const double product=compatibleControlCurve(depth,[&](int value){
+                return static_cast<int32_t>(static_cast<float>(value)*source);
+            });
             const double nextError=(phaseError+product-native)*(31.0/32.0);
             const double value=static_cast<double>(native)+nextError-phaseError+phaseCarry;
             const int32_t audible=static_cast<int32_t>(value);

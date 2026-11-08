@@ -95,3 +95,17 @@ TEST(FilterEnvelopePrecision, CommonConfiguratorPreservesIntegralSourceNormaliza
             EXPECT_EQ(keyboard,0);EXPECT_EQ(envelope.getLevel(),expected);
         }
 }
+
+TEST(FilterEnvelopePrecision, RetriggerKeepsRealLevelAndUsesDiscreteRestartAnchor)
+{
+    for(bool release:{false,true})for(double peak:{103.,103.25})
+    {
+        auto envelope=attacking();envelope.configure(100,1000,peak,0,10000);
+        if(release)envelope.noteOff();
+        const double level=envelope.getLevel();ASSERT_GT(level,std::trunc(level));
+        envelope.noteOn();EXPECT_EQ(envelope.getLevel(),level);
+        EXPECT_EQ(envelope.getCounter(),static_cast<int>(100*std::trunc(level)/peak));
+        envelope.configure(100,1000,0,0,10000);envelope.noteOn();
+        EXPECT_EQ(envelope.getCounter(),0);EXPECT_EQ(envelope.getLevel(),0);
+    }
+}

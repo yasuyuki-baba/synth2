@@ -38,7 +38,7 @@ namespace synth2::render
     {
         return {p.modEnv.on && p.modEnv.dest>=0 && p.modEnv.dest<=3 && !bypass,
             p.nativePitchLfo || p.nativePulseWidthLfo || p.nativeFmLfo,p.sourcePortamentoDial>0,
-            p.modEnv.dest==2,p.nativeFmLfo,p.sourcePortamentoDial,rate,p.osc1FmAmount};
+            p.modEnv.dest==2,p.nativeFmLfo,p.sourcePortamentoDial,rate,p.osc1FmAmount,p.ringMod>0.0f};
     }
     inline dsp::FilterControlSettings filterControls(const RenderControls& p,bool bypass)
     { return {!bypass,p.nativeFilterLfo,filterControlIndex(p)}; }

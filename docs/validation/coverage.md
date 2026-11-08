@@ -168,3 +168,15 @@ selectable parent folders, All banks, empty catalogs and non-wrapping ends.
 Editor resize tests cover proportional scaling, platform pixel ratios, keyboard
 height, standalone drag-axis selection, host-bound fitting, limits and zero sizes.
 Native window notifications, dragging and scaled hit testing require manual checks.
+
+`ModulationInputs.RingRetainsPhysicalFmSlewAndResumesWhenDisabled` checks Ring
+receiver retention, resumption and independence between physical FM states.
+
+`Arpeggiator.OrderedFullGateKeepsIdlePeriodsWithoutRandomDraws` covers all three
+ordered modes, callback offsets and sizes, key release, sustain release, stop and
+disable. `ModulationInputs.GlidePublishesNestedFmDispatchSpansWithoutChangingPitch`
+checks nested upstream/glide boundaries, pitch preservation and FM dispatch timing.
+
+FM phase tests cover integer depth with fractional sources, adjacent product-knot
+interpolation and fractional-depth synchronized-noise histories. Filter precision
+tests separate retained real levels from discrete retrigger anchors.
