@@ -26,7 +26,7 @@ namespace synth2::render
                 break;
             }
             case 21:target.filterEnvAmount=(dial-63.0f)/64.0f;break;
-            case 22:target.filterKeyTrackNorm=unit;target.filterTracking=std::log2(1.0f+unit);break;
+            case 22:target.filterKeyTrackNorm=unit;break;
         }
     }
 }

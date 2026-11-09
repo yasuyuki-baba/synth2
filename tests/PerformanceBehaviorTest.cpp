@@ -248,10 +248,9 @@ TEST(ControllerBehavior, WheelUsesConfiguredFmAndFilterRoutesWithoutChangingStor
 
 TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
 {
-    for(bool configured:{false,true})
     {
         synth2::RenderControls controls;controls.pitchBendRange=12;
-        synth2::dsp::CrtRandom arpRandom;synth2::VoiceDispatcher dispatcher(arpRandom);dispatcher.params=configured ? &controls : nullptr;
+        synth2::dsp::CrtRandom arpRandom;synth2::VoiceDispatcher dispatcher(arpRandom);dispatcher.params=&controls;
         dispatcher.setCurrentPlaybackSampleRate(44100);
         dispatcher.addSound(new synth2::SynthSound);
         auto* voice=new synth2::test::PooledTestVoice(controls);voice->prepare(44100);dispatcher.addVoice(voice);
@@ -261,7 +260,7 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
         midi.addEvent(synth2::audio::MidiMessage::noteOn(2,69,1.f),0);
         dispatcher.renderRegion(audio,midi,0,64);
         EXPECT_NEAR(voice->getCurrentFrequency(),440*std::pow(2.,4./128),.001);
-        if(configured)EXPECT_EQ(dispatcher.pitchBendWords(2),(std::array<int,4>{2,63,1,4}));
+        EXPECT_EQ(dispatcher.pitchBendWords(2),(std::array<int,4>{2,63,1,4}));
         EXPECT_EQ(dispatcher.pitchBendWords(1),(std::array<int,4>{0,0,0,0}));
     }
 }

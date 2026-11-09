@@ -228,7 +228,7 @@ int main(int argc,char** argv) try {
         if(std::getenv("SYNTH2_PROBE_PERFORMANCE_SNAPSHOT") && rendered>=8064 && rendered<=8448)
         {
             synth2::RenderControls values;synth2::readMappedSynthParams(*processor,values);
-            std::cerr << "PERFORMANCE_POLICY " << rendered << ' ' << values.nativeFilterEnvelope << ' ' << values.nativeVoicePerformance << '\n';
+            std::cerr << "PERFORMANCE_POLICY " << rendered << ' ' << true << ' ' << true << '\n';
             for(size_t voice=0;voice<32;++voice)
             {
                 std::array<uint32_t,16> words{};std::array<uint32_t,22> floats{};
@@ -248,7 +248,7 @@ int main(int argc,char** argv) try {
             if(!synth2::readNativePitchBendWords(*processor,pitch))throw std::runtime_error("Cannot inspect pitch bend");
             controllerTrace<<rendered+samplesThisBlock;
             for(auto word:pitch)controllerTrace<<'\t'<<word;
-            controllerTrace<<'\t'<<values.nativeVoicePerformance<<'\t'
+            controllerTrace<<'\t'<<true<<'\t'
                 <<values.cutoffIndex<<'\t'<<values.osc1FmAmount<<'\t'
                 <<values.ampGainMultiplier<<'\t'<<values.lfo1.amount<<'\t'<<values.lfo2.amount<<'\n';
         }

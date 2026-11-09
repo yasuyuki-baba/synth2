@@ -9,13 +9,6 @@ namespace synth2::dsp
     using VoiceControlBuffer=std::array<ControlSignal,256>;
     using VoiceSpanBuffer=std::array<int,256>;
 
-    inline int constantControlSpan(const VoiceControlBuffer& values,int position,int frames) noexcept
-    {
-        int count=1;
-        while(count<frames && values[position+count]==values[position])++count;
-        return count;
-    }
-
     struct ReceiverLfoView
     {
         struct Receiver { bool enabled {};int destination {}; };

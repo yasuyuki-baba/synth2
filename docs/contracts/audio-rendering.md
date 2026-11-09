@@ -100,8 +100,8 @@ Pulse, stack and nonlinear mode kernels retain their own defined phase/gain rule
 Mapped amplitude uses the same gain curve and VCA gain application for ordinary
 notes and arpeggios. Source format does not select an alternate gain calculation.
 Deterministic amplitude LFOs share the clock, receiver knots and VCA target/ramp
-processing across formats. A slot consumed by the VCA is skipped individually in
-the direct modulation router; another nonadmitted slot must retain its modulation.
+processing across formats. Each slot is consumed once at its destination; no
+normalized modulation router or duplicate postmix factor remains.
 Keep fractional phase interpolation and the existing real envelope levels.
 VCA Attack targets retain fractional levels rather than truncating to integer
 steps. Distortion-sensitive reference errors must not select an integer Attack
@@ -117,16 +117,12 @@ saturation order.
 
 Every source route uses that filter family and canonical output tone/peak
 processing. There is no alternate approximation or unison gain correction.
-Control scheduling and core-history admission retain their execution histories
-after source-value conversion;
-the retained lifecycle admission flag does not select a filter implementation. At low sample rates, cutoff is
-bounded by Nyquist and recurrence coefficients stay inside their stability
-domain; this does not select another filter algorithm.
-Common native render-policy composition resolves its controls and lifecycle
-choices directly. Restricted oscillator/filter/performance admission applies
-only to unadmitted random histories and keeps its existing order. Deterministic
-sources and mapped oscillator envelopes use common composition independently of
-source format. Resolve sub-receiver
+Control scheduling retains setter/query/advance histories after source conversion.
+Evidence validity does not select another audio or receiver implementation. At low
+sample rates, cutoff is bounded by Nyquist and recurrence coefficients stay in
+their stability domain. Common render policy resolves controls and explicit
+lifecycle decisions without source/history admission branches.
+Resolve sub-receiver
 presence from the incoming real level before compatible level calibration; a
 positive fractional sub dial below0.5 must retain the native gain scale both
 with and without oscillator stacking.
@@ -302,11 +298,9 @@ physical-core envelopes for every caller. Filter control rendering composes the
 real envelope, tracking and cutoff state before the audio kernel; there is no
 parallel sample-clocked filter envelope. Oscillator pitch, FM and pulse-width
 destinations use the resolved Attack/Decay/depth dials and one physical AD state,
-including routes whose LFO histories remain unadmitted. The reserved direct-call
-both-pitch destination uses that same AD state with a one-octave range.
-History admission still controls core reuse and receiver transport; it does not
-choose an envelope generator. Remaining generic LFO/performance offsets must
-reach their filter/FM consumers without double-counting admitted receivers.
+including unverified LFO histories. The unused direct-call both-pitch envelope
+destination is removed; mapped oscillator destinations remain OSC2 pitch, FM and
+pulse width. LFO slots enter the physical receiver once without an admission selector.
 The compatible VCA Decay/Release curves remain unchanged.
 Static and modulated FM use one physical-core FrequencyModulation state and
 receiver renderer. Base-dial setters retain the sample-rate-derived slew horizon,
@@ -363,13 +357,13 @@ for the lower octave. Stacked and ordinary reads keep their established lookup,
 interpolation and lane summation order. Logical note changes must not invent an
 independent sub phase or erase retained physical history.
 
-Additional normalized LFO inputs are converted to destination receiver
-coordinates before physical FM/filter processing or pitch/PW audio mapping. Resolve
-consumption per slot, retain native scheduling views and avoid history-wide input
-suppression. See [modulation input coordinates](modulation.md#input-coordinates-and-consumption).
+All LFO slots use one prepared physical-control block and shared clock/CRT state.
+Evidence validity is diagnostic, not an audio-implementation selector. Preserve
+native query/advance cadence and numerical knots across these consumers.
+See [modulation input coordinates](modulation.md#input-coordinates-and-consumption).
 
 All amplitude LFO inputs reach independent per-slot physical VCA attenuation,
-with shared held spans and additional-control changes retained. No Voice-level
+with shared held spans retained. No Voice-level
 postmix tremolo factor remains. Explicit offline envelope bypass bypasses the
 whole VCA and its modulation. StereoBalance shares static balance coefficients
 across core, unison, output and PanLfo callers while preserving their processing
@@ -377,8 +371,8 @@ stages and multiplication order. PanLfo's cubic curve/slew remain separate from
 static balance; moving gain across nonlinear processing is a behavior change.
 
 Pan-LFO sources compose at output in real64-unit coordinates, after MultiFX/Tone
-and before wet processing. Engine prepares remaining-source projections at their
-MIDI subregions; output consumes each admitted/projected slot once. Global pan
+and before wet processing. Engine prepares physical pan controls at their
+MIDI subregions; output consumes each active slot once. Global pan
 LFO is not applied per Voice. Retain core/unison positions, native output-region
 boundaries, pan device history and semantic-silence handling. The receiver keeps
 its existing stereo-only behavior; static non-LFO balance uses the same output placement for every source.

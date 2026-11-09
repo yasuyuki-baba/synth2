@@ -1,20 +1,15 @@
 #include "SharedModulationRuntime.h"
 #include "FractionalDial.h"
-#include "LfoControlProjection.h"
+#include "LfoShape.h"
 
 namespace synth2::dsp
 {
     void SharedModulationRuntime::retimeClocks(double sampleRate)
     { if(!initial)for(auto& slot:slots)slot.clock.setSampleRate(static_cast<int>(sampleRate)); }
-    void SharedModulationRuntime::prepareSources(double sampleRate,int capacity,const SharedModulationSettings& settings)
+    void SharedModulationRuntime::prepareBlock(int capacity)
     {
-        sharedBlock.samples.setSize(2,std::max(1,capacity));sharedBlock.startSample=0;
-        slots[0].source.prepare(sampleRate);slots[1].source.prepare(sampleRate);
-        constexpr float initialPhase=.3f;resetPhase=0;
-        slots[0].previousShared=settings.lfos[0].nativeSharedClock;
-        slots[1].previousShared=settings.lfos[1].nativeSharedClock;
-        slots[0].source.setPhase(settings.lfos[0].nativeSharedClock ? resetPhase : initialPhase);
-        slots[1].source.setPhase(settings.lfos[1].nativeSharedClock ? resetPhase : initialPhase);
+        sharedBlock.frameCapacity=std::clamp(capacity,1,256);
+        sharedBlock.startSample=0;
     }
     void SharedModulationRuntime::beginChunk(int start)
     { sharedBlock.startSample=start; }
@@ -44,15 +39,13 @@ namespace synth2::dsp
                 const LfoSettings* controls[] {&settings.lfos[0],&settings.lfos[1]};
                 for (size_t i = 0; i < 2; ++i)
                 {
-                    if (controls[i]->keySync)
-                        slots[i].source.setPhase(resetPhase);
                     // The native first-key gate resets key-synced clocks even
                     // while their modulation is disabled.
                     if (controls[i]->keySync)
                     {
                         slots[i].clock.resetPhase();
                         random.resetPhase(i,slots[i].clock.counter,
-                                controls[i]->nativeSharedClock ? fractionalDial(controls[i]->amount) : -1.0f);
+                                fractionalDial(controls[i]->amount));
                     }
                 }
             }
@@ -143,9 +136,7 @@ namespace synth2::dsp
             }
             else if(slots[i].rateTouched || dial != slots[i].previousRate || (tempoChanged && slots[i].tempoSync))updateRate(i,dial,settings.hostBpm);
             slots[i].previousRate=dial;
-            const bool active = lfoControls[i]->nativeSharedClock;
-            if (active && !slots[i].previousShared) slots[i].source.setPhase(resetPhase);
-            slots[i].previousShared = active;
+
         }
         initial = false;
         reload = false;
@@ -168,66 +159,49 @@ namespace synth2::dsp
         for (int lfo = 0; lfo < 2; ++lfo)
         {
             auto* clock=&slots[lfo].clock;
-            if (controls[lfo]->nativeSharedClock)
+            const LfoShape::DepthCurve depth(controls[lfo]->dest,fractionalDial(controls[lfo]->amount));
+            // Receiver queries use the clock's actual synchronized step,
+            // not the free-rate dial's threshold.
+            const int step=clock->step;
+            int remaining=0;double target=0;
+            for (int i = 0; i < count; ++i)
             {
-                const LfoShape::DepthCurve depth(controls[lfo]->dest,fractionalDial(controls[lfo]->amount));
-                // Receiver queries use the clock's actual synchronized step,
-                // not the free-rate dial's threshold.
-                const int step=clock->step;
-                int remaining=0;double target=0;
-                for (int i = 0; i < count; ++i)
+                if (remaining==0)
                 {
-                    if (remaining==0)
+                    // Native queries offset the retained counter using the current
+                    // period; slew/rescaling occurs after the graph span.
+                    const auto counter=static_cast<uint32_t>((clock->counter+i)%clock->period);
+                    if(controls[lfo]->wave>=4)
                     {
-                        // Native queries offset the retained counter using the current
-                        // period; slew/rescaling occurs after the graph span.
-                        const auto counter=static_cast<uint32_t>((clock->counter+i)%clock->period);
-                        if(controls[lfo]->wave>=4 && random.valid)
-                        {
-                            const auto query=random.query(static_cast<size_t>(lfo),static_cast<int>(counter),clock->period,clock->step,fractionalDial(controls[lfo]->amount));
-                            target=query.first;remaining=query.second<0 ? count-i : query.second;
-                        }
-                        else
-                        {
-                            const auto query=depth.query(controls[lfo]->wave,static_cast<int>(counter),clock->period,step);
-                            target=query.first;remaining=query.second<0 ? count-i : query.second;
-                        }
+                        const auto query=random.query(static_cast<size_t>(lfo),static_cast<int>(counter),clock->period,clock->step,fractionalDial(controls[lfo]->amount));
+                        target=query.first;remaining=query.second<0 ? count-i : query.second;
                     }
-                    // Native graph 0xca70 nests LFO2 queries inside each
-                    // held LFO1 span. Re-query the second control at the
-                    // outer boundary, even when its own span is longer.
-                    const bool dualPitch=settings.pitchReceiver && controls[0]->nativeSharedClock
-                        && (controls[0]->dest == 0 || controls[0]->dest == 1)
-                        && (controls[1]->dest == 0 || controls[1]->dest == 1);
-                    const bool dualFilter=settings.filterReceiver && controls[0]->nativeSharedClock
-                        && controls[0]->dest == 2 && controls[1]->dest == 2;
-                    if(lfo == 1 && (dualPitch || dualFilter || (settings.pulseWidthReceiver
-                        && (settings.pitchReceiver || (controls[0]->nativeSharedClock
-                            && controls[0]->dest == 4 && controls[1]->dest == 4)))))
-                        remaining=std::min(remaining,sharedBlock.controlRemaining[0][offset+i]);
-                    sharedBlock.amplitudeControl[lfo][offset+i]=target;
-                    sharedBlock.controlRemaining[lfo][offset+i]=std::min(remaining,count-i);
-                    --remaining;
-                    sharedBlock.samples.setSample(lfo,offset+i,slots[lfo].source.processSample(*controls[lfo],settings.hostBpm));
+                    else
+                    {
+                        const auto query=depth.query(controls[lfo]->wave,static_cast<int>(counter),clock->period,step);
+                        target=query.first;remaining=query.second<0 ? count-i : query.second;
+                    }
                 }
+                // Native graph 0xca70 nests LFO2 queries inside each
+                // held LFO1 span. Re-query the second control at the
+                // outer boundary, even when its own span is longer.
+                const bool dualPitch=settings.pitchReceiver && controls[0]->on
+                    && (controls[0]->dest == 0 || controls[0]->dest == 1)
+                    && (controls[1]->dest == 0 || controls[1]->dest == 1);
+                const bool dualFilter=settings.filterReceiver && controls[0]->on
+                    && controls[0]->dest == 2 && controls[1]->dest == 2;
+                if(lfo == 1 && (dualPitch || dualFilter || (settings.pulseWidthReceiver
+                    && (settings.pitchReceiver || (controls[0]->on
+                        && controls[0]->dest == 4 && controls[1]->dest == 4)))))
+                    remaining=std::min(remaining,sharedBlock.controlRemaining[0][offset+i]);
+                sharedBlock.controls[lfo][offset+i]=target;
+                sharedBlock.controlRemaining[lfo][offset+i]=std::min(remaining,count-i);
+                --remaining;
             }
-            else
-            {
-                // Prepare shared fallback signals after MIDI dispatch as well.
-                // Keep the running generator/targets on key-sync; no note seed.
-                for(int i=0;i<count;++i)
-                    sharedBlock.samples.setSample(lfo,offset+i,slots[lfo].source.processSample(*controls[lfo],settings.hostBpm));
-            }
-            // Preserve the dial applicable to each MIDI subregion. A later
-            // output callback must not reinterpret earlier normalized samples
-            // using the final depth of the host block.
-            for(int i=0;i<count;++i)
-                sharedBlock.projectedPan[lfo][offset+i]=controls[lfo]->on && controls[lfo]->dest==6
-                    ? LfoControlProjection::fromNormalized(*controls[lfo],sharedBlock.samples.getSample(lfo,offset+i)) : 0;
             // Both native clocks advance even when the LFO is disabled.
             {
                 random.advance(static_cast<size_t>(lfo),count,clock->counter,clock->period,
-                    controls[lfo]->nativeSharedClock ? fractionalDial(controls[lfo]->amount) : -1.0f);
+                    fractionalDial(controls[lfo]->amount));
                 clock->advance(count);
             }
         }

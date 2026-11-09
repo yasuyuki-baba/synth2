@@ -206,7 +206,7 @@ TEST(EnvelopeBehavior, DirectFilterEnvelopeUsesPhysicalStateWithoutHistoryAdmiss
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> words{};ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
-    EXPECT_GT(words[10],0u);EXPECT_GT(words[11],0u);EXPECT_FALSE(p.nativeFilterEnvelope);
+    EXPECT_GT(words[10],0u);EXPECT_GT(words[11],0u);
 }
 
 TEST(EnvelopeBehavior, DirectOscillatorEnvelopeUsesResolvedDialsWithoutReceiverAdmission)
@@ -218,13 +218,13 @@ TEST(EnvelopeBehavior, DirectOscillatorEnvelopeUsesResolvedDialsWithoutReceiverA
     for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();a->renderNextBlock(audio,0,64);b->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> first{},second{};ASSERT_TRUE(a->readRenderingCoreWords(0,first));ASSERT_TRUE(b->readRenderingCoreWords(0,second));
-    EXPECT_GT(first[5],second[5]*4);EXPECT_FALSE(on.modEnv.nativePitch);
+    EXPECT_GT(first[5],second[5]*4);
 }
 
 TEST(FmBehavior, DirectStaticFmUsesTheSamePhysicalSlewWithoutHistoryAdmission)
 {
     synth2::RenderControls direct;direct.osc1FmAmount=32.25f/127.f;
-    auto admitted=direct;admitted.modEnv.nativeFm=true;
+    auto admitted=direct;
     auto a=std::make_unique<synth2::test::PooledTestVoice>(direct),b=std::make_unique<synth2::test::PooledTestVoice>(admitted);
     for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> audio(2,64);
@@ -287,8 +287,8 @@ TEST(PanInputs, VoiceRetainsUnisonPlacementWithoutApplyingTheGlobalPanLfo)
     p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=1;
     auto reference=p;reference.lfo1.on=false;reference.pan=0;
     auto actual=std::make_unique<synth2::test::PooledTestVoice>(p),expected=std::make_unique<synth2::test::PooledTestVoice>(reference);
-    synth2::dsp::LfoBlock lfos;lfos.samples.setSize(2,64);lfos.samples.clear();
-    for(int frame=0;frame<64;++frame)lfos.samples.setSample(0,frame,1);
+    synth2::dsp::LfoBlock lfos;lfos.controls[0].fill(64);
+    for(int frame=0;frame<256;++frame)lfos.controlRemaining[0][frame]=256-frame;
     actual->setGlobalLfoBlock(&lfos);
     for(auto* voice:{actual.get(),expected.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> first(2,64),second(2,64);first.clear();second.clear();
@@ -302,7 +302,7 @@ TEST(PanInputs, OversizeUnknownHistoryCallbacksKeepEveryChunkAndSurroundingSampl
 {
     auto engine=std::make_unique<synth2::SynthEngine>();auto& p=engine->getParams();
     p.osc1WaveIndex=1.1f;p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=.5f;
-    ASSERT_FALSE(p.nativePanLfo);ASSERT_FALSE(p.nativeVoicePerformance);
+
     engine->prepareToPlay(44100,64);
     synth2::audio::AudioBuffer<float> audio(2,1040);audio.clear();
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<1040;++frame)
@@ -355,23 +355,23 @@ TEST(TuningBehavior, OneNoteCoarseAndFineCalculationPreservesFractionalControls)
     EXPECT_NEAR(fixedLow.prepareCore(.125f).second,440*std::pow(2.,.75/1200),.0001);
 }
 
-TEST(TuningBehavior, DirectBendUsesTheSameThirtyTwoFrameReceiverPartitions)
+TEST(TuningBehavior, ChannelBendUsesThirtyTwoFramePartitionsAcrossCallbacks)
 {
     for(int target:{8320,16383})
     {
-        synth2::RenderControls p;p.pitchBendRange=12;
-        auto whole=std::make_unique<synth2::test::PooledTestVoice>(p),split=std::make_unique<synth2::test::PooledTestVoice>(p);
-        whole->prepare(44100);split->prepare(44100);
-        whole->startNote(69,1,nullptr,8192);split->startNote(69,1,nullptr,8192);
-        whole->pitchWheelMoved(target);split->pitchWheelMoved(target);
+        synth2::SynthEngine whole,split;
+        for(auto* engine:{&whole,&split}){engine->getParams().pitchBendRange=12;engine->prepareToPlay(44100,128);}
+        synth2::audio::MidiBuffer midi,empty;
+        midi.addEvent(synth2::audio::MidiMessage::pitchWheel(1,target),0);
+        midi.addEvent(synth2::audio::MidiMessage::noteOn(1,69,1.f),0);
         synth2::audio::AudioBuffer<float> a(2,128),b(2,128);a.clear();b.clear();
-        whole->renderNextBlock(a,0,128);
-        split->renderNextBlock(b,0,32);
-        if(target==8320)split->renderNextBlock(b,32,96); // Slew has finished: no residual partitions.
-        else for(int start=32;start<128;start+=32)split->renderNextBlock(b,start,32);
+        whole.render(a,midi,0,128);split.render(b,midi,0,32);
+        if(target==8320)split.render(b,empty,32,96);
+        else for(int start=32;start<128;start+=32)split.render(b,empty,start,32);
         for(int channel=0;channel<2;++channel)for(int i=0;i<128;++i)
             EXPECT_EQ(a.getSample(channel,i),b.getSample(channel,i));
-        EXPECT_NEAR(whole->getCurrentFrequency(),440*std::pow(2.,(target==8320 ? 2. : 8.)/128),.001);
+        EXPECT_EQ(whole.pitchBendWords(1),split.pitchBendWords(1));
+        EXPECT_EQ(whole.pitchBendWords(1)[0],target==8320 ? 1 : 4);
     }
 }
 
@@ -387,7 +387,7 @@ TEST(TuningBehavior, GlideUsesThePhysicalReceiverWithoutPerformanceAdmission)
     EXPECT_NEAR(voice->getCurrentFrequency(),440,.001); // Initial held receiver span.
     for(int i=0;i<1000;++i){audio.clear();voice->renderNextBlock(audio,0,32);}
     EXPECT_NEAR(voice->getCurrentFrequency(),880,.001);
-    EXPECT_FALSE(p.nativeVoicePerformance);
+
 }
 
 TEST(AmplitudeBehavior, AttackDurationEditsRetainProgressAndFractionalLevel)

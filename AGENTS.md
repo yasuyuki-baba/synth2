@@ -100,14 +100,11 @@
 - Native input has one omni keyboard/performance state. CC121 resets ordinary
   bend separately from routed pitch, wheel and pedal state. Preserve per-note
   velocity gain and physical-core ownership across program changes.
-- Use one compatible shifted-note/tracked/fixed tuning and physical-core Portamento
-  for every source and direct caller. Keep one ordinary PitchBendSmoother formula,
-  channel-owned by Engine (the same local receiver for direct Voice callers), with
-  native7-bit slew/32-frame root spans and separate14-bit routed pitch. Do not
-  restore tuning flags, Voice exponential glide, a duplicate portamento-admission
-  flag or direct wheel target/amount. Ordinary bend advancement must not depend
-  on an LFO provider; bind a borrowed channel receiver only when the dispatcher
-  has render controls to advance it.
+- Use one compatible shifted-note/tracked/fixed tuning and physical-core Portamento.
+  Ordinary PitchBendSmoother state belongs to the dispatcher channel and advances
+  at root spans of at most32 frames, independently of LFO availability. Voice
+  consumes the resolved offset and owns no local bend receiver or alternate slew.
+  Keep ordinary bend separate from14-bit routed pitch and CC121 route state.
 - Native mono and poly notes share physical core storage. Mono admission pauses
   higher groups; logical retirement must not erase their receiver histories.
   Keep OSC2 coarse exponent, cached frequency and pending-note reset distinct;
@@ -165,11 +162,12 @@
   partitions and downstream phase correction. Do not restore a Voice-owned
   static smoother or an audio depth selector. Preserve base-setter horizons,
   idle settling, sounding retrigger invalidation and live slew retention.
-- Resolve modulation consumption per LFO slot in render adapters. Convert remaining
-  prepared normalized signals through compatible destination/depth endpoints to
-  physical receiver units before FM/filter transfer and pitch/PW mapping. Preserve
-  native scheduling views, change boundaries and missing-source neutrality; do not
-  restore provisional FM phase multipliers or history-wide input suppression.
+- Engine renders one real-valued LFO control stream per slot from shared clocks,
+  compatible depth knots and the shared CRT history. Preserve receiver held spans,
+  nested query ordering and fractional dial interpolation. Evidence validity is
+  diagnostic; it must not choose another waveform generator or random stream.
+  Voice and output adapters borrow physical controls directly; do not restore
+  normalized LFO samples, additional-input selectors or waveform-specific admission.
 - Pan LFO belongs to the output receiver for every source. Engine prepares real
   pan projections at each MIDI subregion; select admitted/projected values per
   slot without duplicate application or source-history promotion. Keep output
@@ -190,32 +188,13 @@
   the product. Unsupported wet rates bypass without an alternate algorithm.
 - OutputPipeline owns output-device history; Engine decides its region and
   prepare/release boundaries. Preserve the existing retention conditions.
-- Common render-policy composition resolves controls directly and retains
-  explicit noise/core-reset decisions. Run restricted oscillator/filter/performance
-  admission only for unadmitted random histories, preserving its existing phase
-  order. Resolved deterministic LFOs and mapped oscillator envelopes use common
-  receiver composition independently of source format; retain source admission
-  and history checks together for random sources.
-  Oscillator table reads use one adjacent-sample interpolation path, and mapped
-  amplitude uses one gain curve/VCA path. Do not restore source-format or ARP
-  switches for table averaging or gain arithmetic. Ring uses one product-mix kernel and
-  takes precedence over FM; keep waveform-specific wrapper gains explicit. Sub
-  uses OSC1-linked full phase and one level/normalizer mapping, including while
-  muted. Do not restore an independent sub oscillator or Ring/sub mode selectors. Deterministic amplitude LFO receivers
-  share clock/control/VCA processing across source formats; retain random-history
-  admission separately. Route admitted/additional amplitude attenuation through
-  independent physical VCA slots, preserving held spans, signal changes and
-  alignment; do not restore a postmix tremolo factor or shared-renderer selector.
-  StereoBalance shares static coefficients only; preserve core/unison/output
-  placement, multiplication order and PanLfo cubic/slew state.
-  Every filter route uses the same compatible mode kernels and canonical output
-  tone/peak processing. Direct EQ callers share that graph; do not restore RBJ or
-  fitted Tone alternatives. EQ controls contain no algorithm or derived-enable
-  selector. Startup output gain always advances, including bypassed/silent regions. Keep source/history-aware control scheduling separate from
-  audio kernel selection; do not restore approximation-specific gain correction.
-  Engine owns every LFO source, including fallback and key-synchronized inputs.
-  Voice input adapters borrow prepared signals and receiver views without owning,
-  resetting or advancing clocks. Generate shared signals after MIDI dispatch.
+- Common render-policy composition depends on resolved controls only, with explicit
+  core-reset decisions. Keep source conversion and evidence history outside DSP
+  selection. Every filter uses the compatible mode kernels and one output Tone/Peak
+  graph. Oscillator table reads use adjacent-sample interpolation; Ring precedes FM,
+  Sub shares OSC1 phase, and amplitude slots share the physical VCA. Preserve
+  receiver spans, exact arithmetic order, output placement and silence history.
+  Engine owns all LFO clocks and CRT draws; consumers never advance or reset them.
 - Keep output processing order, semantic silence and lifecycle retention intact.
   Silent input does not imply an empty effect tail or permit skipping gain
   advancement. Shared LFO views are read-only throughout the output pipeline.

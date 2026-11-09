@@ -138,7 +138,7 @@ TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoStereoAndBothHistoryStates
         auto actual=std::make_unique<OutputPipeline>(),reference=std::make_unique<OutputPipeline>(),wrongOrder=std::make_unique<OutputPipeline>();
         for(auto* pipeline:{actual.get(),reference.get(),wrongOrder.get()})
         {pipeline->prepareEffects({44100,64,static_cast<uint32_t>(channels)},false,false);pipeline->prepareProcessors(44100,false);settleGain(*pipeline,44100);}
-        synth2::RenderControls p;p.pan=.5f;p.nativeVoicePerformance=admitted;p.nativeMultiEffectType=0;
+        synth2::RenderControls p;p.pan=.5f;p.nativeMultiEffectType=0;
         p.nativeMultiEffectDials={100,64,64};p.chorus.enabled=false;p.delay.enable=false;
         const auto settings=synth2::render::outputSettings(p);
         auto withoutPan=settings;withoutPan.pan=0;

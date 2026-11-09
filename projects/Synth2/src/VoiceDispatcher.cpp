@@ -271,7 +271,7 @@ namespace synth2
             {
                 int channel=1;
                 for(int candidate=1;candidate<=16;++candidate)if(voice->isPlayingChannel(candidate)){channel=candidate;break;}
-                voice->setPitchBendSource(params!=nullptr ? &pitchBends[static_cast<size_t>(channel-1)] : nullptr);
+                voice->setPitchBendOffset(pitchBends[static_cast<size_t>(channel-1)].offset);
                 voice->setRenderWorkspaceOrigin(nativeWorkspaceOrigin);
                 voice->setAmplitudeGainHorizon(gainHorizon,gainBoundary);
                 voice->beginOutputObservation();

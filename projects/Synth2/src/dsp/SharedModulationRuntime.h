@@ -1,7 +1,6 @@
 #pragma once
 #include "audio/Midi.h"
 #include "SharedModulationSettings.h"
-#include "Lfo.h"
 #include "LfoBlock.h"
 #include "LfoClock.h"
 #include "RandomLfoRuntime.h"
@@ -18,7 +17,7 @@ namespace synth2::dsp
         SharedModulationRuntime(const SharedModulationRuntime&)=delete;
         SharedModulationRuntime& operator=(const SharedModulationRuntime&)=delete;
         void retimeClocks(double sampleRate);
-        void prepareSources(double sampleRate,int capacity,const SharedModulationSettings&);
+        void prepareBlock(int capacity);
         void synchronize(const SharedModulationSettings&,double sampleRate);
         void beginChunk(int start);
         int randomBoundary(int count,const SharedModulationSettings&) const noexcept;
@@ -30,7 +29,7 @@ namespace synth2::dsp
         void requestReload() noexcept { reload=true; }
         void touchRate(size_t index) noexcept { slots[index].rateTouched=true; }
         bool isInitial() const noexcept { return initial; }
-        int capacity() const noexcept { return sharedBlock.samples.getNumSamples(); }
+        int capacity() const noexcept { return sharedBlock.frameCapacity; }
         const LfoBlock& block() const noexcept { return sharedBlock; }
         const LfoClock& clock(size_t index) const noexcept { return slots[index].clock; }
         const RandomLfoRuntime& randomState() const noexcept { return random; }
@@ -41,18 +40,16 @@ namespace synth2::dsp
     private:
         struct Slot
         {
-            explicit Slot(uint32_t seed) : source(seed) {}
-            Lfo source;
             LfoClock clock;
-            bool previousShared {},tempoSync {},rateTouched {};
+            bool tempoSync {},rateTouched {};
             float previousRate {};
         };
-        std::array<Slot,2> slots{{Slot{0xa341316cu},Slot{0xc8013ea4u}}};
+        std::array<Slot,2> slots{};
         LfoBlock sharedBlock;
         RandomLfoRuntime random;
         MidiRoutingHistory midiRouting;
         std::array<std::array<bool,128>,16> heldKeys {};
-        float resetPhase {},previousBpm {120};
+        float previousBpm {120};
         bool initial {true},reload {},loadAlreadyApplied {};
         void updateRate(size_t slot,float dial,float bpm) noexcept;
     };

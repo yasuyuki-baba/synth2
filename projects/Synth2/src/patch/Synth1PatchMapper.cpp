@@ -190,7 +190,6 @@ namespace synth2
         // clamps the dial to127 before deriving the DSP depth.
         target.filterEnvAmount = (std::clamp(patch.filter.envelopeAmount.value_or (63),0,127) - 63.0f) / 64.0f;
         // Independent fixed-OSC2 captures fit a logarithmic tracking-depth knob.
-        target.filterTracking = std::log2 (1.0f + unit (patch.filter.keyTrack));
         target.filterKeyTrackNorm = unit (patch.filter.keyTrack);
         target.filterSaturation = unit (patch.filter.saturation);
         target.filterVelocity = patch.filter.velocitySwitch.value_or (false) ? 1.0f : 0.0f;
@@ -277,12 +276,7 @@ namespace synth2
         target.eq.level = unit (patch.equalizerPan.level, 64);
         target.eq.q = unit (patch.equalizerPan.q, 64);
         render::RenderPolicyInputs policy;
-        policy.randomHistoryValid=loadHistory.nativeRandomLfoHistoryValid;
-        policy.nativeSource=native;
-        if(native)policy.arpeggio={resolved.values[59]!=0,resolved.values[31],resolved.values[34],
-            resolved.values[38],resolved.values[42],resolved.values[47]};
         policy.effectControlActive=controls[77]!=0;
-        policy.unisonControlActive=controls[73]!=0;
         policy.stackControlActive=controls[76]!=0;
         policy.effectEnabled=patch.effect.enabled.value_or(false);
         policy.effectType=effectType;

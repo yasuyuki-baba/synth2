@@ -9,7 +9,7 @@ namespace synth2::dsp
         bool secondTracksKeyboard {},pitchReceiver {},pitchEnvelope {},pulseReceiver {},pulseEnvelope {};
         float pulseWidth {};
         int subWave {},subOctave {-1};
-        bool correctFmPhase {},pitchEnvelopeBoth {};
+        bool correctFmPhase {};
     };
     struct OscillatorAudioInput
     {
@@ -29,18 +29,14 @@ namespace synth2::dsp
             double secondPitch=input.secondPitch+(config.secondTracksKeyboard ? input.glidePitch : 0);
             if(config.pitchEnvelope)
             {
-                // The reserved direct-call both-pitch destination spans one
-                // octave; ordinary OSC2 pitch spans five at the same peak.
-                const double control=config.pitchEnvelopeBoth ? input.envelope*(128.0/640.0) : input.envelope;
+                const double control=input.envelope;
                 if(config.pitchReceiver)
                 {
                     secondPitch+=control;
-                    if(config.pitchEnvelopeBoth)firstPitch+=control;
                 }
                 else
                 {
                     secondFrequency=ModulationEnvelope::pitchFrequency(secondFrequency,control);
-                    if(config.pitchEnvelopeBoth)firstFrequency=ModulationEnvelope::pitchFrequency(firstFrequency,control);
                 }
             }
             const double fm=input.fmDepth;

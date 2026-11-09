@@ -27,7 +27,7 @@ namespace synth2::render
             case 19:p.cutoffIndex=unit*1023.0f;p.filterCutoffAdjustment=0;return true;
             case 20:p.resonanceNorm=unit;return true;
             case 21:p.filterEnvAmount=(dial-63.0f)/64.0f;return true;
-            case 22:p.filterKeyTrackNorm=unit;p.filterTracking=std::log2(1.0f+unit);return true;
+            case 22:p.filterKeyTrackNorm=unit;return true;
             case 23:p.filterSaturation=unit;return true;
             case 25:p.ampAttackSec=envelopeAttackSeconds(dial);return true;
             case 26:p.ampDecaySec=envelopeDecayReleaseSeconds(dial);return true;
