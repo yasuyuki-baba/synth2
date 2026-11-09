@@ -83,7 +83,6 @@ namespace synth2
         float ampVelocity     { 0.0f }; // p30: 0..1 sets up to 30 dB velocity attenuation.
         int   filterType      { 0 };    
         float filterSaturation{ 0.0f }; 
-        float noiseLevel      { 0.0f }; // p16
         float pan             { 0.0f }; // p90: -1..+1
 
         // Modulation

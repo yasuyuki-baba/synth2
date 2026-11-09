@@ -6,12 +6,6 @@
 
 namespace synth2::render
 {
-    inline dsp::CoreReuseSettings coreReuse(const RenderControls& p)
-    {
-        return {p.nativeFilterEnvelope,p.nativeIdleFilterReset,p.nativeOrdinaryStateVariable,
-            p.nativeFilterLfo,p.nativeResonantNoise,p.nativePulseWidthLfo,p.modEnv.on,
-            p.modEnv.nativePitch,p.nativeVoicePerformance,p.filterType,static_cast<int>(std::lround(p.osc1StackDial))};
-    }
     inline dsp::AmplitudeEnvelopeSettings amplitudeEnvelope(const RenderControls& p)
     { return {p.ampAttackSec,p.ampDecaySec,p.ampSustain,p.ampReleaseSec,p.ampGainMultiplier,p.ampVelocity}; }
     inline dsp::ModulationEnvelopeSettings modulationEnvelope(const RenderControls& p)

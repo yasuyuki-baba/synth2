@@ -4,6 +4,7 @@
 #include "dsp/FilterEnvelope.h"
 #include "dsp/VoiceEnvelopeConfigurator.h"
 #include "SynthVoice.h"
+#include "support/PooledTestVoice.h"
 #include "SynthEngine.h"
 #include "dsp/VoiceTuning.h"
 #include <array>
@@ -164,7 +165,7 @@ TEST(AmplitudeBehavior, ConfigurationKeepsAssignedVelocityAndRunningEnvelopeOnEd
 TEST(AmplitudeBehavior, DirectVoiceUsesPhysicalVcaAndRetiresAfterItsRelease)
 {
     synth2::RenderControls params;params.ampAttackSec=.01f;params.ampReleaseSec=.01f;
-    auto voice=std::make_unique<synth2::SynthVoice>(params);voice->prepare(44100);
+    auto voice=std::make_unique<synth2::test::PooledTestVoice>(params);voice->prepare(44100);
     voice->startNote(60,1,nullptr,8192);
     std::array<uint32_t,16> words{};ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
     EXPECT_EQ(words[6],static_cast<uint32_t>(synth2::dsp::AmplitudeEnvelope::Phase::Attack));
@@ -181,10 +182,11 @@ TEST(AmplitudeBehavior, DirectVoiceUsesPhysicalVcaAndRetiresAfterItsRelease)
 TEST(AmplitudeBehavior, FullPoolReusesAReleasingCoreBeforeStealingAHeldNote)
 {
     synth2::RenderControls params;params.polyphony=2;params.ampReleaseSec=1;
+    synth2::dsp::OscillatorPhaseRandom phase;
     auto pool=std::make_unique<synth2::VoiceCorePool>();pool->prepare({44100,64,2},false);
-    auto held=std::make_unique<synth2::SynthVoice>(params,nullptr,pool.get());
-    auto released=std::make_unique<synth2::SynthVoice>(params,nullptr,pool.get());
-    auto replacement=std::make_unique<synth2::SynthVoice>(params,nullptr,pool.get());
+    auto held=std::make_unique<synth2::SynthVoice>(params,phase,*pool);
+    auto released=std::make_unique<synth2::SynthVoice>(params,phase,*pool);
+    auto replacement=std::make_unique<synth2::SynthVoice>(params,phase,*pool);
     for(auto* voice:{held.get(),released.get(),replacement.get()})voice->prepare(44100);
     held->startNote(60,1,nullptr,8192);released->startNote(67,1,nullptr,8192);
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();
@@ -201,7 +203,7 @@ TEST(AmplitudeBehavior, FullPoolReusesAReleasingCoreBeforeStealingAHeldNote)
 TEST(EnvelopeBehavior, DirectFilterEnvelopeUsesPhysicalStateWithoutHistoryAdmission)
 {
     synth2::RenderControls p;p.cutoffIndex=256;p.filterEnvAmount=.5f;p.filterEnv.attackSec=.01f;
-    auto voice=std::make_unique<synth2::SynthVoice>(p);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
+    auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> words{};ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
     EXPECT_GT(words[10],0u);EXPECT_GT(words[11],0u);EXPECT_FALSE(p.nativeFilterEnvelope);
@@ -212,7 +214,7 @@ TEST(EnvelopeBehavior, DirectOscillatorEnvelopeUsesResolvedDialsWithoutReceiverA
     synth2::RenderControls on;on.modEnv.on=true;on.modEnv.dest=0;
     on.modEnv.amountDial=127;on.modEnv.attackDial=0;on.modEnv.decayDial=127;
     auto off=on;off.modEnv.on=false;
-    auto a=std::make_unique<synth2::SynthVoice>(on),b=std::make_unique<synth2::SynthVoice>(off);
+    auto a=std::make_unique<synth2::test::PooledTestVoice>(on),b=std::make_unique<synth2::test::PooledTestVoice>(off);
     for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();a->renderNextBlock(audio,0,64);b->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> first{},second{};ASSERT_TRUE(a->readRenderingCoreWords(0,first));ASSERT_TRUE(b->readRenderingCoreWords(0,second));
@@ -223,7 +225,7 @@ TEST(FmBehavior, DirectStaticFmUsesTheSamePhysicalSlewWithoutHistoryAdmission)
 {
     synth2::RenderControls direct;direct.osc1FmAmount=32.25f/127.f;
     auto admitted=direct;admitted.modEnv.nativeFm=true;
-    auto a=std::make_unique<synth2::SynthVoice>(direct),b=std::make_unique<synth2::SynthVoice>(admitted);
+    auto a=std::make_unique<synth2::test::PooledTestVoice>(direct),b=std::make_unique<synth2::test::PooledTestVoice>(admitted);
     for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> audio(2,64);
     std::array<uint32_t,7> first{},second{};
@@ -246,8 +248,8 @@ TEST(FmBehavior, DirectStaticFmUsesTheSamePhysicalSlewWithoutHistoryAdmission)
 
 TEST(FmBehavior, SoundingRetriggerRetainsPhysicalFmSlewAndInvalidatesItsTarget)
 {
-    synth2::RenderControls controls;controls.osc1FmAmount=.1f;
-    auto voice=std::make_unique<synth2::SynthVoice>(controls);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
+    synth2::RenderControls controls;controls.osc1FmAmount=.1f;controls.playMode=1;
+    auto voice=std::make_unique<synth2::test::PooledTestVoice>(controls);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
     synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     controls.osc1FmAmount=.75f;voice->setControllerDial(45);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,7> before{},after{};ASSERT_TRUE(voice->readRenderingFmWords(0,before));ASSERT_GT(before[2],0u);
@@ -281,10 +283,10 @@ TEST(StereoBalance, VoiceAndSmoothedPanUseTheSameStaticLawAtTheirOwnStages)
 }
 TEST(PanInputs, VoiceRetainsUnisonPlacementWithoutApplyingTheGlobalPanLfo)
 {
-    synth2::RenderControls p;p.pan=.5f;p.noiseLevel=1;p.unisonVoices=3;p.unisonPan=.75f;
+    synth2::RenderControls p;p.pan=.5f;p.osc1WaveIndex=1.1f;p.unisonVoices=3;p.unisonPan=.75f;
     p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=1;
     auto reference=p;reference.lfo1.on=false;reference.pan=0;
-    auto actual=std::make_unique<synth2::SynthVoice>(p),expected=std::make_unique<synth2::SynthVoice>(reference);
+    auto actual=std::make_unique<synth2::test::PooledTestVoice>(p),expected=std::make_unique<synth2::test::PooledTestVoice>(reference);
     synth2::dsp::LfoBlock lfos;lfos.samples.setSize(2,64);lfos.samples.clear();
     for(int frame=0;frame<64;++frame)lfos.samples.setSample(0,frame,1);
     actual->setGlobalLfoBlock(&lfos);
@@ -299,7 +301,7 @@ TEST(PanInputs, VoiceRetainsUnisonPlacementWithoutApplyingTheGlobalPanLfo)
 TEST(PanInputs, OversizeUnknownHistoryCallbacksKeepEveryChunkAndSurroundingSamples)
 {
     auto engine=std::make_unique<synth2::SynthEngine>();auto& p=engine->getParams();
-    p.noiseLevel=1;p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=.5f;
+    p.osc1WaveIndex=1.1f;p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=.5f;
     ASSERT_FALSE(p.nativePanLfo);ASSERT_FALSE(p.nativeVoicePerformance);
     engine->prepareToPlay(44100,64);
     synth2::audio::AudioBuffer<float> audio(2,1040);audio.clear();
@@ -321,9 +323,9 @@ TEST(StaticPanInputs, VoiceCorePlacementIsIndependentOfGlobalBalance)
 {
     for(int cores:{1,3})for(float pan:{-1.f,.5f,1.f})
     {
-        synth2::RenderControls p;p.pan=pan;p.noiseLevel=1;p.unisonVoices=cores;p.unisonPan=.75f;
+        synth2::RenderControls p;p.pan=pan;p.osc1WaveIndex=1.1f;p.unisonVoices=cores;p.unisonPan=.75f;
         auto centered=p;centered.pan=0;
-        auto actual=std::make_unique<synth2::SynthVoice>(p),reference=std::make_unique<synth2::SynthVoice>(centered);
+        auto actual=std::make_unique<synth2::test::PooledTestVoice>(p),reference=std::make_unique<synth2::test::PooledTestVoice>(centered);
         for(auto* voice:{actual.get(),reference.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
         synth2::audio::AudioBuffer<float> got(2,64),expected(2,64);got.clear();expected.clear();
         actual->renderNextBlock(got,0,64);reference->renderNextBlock(expected,0,64);
@@ -358,7 +360,7 @@ TEST(TuningBehavior, DirectBendUsesTheSameThirtyTwoFrameReceiverPartitions)
     for(int target:{8320,16383})
     {
         synth2::RenderControls p;p.pitchBendRange=12;
-        auto whole=std::make_unique<synth2::SynthVoice>(p),split=std::make_unique<synth2::SynthVoice>(p);
+        auto whole=std::make_unique<synth2::test::PooledTestVoice>(p),split=std::make_unique<synth2::test::PooledTestVoice>(p);
         whole->prepare(44100);split->prepare(44100);
         whole->startNote(69,1,nullptr,8192);split->startNote(69,1,nullptr,8192);
         whole->pitchWheelMoved(target);split->pitchWheelMoved(target);
@@ -376,7 +378,7 @@ TEST(TuningBehavior, DirectBendUsesTheSameThirtyTwoFrameReceiverPartitions)
 TEST(TuningBehavior, GlideUsesThePhysicalReceiverWithoutPerformanceAdmission)
 {
     synth2::RenderControls p;p.sourcePortamentoDial=64;p.portamentoAuto=true;
-    auto voice=std::make_unique<synth2::SynthVoice>(p);voice->prepare(44100);
+    auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);
     synth2::audio::AudioBuffer<float> audio(2,32);audio.clear();
     voice->startNote(69,1,nullptr,8192);voice->renderNextBlock(audio,0,32);
     EXPECT_NEAR(voice->getCurrentFrequency(),440,.001);

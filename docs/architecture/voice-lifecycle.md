@@ -13,8 +13,8 @@ consume them at the defined start/prepare boundaries. Retirement alone does not
 clear an unconsumed transition.
 
 `CoreReusePolicy` selects reuse actions from actual physical VCA activity, not
-logical note flags. Idle and sounding reuse retain their distinct filter,
-filter-envelope and FM settling rules. Voice performs the selected actions in
+logical note flags or source admission. Idle reuse resets the filter/envelope
+and settles FM; sounding reuse retains their histories. Voice performs the selected actions in
 order after glide/wave/phase setup. Natural VCA completion, logical retirement,
 allocation cursor updates and physical association cleanup are distinct events.
 

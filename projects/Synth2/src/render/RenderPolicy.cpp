@@ -88,7 +88,7 @@ namespace synth2::render
         void initializePolicy(const RenderPolicyInputs& input,RenderControls& target)
         {
             const bool randomArpRoute=input.nativeSource && input.randomHistoryValid && admitRandomArp(input.arpeggio);
-            target.arpeggiator.nativeRandom=randomArpRoute;
+            target.osc1StackDial=std::clamp(input.stackDial,0,127);
             target.modEnv.nativeFm=false;target.nativeFmLfo=false;
             const int effectType=input.effectType;
             target.nativeMultiEffectType=input.effectEnabled && effectType<=5 ? effectType : -1;
@@ -273,10 +273,6 @@ namespace synth2::render
                 && !(target.nativePitchLfo && target.modEnv.nativePitch)) {
                 target.nativePanLfo=target.nativePitchLfo=false;target.lfo1.nativeSharedClock=target.lfo2.nativeSharedClock=false;
             }
-            const bool stackRoute = target.playMode == 0 && !target.arpeggiator.enabled
-                && target.osc1FmAmount == 0 && (target.subOscGain == 0 || target.osc1StackDial > 0) && ((!target.lfo1.on && !target.lfo2.on) || target.nativePanLfo || target.nativePitchLfo) && target.sourcePortamentoDial<=0 && target.osc2Sync == 0 && target.ringMod == 0
-                && (!target.modEnv.on || target.modEnv.nativePulseWidth);
-            if(!stackRoute)target.osc1StackDial=0;
             target.modEnv.amountDial = input.modulationAmountDial;
             target.modEnv.attackDial = input.modulationAttackDial;
             target.modEnv.decayDial = input.modulationDecayDial;
@@ -468,7 +464,7 @@ namespace synth2::render
         }
         else
         {
-            const bool randomArpRoute=target.arpeggiator.nativeRandom;
+            const bool randomArpRoute=input.nativeSource && input.randomHistoryValid && admitRandomArp(input.arpeggio);
             const auto routes=selectFallbackOscillatorReceivers(input,target,randomArpRoute);
             selectFallbackOscillatorKernels(input,target,routes);
             selectFallbackFilterReceivers(input,target,routes);

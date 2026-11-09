@@ -116,3 +116,17 @@ aspect ratio; test the editor corner handle too. Open/close Keyboard at a change
 scale and exercise popup, numeric-entry and note hit areas. In a DAW, resize the
 host-owned view and check uniform fit without resize-request loops. Repeat on
 displays with different platform pixel scales.
+
+The bridge caches mapped source snapshots by a published parameter revision and
+random-history validity. Same-value setters, loads and recall publish revisions;
+history notifications, pending filter edits, phase resets and master volume remain
+callback-visible. PlaybackBehavior compares cached callbacks with explicit refresh.
+
+For non-gating DSP profiling, build `Synth2RenderProfile` and run:
+
+```sh
+./build-oos-core/Synth2RenderProfile render-profile.csv --blocks 1024 --rounds 3
+```
+
+The CSV records thread CPU/wall means and a final-block hash. These offline
+measurements do not certify device latency or a hard real-time deadline.

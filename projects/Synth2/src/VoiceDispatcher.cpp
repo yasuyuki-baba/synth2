@@ -74,7 +74,7 @@ namespace synth2
             voice = dynamic_cast<SynthVoice*> (findFreeVoice (getSound(0), midiChannel, midiNoteNumber, true));
         if (voice == nullptr) return;
         const auto transition=continuing && overlapping && params->playMode==2 ? dsp::NoteTransitionKind::Legato
-            : continuing && params->nativeVoicePerformance ? dsp::NoteTransitionKind::RetainedRetrigger
+            : continuing ? dsp::NoteTransitionKind::RetainedRetrigger
             : dsp::NoteTransitionKind::Retrigger;
         voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f && (!params->portamentoAuto || overlapping)});
         startVoice (voice, getSound(0), midiChannel, midiNoteNumber, velocity);
@@ -113,8 +113,7 @@ namespace synth2
             if (previous >= 0)
             {
                 const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
-                    : params->nativeVoicePerformance ? dsp::NoteTransitionKind::RetainedRetrigger
-                    : dsp::NoteTransitionKind::Retrigger;
+                    : dsp::NoteTransitionKind::RetainedRetrigger;
                 voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f});
                 startVoice (voice, getSound(0), channel, previous, heldVelocity[c][previous]);
                 return;
@@ -158,12 +157,8 @@ namespace synth2
                 {
                     const float exponent=dsp::OscillatorTuning::coarseExponent(params->osc2PitchSemis);
                     if(corePool!=nullptr)corePool->setOsc2Coarse(exponent,false);
-                    for(int i=0;i<getNumVoices();++i)
-                        if(auto* voice=dynamic_cast<SynthVoice*>(getVoice(i)))voice->setOsc2Coarse(exponent,false);
                 }
                 if(corePool!=nullptr)corePool->setControllerDial(destination,static_cast<int>(getSampleRate()));
-                for(int i=0;i<getNumVoices();++i)
-                    if(auto* voice=dynamic_cast<SynthVoice*>(getVoice(i)))voice->setControllerDial(destination);
                 if(modulation!=nullptr)
                 {
                     if(destination==44 || destination==49)
@@ -283,7 +278,7 @@ namespace synth2
             }
             else renderedSignal=renderedSignal || getVoice(i)->isVoiceActive();
         }
-        if(nativeOmniInput && params!=nullptr && params->nativeVoicePerformance && params->playMode!=0 && corePool!=nullptr)
+        if(nativeOmniInput && params!=nullptr && params->playMode!=0 && corePool!=nullptr)
         {
             // Native mono admission renders the first physical group while
             // higher polyphonic cores retain their paused receiver history.
@@ -307,7 +302,7 @@ namespace synth2
         const ::synth2::audio::ScopedValueSetter<void*> context(activeOutputContext,outputContext);
         const ::synth2::audio::ScopedValueSetter<OutputSink> sink(activeOutputSink,outputSink);
         renderedVoicesInRegion=false;
-        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->nativeVoicePerformance && params->playMode!=0 ? std::max(params->polyphony,params->unisonVoices) : params->polyphony);
+        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->playMode!=0 ? std::max(params->polyphony,params->unisonVoices) : params->polyphony);
         const int voiceLimit = corePool != nullptr && params != nullptr && params->playMode == 0
             ? getNumVoices() : logicalVoiceLimit (params, getNumVoices());
         for (int i = voiceLimit; i < getNumVoices(); ++i)
@@ -356,12 +351,12 @@ namespace synth2
                 }
                 flushArpOff();
             }
-            if(message.isNoteOff() && params!=nullptr && params->nativeVoicePerformance
+            if(message.isNoteOff() && params!=nullptr
                 && params->playMode==2 && params->arpeggiator.enabled
                 // Random order uses the same connected full-gate assignment
                 // as ordered ARP; do not release its core between same-time events.
                 && ((params->arpeggiator.type>=1 && params->arpeggiator.type<=3)
-                    || (params->arpeggiator.type==4 && params->arpeggiator.nativeRandom))
+                    || params->arpeggiator.type==4)
                 && params->arpeggiator.gate==127)
             {
                 pendingArpOff=message;pendingArpPosition=position;return;

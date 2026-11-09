@@ -1,5 +1,4 @@
 #include "offline/RenderDiagnostics.h"
-#include "dsp/VelocityResponse.h"
 #include "dsp/Unison.h"
 #include "SynthVoice.h"
 #include "VoiceCorePool.h"
@@ -29,26 +28,24 @@ namespace synth2
         }
     }
 
-    SynthVoice::SynthVoice (RenderControls& sharedParams, dsp::OscillatorPhaseRandom* sharedPhaseRandom,
-                            VoiceCorePool* sharedPool)
-        : params (sharedParams), phaseRandom (sharedPhaseRandom != nullptr ? sharedPhaseRandom : &localPhaseRandom), pool (sharedPool)
+    SynthVoice::SynthVoice (RenderControls& sharedParams, dsp::OscillatorPhaseRandom& sharedPhaseRandom,
+                            VoiceCorePool& sharedPool)
+        : params (sharedParams), phaseRandom (sharedPhaseRandom), pool (sharedPool)
     {
-        for (size_t i = 0; i < cores.size(); ++i) cores[i] = &localCores[i];
     }
 
     void SynthVoice::releaseCores() noexcept
     {
-        if (pooled)
-            for (auto* core : cores) if (core != nullptr) pool->release(*this,*core);
-        for (size_t i = 0; i < cores.size(); ++i) cores[i] = &localCores[i];
-        pooled = false; assignedCount = 0;
+        for (auto* core : cores) if (core != nullptr) pool.release(*this,*core);
+        cores.fill(nullptr);
+        assignedCount = 0;
     }
 
     void SynthVoice::retireNote() noexcept
     {
         // Relinquish ownership but retain read-only views of the last physical
         // group. The next assignment replaces these views in releaseCores().
-        if(pooled)for(auto* core:cores)if(core!=nullptr)pool->release(*this,*core);
+        for(auto* core:cores)if(core!=nullptr)pool.release(*this,*core);
         lifecycle.retired();
         clearCurrentNote();
     }
@@ -73,23 +70,17 @@ namespace synth2
         ::synth2::audio::ProcessSpec spec { newSampleRate, 512, 2 };
 
         if (sampleRate > 0) {
-            for (auto& core : localCores)
-                core.prepare (spec);
-
             amplifier.prepare (spec);
-            mixer.prepare (spec);
             dsp::ModulationEnvelope::prepare();
             dsp::FrequencyModulation::prepare();
             dsp::OscillatorTuning::prepare();
         }
 
-        requestPhaseReset();
     }
 
     void SynthVoice::updateSampleRate (double newSampleRate)
     {
         sampleRate = newSampleRate;
-        for(auto& core:localCores)core.coarse.elapsed=static_cast<int>(newSampleRate)/20;
         // Imported native envelopes reconfigure their durations without note-on.
         // Logical ownership and physical oscillator phases remain untouched.
         if (isVoiceActive()) updateEnvelopeConfiguration();
@@ -112,7 +103,7 @@ namespace synth2
         {
             for(auto* core:cores) if(core != nullptr)
             {
-                if(params.nativeVoicePerformance)core->coarse.refresh();
+                core->coarse.refresh();
                 core->portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
                 core->portamento.setNote(midiNoteNumber,nativeGlide,
                     static_cast<int>(params.octaveBase*12+params.keyShift));
@@ -125,12 +116,11 @@ namespace synth2
 
         releaseCores();
         const int activeCores = std::clamp (params.unisonVoices, 1, 8);
-        const auto reuseSettings=render::coreReuse(params);
         auto startCore = [&](int i)
         {
             auto& core = *cores[i];
             const bool wasActive=core.amplitude.isActive();
-            const auto reuse=dsp::CoreReusePolicy::select(reuseSettings,wasActive);
+            const auto reuse=dsp::CoreReusePolicy::select(wasActive);
             core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
             core.portamento.setNote(midiNoteNumber,nativeGlide,
                 static_cast<int>(params.octaveBase*12+params.keyShift));
@@ -140,7 +130,7 @@ namespace synth2
             if(core.coarse.target!=coarse)core.coarse.set(coarse,false);
             core.coarse.noteOn();
             core.phase.setDial(params.oscillatorPhaseDial);
-            if (i < activeCores && core.phase.start(*phaseRandom,activeCores,i,params.unisonPhaseDial))
+            if (i < activeCores && core.phase.start(phaseRandom,activeCores,i,params.unisonPhaseDial))
             {
                 core.oscillator.resetFmPhase();
                 core.oscillator.osc1.setPhaseFixed27(core.phase.osc1);
@@ -161,25 +151,19 @@ namespace synth2
                 core.fm.noteOn();
             }
         };
-        if (pool != nullptr && (params.playMode == 0 || params.nativeVoicePerformance))
+        startingNote = true;
+        assignedCount = activeCores;
+        for (int i = 0; i < activeCores; ++i)
         {
-            pooled = startingNote = true; assignedCount = activeCores;
-            cores.fill(nullptr);
-            for (int i = 0; i < activeCores; ++i)
-            {
-                cores[i] = pool->claim(*this,params.playMode!=0 ? 32 : params.polyphony,params.playMode!=0 ? i : -1);
-                startCore(i);
-            }
-            startingNote = false;
+            cores[i] = pool.claim(*this,params.playMode!=0 ? 32 : params.polyphony,params.playMode!=0 ? i : -1);
+            startCore(i);
         }
-        else
-            for (int i = 0; i < 8; ++i) startCore(i);
+        startingNote = false;
         updateEnvelopeConfiguration();
 
 
         for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.noteOn(); core->cutoff.settle(); }
 
-        mixer.reset();
 
     }
 
@@ -316,9 +300,9 @@ namespace synth2
 
         const dsp::VoiceTuning tuning(render::voiceTuning(params,bypassEnv),midiNote);
         const int numUnison=tuning.unisonCount();
-        const float velocityGain = dsp::ampVelocityGain (level, params.ampVelocity);
-        const float sy1AmpGain = params.ampGainMultiplier <= 0.0f ? 0.0f
-            : std::pow (2048.0f, std::pow (params.ampGainMultiplier, 0.3f) - 1.0f);
+        const float velocityGain = dsp::AmplitudeEnvelope::velocityForDials(
+            static_cast<int>(std::lround(level*127)),dsp::fractionalDial(params.ampVelocity));
+        const float sy1AmpGain = dsp::AmplitudeEnvelope::gainForDial(dsp::fractionalDial(params.ampGainMultiplier));
 
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
@@ -373,7 +357,7 @@ namespace synth2
                         const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
                             oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr);
 
-                        float vCombined = mixer.mix(oscSignal, (random.nextFloat() * 2.0f - 1.0f), params.noiseLevel);
+                        const float vCombined = oscSignal;
 
                         const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
                             {vCombined,nativeCutoffIndices[v][i]});
@@ -389,12 +373,11 @@ namespace synth2
                         std::array<float,16> oscillatorFrame{};
                         dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
                             oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr,oscillatorFrame.data(),factor);
-                        const float noise=random.nextFloat()*2.0f-1.0f;
                         const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
                         for(int step=0;step<factor;++step)
                         {
                             const float signal=oscillatorFrame[step];
-                            const float mixed=mixer.mix(signal,noise,params.noiseLevel);
+                            const float mixed=signal;
                             const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
                                 {mixed,nativeCutoffIndices[v][i]})*gain;
                             float left,right;amplifier.processSample(filtered,1.f,panAmt,left,right);
@@ -455,7 +438,7 @@ namespace synth2
                     cores[v]->filterEnvelope.reset();
                     cores[v]->cutoff.settle();
                 }
-                if (pooled) pool->release(*this,*cores[v]);
+                pool.release(*this,*cores[v]);
             }
             if (std::all_of(cores.begin(),cores.begin()+count,[](auto* core) { return core == nullptr || !core->amplitude.isActive(); })) retireNote();
         }

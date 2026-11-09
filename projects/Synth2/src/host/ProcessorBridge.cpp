@@ -73,6 +73,9 @@ struct ProcessorBridge::Impl
     bool continuousControls=true;
     bool directControls=false;
     int parameterMappingVersion=-1;
+    std::atomic<uint64_t> parameterRevision{1};
+    uint64_t mappedParameterRevision{};
+    bool mappedRandomHistoryValid{};
     std::atomic<bool> replacingParameters{false},phaseResetRequested{false};
     std::atomic<unsigned> missingEnvelopeFields{0};
     std::atomic<bool> nativeSourceLoading{false},nativeRandomArpSeen{false};
@@ -121,6 +124,7 @@ struct ProcessorBridge::Impl
         const auto& p=info.at(i);const auto n=static_cast<float>(std::clamp(normalizedValue,0.,1.));
         const float previous=values[i].exchange(static_cast<float>(p.minimum)+static_cast<float>(p.maximum-p.minimum)*n);
         if(i<126)parameterValueChanged(i,n,previous);
+        if(i<128)parameterRevision.fetch_add(1,std::memory_order_release);
     }
     void setSource(int i,float value)
     {
@@ -227,13 +231,23 @@ struct ProcessorBridge::Impl
         }
         if (parameterMapper != nullptr)
         {
-            parameterMapper->setDirectControls(directControls);
+            // History notifications and equal-value receiver setters remain
+            // observable even when the mapped source snapshot is unchanged.
             flushNativeLfoHistory();
-            parameterMapper->setRandomHistoryValid(engine.nativeRandomHistoryValid());
-            parameterMapper->setMissingEnvelopeFields (missingEnvelopeFields.load());
-            parameterMapper->setNativeSourceContext(nativeSourceLoading.load() && patchVersion==nativeSourceVersion.load() && synth1::patch::isNativeSourceVersion(patchVersion),sourcePresence(),initialControls(),runtimeEdits());
-            parameterMapper->mapParameterValues (rawSourceValues, synthParams);
-            engine.setRenderHistory(parameterMapper->getRenderHistory());
+            const auto revision=parameterRevision.load(std::memory_order_acquire);
+            const bool historyValid=engine.nativeRandomHistoryValid();
+            if(revision!=mappedParameterRevision || historyValid!=mappedRandomHistoryValid)
+            {
+                parameterMapper->setDirectControls(directControls);
+                parameterMapper->setRandomHistoryValid(historyValid);
+                parameterMapper->setMissingEnvelopeFields(missingEnvelopeFields.load());
+                parameterMapper->setNativeSourceContext(nativeSourceLoading.load() && patchVersion==nativeSourceVersion.load()
+                    && synth1::patch::isNativeSourceVersion(patchVersion),sourcePresence(),initialControls(),runtimeEdits());
+                parameterMapper->mapParameterValues(rawSourceValues,synthParams);
+                engine.setRenderHistory(parameterMapper->getRenderHistory());
+                mappedParameterRevision=revision;
+                mappedRandomHistoryValid=historyValid;
+            }
             synthParams.masterVolume = rawMasterVolume->load();
             if (phaseResetRequested.exchange (false)) engine.requestPhaseReset();
             // Restore the state before the pending edits from their recorded
@@ -285,7 +299,7 @@ struct ProcessorBridge::Impl
                 lastLoadedPreset=text;patchName=patch.name;
                 missingEnvelopeFields.store(0);storeSourcePresence({});storeNativeContext({}, {},113);
                 nativeSourceLoading.store(false);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
-                queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);
+                queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);
                 error.clear();return true;
             }
             const auto document=parsePatchDocument(text);
@@ -311,9 +325,9 @@ struct ProcessorBridge::Impl
             for(const auto& e:document.entries)setSource(e.index,static_cast<float>(std::clamp(e.rawValue,sourceMinimum(e.index),sourceMaximum(e.index))));
             lastLoadedPreset=text;patchName=hasPatchTitle(text) ? document.name : "Untitled";missingEnvelopeFields.store(missing);storeSourcePresence(presence);
             storeNativeContext(initial,{},version);nativeSourceLoading.store(native);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
-            queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);error.clear();return true;
+            queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);error.clear();return true;
         }
-        catch(const std::exception& e){replacingParameters.store(false);error=e.what();return false;}
+        catch(const std::exception& e){parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);error=e.what();return false;}
     }
     std::string savePatch()const
     {
@@ -357,7 +371,7 @@ struct ProcessorBridge::Impl
         patchName=std::move(state->patchName);program=state->program;lastLoadedPreset=std::move(state->presetText);
         missingEnvelopeFields.store(state->missingEnvelopeFields);storeSourcePresence(state->sourcePresence);
         storeNativeContext(state->initialControls,state->runtimeEdits,static_cast<int>(std::lround(state->values[126])));
-        nativeSourceLoading.store(state->nativeSource);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);replacingParameters.store(false);
+        nativeSourceLoading.store(state->nativeSource);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);
         continuousControls=state->version==3;
         parameterMapper->setContinuousControls(continuousControls);return true;
     }

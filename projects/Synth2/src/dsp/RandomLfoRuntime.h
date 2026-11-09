@@ -8,8 +8,8 @@
 namespace synth2::dsp
 {
     // Shared random state follows serialized native loading and render events.
-    // No preset identity or load-time reseeding. Untracked consumers invalidate
-    // admission for the rest of this instance rather than inventing a seed.
+    // No preset identity or load-time reseeding. Untracked consumers mark the
+    // observed history incomplete; ARP keeps consuming this same retained stream.
     class RandomLfoRuntime
     {
     public:

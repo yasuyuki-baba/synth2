@@ -114,11 +114,5 @@ private:
     std::tuple<Processors...> processors;
     std::array<bool,sizeof...(Processors)> bypassed{};
 };
-// This optional legacy noise mix is independent of the native oscillator RNG.
-// Production patch mapping leaves its level at zero.
-class Random
-{
-public:float nextFloat(){state=state*1664525u+1013904223u;return static_cast<float>(state>>8)*(1.f/16777216.f);}
-private:uint32_t state=0x17ae5b39;
-};
+
 }

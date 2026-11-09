@@ -144,7 +144,6 @@ TEST(RenderPolicy, LegacyRandomArpKeepsRestrictedCompositionWithDeterministicLfo
         input.randomHistoryValid=history;p.arpeggiator.enabled=true;p.arpeggiator.type=type;
         p.lfo1.on=lfo;p.lfo1.dest=3;p.lfo1.wave=0;
         synth2::render::selectRenderPolicy(input,p);
-        EXPECT_FALSE(p.arpeggiator.nativeRandom);
         EXPECT_EQ(p.nativeVoicePerformance,type!=4);
         if(lfo)EXPECT_TRUE(p.lfo1.nativeSharedClock);
     }

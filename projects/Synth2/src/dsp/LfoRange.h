@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <algorithm>
 #include <utility>
 
 namespace synth2::dsp
@@ -30,4 +31,5 @@ namespace synth2::dsp
             default:return {0,0};
         }
     }
+
 }
