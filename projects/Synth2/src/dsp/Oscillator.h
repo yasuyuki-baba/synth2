@@ -18,7 +18,10 @@ namespace synth2::dsp {
     class Oscillator {
     public:
         Oscillator() { reset(); }
-        void setSampleRate(double sr) { sampleRate = sr; }
+        void setSampleRate(double sr) {
+            if(sampleRate!=sr)incrementReady=false;
+            sampleRate=sr;
+        }
 
         uint32_t getPhaseFixed27() const noexcept { return phaseAcc32; }
         void setPhaseFixed27(uint32_t p) noexcept { phaseAcc32 = p & kPhaseMask27; }
@@ -92,14 +95,14 @@ namespace synth2::dsp {
         }
 
         void updatePhaseIncrement(float freqHz) noexcept {
+            if(incrementReady && frequencyHz==freqHz)return;
             frequencyHz = freqHz;
-            // Win64 dispatcher: MULSS phase scale, double reciprocal-rate
-            // multiplication, round back to float, then CVTTSS2SI.
-            const float scaledFrequency = freqHz * static_cast<float> (kPhaseScale27);
-            const float increment = static_cast<float> (static_cast<double> (scaledFrequency) * (1.0/sampleRate));
-            phaseIncFixed27 = static_cast<uint32_t> (increment) & kPhaseMask27;
+            // Scaling a float by 2^27 is exact. Keep the rate calculation in
+            // double; the final float rounding defines the compatible phase word.
+            const double increment=static_cast<double>(freqHz)*(kPhaseScale27/sampleRate);
+            phaseIncFixed27 = static_cast<uint32_t> (static_cast<float>(increment)) & kPhaseMask27;
             if (phaseIncFixed27 == 0) phaseIncFixed27 = 1;
-
+            incrementReady=true;
         }
 
         void reset() noexcept { phaseAcc32 = 0; noise.reset(); }
@@ -113,6 +116,7 @@ namespace synth2::dsp {
         NoiseGenerator noise;
         double sampleRate{44100.0};
         float frequencyHz{440.0f};
+        bool incrementReady{};
     };
 
 }

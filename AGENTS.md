@@ -243,6 +243,10 @@ See [source strategies](docs/architecture/source-conversion.md),
 
 ## Compatibility and real-time behavior
 
+- Prefer double precision for continuous internal arithmetic and signal storage.
+  Keep precision through intermediate buffers; converting back to float at every
+  stage discards it. Treat each remaining narrowing as an explicit boundary and
+  measure compatibility and CPU cost rather than assuming double is faster.
 - Precision changes must preserve DLL-compatible legacy loading: resolve the
   integer parameter state first, then promote those exact words to floating point
   and apply fractional edits afterward. The compatibility boundary is loaded
