@@ -17,6 +17,7 @@ namespace synth2
     class VoiceDispatcher : public ::synth2::audio::VoiceBank
     {
     public:
+        explicit VoiceDispatcher(dsp::CrtRandom& random) noexcept : arpeggiator(random) {}
         RenderControls* params = nullptr;
         VoiceCorePool* corePool = nullptr;
         midi::Arpeggiator arpeggiator;

@@ -4,7 +4,6 @@
 #include "VoiceCore.h"
 #include "dsp/VoiceLifecycle.h"
 #include "dsp/Amplifier.h"
-#include "dsp/Mixer.h"
 #include "dsp/LfoBlock.h"
 #include "dsp/PitchBendSmoother.h"
 #include <algorithm>
@@ -19,32 +18,23 @@ namespace synth2
     class SynthVoice : public ::synth2::audio::Voice
     {
     public:
-        explicit SynthVoice (RenderControls& sharedParams, dsp::OscillatorPhaseRandom* sharedPhaseRandom = nullptr,
-                              VoiceCorePool* sharedPool = nullptr);
-        void requestPhaseReset() noexcept { for (auto& core : localCores) core.phase.pending = true; }
+        explicit SynthVoice (RenderControls& sharedParams, dsp::OscillatorPhaseRandom& sharedPhaseRandom,
+                              VoiceCorePool& sharedPool);
+
 
         bool canPlaySound (::synth2::audio::Sound* sound) override;
 
         void prepare (double newSampleRate);
         void setAudioChunkStart(int start) noexcept {audioChunkStart=start;}
         void setAudioOutput(int factor,float* left,float* right) noexcept
-        {audioFactor=factor;audioLeft=left;audioRight=right;for(auto& core:localCores)core.setAudioFactor(sampleRate,factor); }
+        {audioFactor=factor;audioLeft=left;audioRight=right; }
         void updateSampleRate (double newSampleRate);
 
         void startNote (int midiNoteNumber, float velocity,
                         ::synth2::audio::Sound*, int) override;
         void stopNote (float velocity, bool allowTailOff) override;
         void pitchWheelMoved (int newPitchWheelValue) override;
-        void setOsc2Coarse(float exponent,bool refreshFrequency) noexcept
-        {if(!pooled)for(auto* core:cores)if(core!=nullptr){core->coarse.set(exponent,core->modulationEnvelope.isActive());if(refreshFrequency)core->coarse.refresh();}}
         void updateFilterEnvelopeConfiguration();
-        void restartFilterCutoff() noexcept
-        {if(!pooled)for(auto* core:cores)if(core!=nullptr)core->cutoff.restart();}
-        void setControllerDial(int destination) noexcept
-        {
-            if(destination==19 || destination==21 || destination==22 || destination==17)restartFilterCutoff();
-            if(!pooled && destination==45)for(auto* core:cores)if(core!=nullptr)core->fm.setBase(static_cast<int>(sampleRate));
-        }
         void controllerMoved (int controllerNumber, int newControllerValue) override;
 
         void renderNextBlock (::synth2::audio::AudioBuffer<float>& outputBuffer,
@@ -64,7 +54,7 @@ namespace synth2
         {return cores[0]!=nullptr ? static_cast<double>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
         void setPitchBendSource(const dsp::PitchBendSmoother* source) noexcept {pitchBendSource=source;}
         // Offline read-only inspection of the core actually used by this
-        // logical voice. Mono voices use local storage rather than the pool.
+        // logical voice, using the same physical pool in every play mode.
         bool readRenderingCoreWords(size_t index,std::array<uint32_t,16>& words) const noexcept
         {
             if(index>=static_cast<size_t>(activeCoreCount()) || cores[index]==nullptr)return false;
@@ -112,7 +102,7 @@ namespace synth2
         void releaseCores() noexcept;
         void detachCore (VoiceCore&) noexcept;
         void retireNote() noexcept;
-        int activeCoreCount() const noexcept { return pooled ? assignedCount : std::clamp(params.unisonVoices,1,8); }
+        int activeCoreCount() const noexcept { return assignedCount; }
         int layoutSlot (int voice) const noexcept
         {
             const int index = cores[static_cast<size_t>(voice)]->physicalSlot;
@@ -123,8 +113,7 @@ namespace synth2
         void configureModulationEnvelope (VoiceCore&) const noexcept;
 
         RenderControls& params;
-        dsp::OscillatorPhaseRandom localPhaseRandom;
-        dsp::OscillatorPhaseRandom* phaseRandom;
+        dsp::OscillatorPhaseRandom& phaseRandom;
         double sampleRate { 0.0 };
         int nativeWorkspaceOrigin {};
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
@@ -136,17 +125,14 @@ namespace synth2
         dsp::VoiceLifecycle lifecycle;
         float  level  { 0.0f };
 
-        std::array<VoiceCore,8> localCores;
         std::array<VoiceCore*,8> cores {};
-        VoiceCorePool* pool {};
+        VoiceCorePool& pool;
         int assignedCount {};
-        bool pooled {}, startingNote {};
+        bool startingNote {};
 
         dsp::Amplifier  amplifier;
-        dsp::Mixer    mixer;
         const dsp::LfoBlock* globalLfoBlock { nullptr };
 
-        ::synth2::audio::Random    random;
         const synth2::WaveTableBank* waveTableBankPtr { nullptr };
         
     };

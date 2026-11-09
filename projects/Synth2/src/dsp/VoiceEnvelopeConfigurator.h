@@ -3,7 +3,6 @@
 #include "FilterEnvelope.h"
 #include "FilterPerformance.h"
 #include "ModulationEnvelope.h"
-#include "VelocityResponse.h"
 
 namespace synth2::dsp
 {

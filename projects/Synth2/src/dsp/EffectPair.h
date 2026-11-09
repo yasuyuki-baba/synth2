@@ -12,7 +12,7 @@ namespace synth2::dsp
     class EffectPair
     {
     public:
-        void prepare(double rate) noexcept {sampleRate=static_cast<int>(rate);reset();}
+        void prepare(double rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0,384000.0));reset();}
         void reset() noexcept {delay->reset();chorus.reset();initialized=false;}
         template<class DelaySettings,class ChorusSettings>
         void setParams(const DelaySettings& d,const ChorusSettings& c,float bpm) noexcept

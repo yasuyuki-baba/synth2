@@ -17,24 +17,16 @@ namespace synth2::midi
     class Arpeggiator
     {
     public:
-        void setNativeRandomSource(dsp::CrtRandom* source) noexcept { nativeRandomSource=source; }
-        static double beatsForIndex (int index) noexcept
-        {
-            static constexpr double beats[] {4, 3.5, 3, 2, 1.75, 1.5, 4.0/3, 1,
-                0.875, 0.75, 2.0/3, 0.5, 0.375, 1.0/3, 0.25, 1.0/6, 0.125, 1.0/12, 1.0/24};
-            return beats[std::clamp (index, 0, 18)];
-        }
-
+        explicit Arpeggiator(dsp::CrtRandom& random) noexcept : randomSource(random) {}
         void prepare (double rate) noexcept
         {
             sampleRate = rate;
             clock = 0;
             enabled = false;
             interval = 0;
-            nativeClockTiming = nativeIdleTiming = false;
+            idleTiming = false;
             idleGate = idleGateFrames = 0;
             channels = {};
-            for (int c = 0; c < 16; ++c) channels[c].random = 0xa341316cu + static_cast<uint32_t> (c);
         }
 
         // Read-only lookahead; only process() advances the scheduler or RNG.
@@ -75,13 +67,9 @@ namespace synth2::midi
                 sink (msg, start + static_cast<int> (time - begin));
             };
             const double safeBpm = std::isfinite (bpm) && bpm > 0 ? bpm : 120.0;
-            // The DLL multiplies integer rate/ticks, divides in float, and
-            // truncates. Keep the preceding policy outside the audited domain.
-            nativeClockTiming = sampleRate >= 1 && sampleRate <= 192000
-                && sampleRate == std::floor(sampleRate) && safeBpm >= 1 && safeBpm <= 1000000;
-            const double nextInterval = nativeClockTiming
-                ? std::max(1, dsp::ArpeggiatorClock::period(static_cast<int>(sampleRate),static_cast<float>(safeBpm),params.beat))
-                : std::max (1.0, std::floor (sampleRate * 60.0 / safeBpm * beatsForIndex (params.beat)));
+            // One integer period/gate clock at every supported host rate.
+            const double nextInterval=std::max(1,dsp::ArpeggiatorClock::period(
+                sampleRate,static_cast<float>(safeBpm),params.beat));
             if (interval > 0 && interval != nextInterval)
                 for (auto& ch : channels)
                 {
@@ -92,10 +80,10 @@ namespace synth2::midi
                 for(auto& ch:channels)ch.idleNext=infinity;
             interval = nextInterval;
             idleGate=params.gate;
-            nativeRandomTiming=nativeClockTiming && params.nativeRandom && params.type==4 && nativeRandomSource!=nullptr;
-            nativeIdleTiming=nativeClockTiming && ((params.type>=1 && params.type<=3) || nativeRandomTiming) && idleGate>0 && idleGate<=127;
-            if(!nativeIdleTiming)for(auto& ch:channels)ch.idleNext=infinity;
-            idleGateFrames=nativeIdleTiming ? std::max(1,dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),idleGate)) : 0;
+            randomTiming=params.type==4 && params.gate>0;
+            idleTiming= ((params.type>=1 && params.type<=3) || randomTiming) && idleGate>0 && idleGate<=127;
+            if(!idleTiming)for(auto& ch:channels)ch.idleNext=infinity;
+            idleGateFrames=idleTiming ? std::max(1,dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),idleGate)) : 0;
             if (params.enabled != enabled)
             {
                 for (int c = 0; c < 16; ++c)
@@ -115,7 +103,7 @@ namespace synth2::midi
                             emit (::synth2::audio::MidiMessage::allSoundOff (c + 1), begin);
                             ch.next = begin;
                         }
-                        else if(nativeRandomTiming && c==0)
+                        else if(randomTiming && c==0)
                         {
                             ch.idleNext=begin;ch.idleGateEnd=false;
                         }
@@ -154,12 +142,12 @@ namespace synth2::midi
                             {
                                 // Full gate keeps one idle boundary per period.
                                 // Only random order consumes an octave draw.
-                                if(nativeRandomTiming)nativeRandomSource->next();
+                                if(randomTiming)randomSource.next();
                                 ch.idleNext+=interval;
                             }
                             else
                             {
-                                if(nativeRandomTiming && !ch.idleGateEnd)nativeRandomSource->next();
+                                if(randomTiming && !ch.idleGateEnd)randomSource.next();
                                 ch.idleNext+=ch.idleGateEnd ? interval-idleGateFrames : idleGateFrames;
                                 ch.idleGateEnd=!ch.idleGateEnd;
                             }
@@ -168,13 +156,13 @@ namespace synth2::midi
                         {
                             // An out-of-range random step emits no note, but
                             // native CArp still partitions at its gate boundary.
-                            if(nativeRandomTiming)boundary(start+static_cast<int>(sample-begin));
+                            if(randomTiming)boundary(start+static_cast<int>(sample-begin));
                             stop (ch, c, sample, emit);
                         }
                         if (std::ceil (ch.next - 1e-8) <= sample)
                         {
                             // Finish preceding CLFO draws before this arp step.
-                            if(nativeRandomTiming)boundary(start+static_cast<int>(sample-begin));
+                            if(randomTiming)boundary(start+static_cast<int>(sample-begin));
                             step (ch, c, sample, params, emit);
                         }
                     }
@@ -190,7 +178,7 @@ namespace synth2::midi
                 {
                     // Native input note-off partitions the renderer even when
                     // the arp gate has already stopped its generated note.
-                    if(enabled && nativeIdleTiming && (*it).getMessage().isNoteOff())boundary(position);
+                    if(enabled && idleTiming && (*it).getMessage().isNoteOff())boundary(position);
                     auto message=(*it).getMessage();
                     // Synth1 has one upstream keyboard and performance state;
                     // channel nibbles do not partition its voice/ARP ownership.
@@ -216,7 +204,6 @@ namespace synth2::midi
             double next = infinity, off = infinity, idleNext = infinity;
             bool idleGateEnd = true;
             uint64_t step = 0;
-            uint32_t random = 0xa341316cu;
             int sounding = -1;
             float triggerVelocity=0;
         };
@@ -260,12 +247,10 @@ namespace synth2::midi
             else if (msg.isAllNotesOff() || msg.isAllSoundOff())
             {
                 stop (ch, c, time, emit);
-                const auto random = ch.random;
                 ch = {};
-                ch.random = random;
-                if(enabled && nativeIdleTiming)
+                if(enabled && idleTiming)
                 {
-                    if(nativeRandomTiming)nativeRandomSource->next();
+                    if(randomTiming)randomSource.next();
                     ch.idleNext=time+idleGateFrames;ch.idleGateEnd=idleGate<127;
                 }
                 emit (msg, time);
@@ -277,9 +262,9 @@ namespace synth2::midi
                 ch.next = infinity;
                 // Native last-key release resets the arp counter but leaves
                 // the enabled clock running while voice/effect tails decay.
-                if((heldBefore || msg.isNoteOff() || msg.isSustainPedalOff()) && nativeIdleTiming)
+                if((heldBefore || msg.isNoteOff() || msg.isSustainPedalOff()) && idleTiming)
                 {
-                    if(nativeRandomTiming)nativeRandomSource->next();
+                    if(randomTiming)randomSource.next();
                     ch.idleNext=time+idleGateFrames;
                     ch.idleGateEnd=idleGate<127;
                 }
@@ -324,26 +309,16 @@ namespace synth2::midi
             }
             else if (p.type == 4)
             {
-                if(nativeRandomTiming)
-                {
-                    const int octave=nativeRandomSource->next()%(std::clamp(p.range,0,3)+1);
-                    std::array<int,128> held{};int keys=0;
-                    for(int key=0;key<128;++key)if(ch.velocity[key]>0)held[static_cast<size_t>(keys++)]=key;
-                    const int key=held[static_cast<size_t>(nativeRandomSource->next()%keys)];
-                    // CArp::reset stores the first-key velocity, not the drawn key's.
-                    nativePitch=key+12*octave;nativeVelocity=ch.triggerVelocity;
-                }
-                else
-                {
-                    ch.random ^= ch.random << 13; ch.random ^= ch.random >> 17; ch.random ^= ch.random << 5;
-                    index = static_cast<int> (ch.random % static_cast<uint32_t> (count));
-                }
+                const int octave=randomSource.next()%(std::clamp(p.range,0,3)+1);
+                std::array<int,128> held{};int keys=0;
+                for(int key=0;key<128;++key)if(ch.velocity[key]>0)held[static_cast<size_t>(keys++)]=key;
+                const int key=held[static_cast<size_t>(randomSource.next()%keys)];
+                // CArp::reset stores the first-key velocity, not the drawn key's.
+                nativePitch=key+12*octave;nativeVelocity=ch.triggerVelocity;
             }
-            const int note = nativeRandomTiming ? nativePitch : candidates[index].pitch;
+            const int note = randomTiming ? nativePitch : candidates[index].pitch;
             const int gate=std::clamp(p.gate,0,127);
-            const double gateSamples=nativeClockTiming
-                ? static_cast<double>(dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),gate))
-                : interval*gate/127.0;
+            const double gateSamples=dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),gate);
             if(note>127)
             {
                 stop(ch,c,time,emit);
@@ -355,9 +330,9 @@ namespace synth2::midi
             const int previous = ch.sounding;
             // Native random CArp::step stops its previous note before the
             // new note-on, including different pitches under full gate.
-            if (previous == note || (nativeRandomTiming && previous >= 0)) stop (ch, c, time, emit);
-            emit (::synth2::audio::MidiMessage::noteOn (c + 1, note, nativeRandomTiming ? nativeVelocity : candidates[index].velocity), time);
-            if (previous >= 0 && previous != note && !nativeRandomTiming) emit (::synth2::audio::MidiMessage::noteOff (c + 1, previous), time);
+            if (previous == note || (randomTiming && previous >= 0)) stop (ch, c, time, emit);
+            emit (::synth2::audio::MidiMessage::noteOn (c + 1, note, randomTiming ? nativeVelocity : candidates[index].velocity), time);
+            if (previous >= 0 && previous != note && !randomTiming) emit (::synth2::audio::MidiMessage::noteOff (c + 1, previous), time);
             ch.sounding = note;
             ch.off = p.gate >= 127 ? infinity : ch.next + std::max (1.0, gateSamples);
             ch.next += interval;
@@ -365,9 +340,9 @@ namespace synth2::midi
         }
         std::array<Channel, 16> channels {};
         double sampleRate = 44100, clock = 0, interval = 0;
-        bool enabled = false, nativeClockTiming = false, nativeIdleTiming = false;
-        bool nativeRandomTiming=false;
-        dsp::CrtRandom* nativeRandomSource=nullptr;
+        bool enabled = false, idleTiming = false;
+        bool randomTiming=false;
+        dsp::CrtRandom& randomSource;
         int idleGate=0,idleGateFrames=0;
     };
 }

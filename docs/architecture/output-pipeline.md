@@ -4,6 +4,9 @@
 semantic input silence and prepare/release boundaries. Pass narrow OutputPipelineSettings,
 OutputProcessContext and read-only Pan LFO views; do not pass Engine, Voice, source
 version, patch documents or the complete render aggregate.
+Process output at dispatched root regions for every source, using that region's
+controls and prepared views. A later MIDI control edit cannot alter earlier
+audio in the callback.
 
 Process nonlinear MultiFX/Phaser and EQ/Tone, global balance/Pan,
 Delay then Chorus, and startup gain in that order. Preserve native gain units,

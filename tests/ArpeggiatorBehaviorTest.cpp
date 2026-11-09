@@ -25,7 +25,7 @@ namespace
     Events render (const synth2::ArpeggiatorSettings& p, const synth2::audio::MidiBuffer& input,
                    int block = 64, int length = 1000, double rate = 1000, double bpm = 120)
     {
-        synth2::midi::Arpeggiator arp;
+        synth2::dsp::CrtRandom arpRandom;synth2::midi::Arpeggiator arp(arpRandom);
         arp.prepare (rate);
         Events result;
         for (int pos = 0; pos < length; pos += block)
@@ -86,7 +86,7 @@ TEST(Arpeggiator, DisabledProcessingPreservesMidiAndTracksHeldKeysForEnabling)
     Events expected;
     for (auto event : midi) capture (expected, event.getMessage(), event.samplePosition);
     EXPECT_EQ(render(p, midi, 64, 500), expected);
-    synth2::midi::Arpeggiator arp; arp.prepare (1000);
+    synth2::dsp::CrtRandom arpRandom;synth2::midi::Arpeggiator arp(arpRandom); arp.prepare (1000);
     Events events;
     auto sink = [&](const auto& msg, int frame) { capture (events, msg, frame); };
     arp.process (midi, 0, 100, p, 120, sink);
@@ -112,7 +112,7 @@ TEST(Arpeggiator, RandomIsRepeatableAcrossBlocksAndPrepareClearsHeldKeys)
         changed = changed || note != std::get<2>(on.front());
     }
     EXPECT_TRUE(changed);
-    synth2::midi::Arpeggiator arp; arp.prepare (1000);
+    synth2::dsp::CrtRandom arpRandom;synth2::midi::Arpeggiator arp(arpRandom); arp.prepare (1000);
     Events events; auto sink = [&](const auto& msg, int frame) { capture(events,msg,frame); };
     auto midi = held(); arp.process (midi, 0, 100, p, 120, sink);
     arp.prepare (1000); events.clear(); synth2::audio::MidiBuffer empty;
@@ -142,8 +142,8 @@ TEST(Arpeggiator, OrderedFullGateKeepsIdlePeriodsWithoutRandomDraws)
         if(release==1)input.addEvent(MidiMessage::controllerEvent(1,64,0),87);
         if(release==2)input.addEvent(MidiMessage::allSoundOff(1),87);
         const int emptyAt=release==0 ? 37 : 87;
-        synth2::midi::Arpeggiator arp;arp.prepare(1000);
-        synth2::dsp::CrtRandom random;random.state=12345;arp.setNativeRandomSource(&random);
+        synth2::dsp::CrtRandom random;random.state=12345;
+        synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
         std::vector<int> idle;Events events;
         for(int pos=0;pos<500;pos+=block)
         {
@@ -161,4 +161,58 @@ TEST(Arpeggiator, OrderedFullGateKeepsIdlePeriodsWithoutRandomDraws)
         arp.process(empty,0,500,p,120,[](const auto&,int){},[&](int frame){idle.push_back(frame);});
         EXPECT_TRUE(idle.empty());
     }
+}
+
+TEST(Arpeggiator, FractionalAndHighRatesUseWholeSampleGateBoundaries)
+{
+    // Quarter notes at 120 BPM; gate 64/127 truncates within each integer period.
+    struct Case { double rate; int period,gate; };
+    for(const auto c:{Case{8000.25,4000,2015},Case{48000.25,24000,12094},Case{384000,192000,96755}})
+    {
+        SCOPED_TRACE(c.rate);
+        auto p=defaults();p.beat=7;p.range=0;
+        const auto input=held({60},13);
+        const auto expected=render(p,input,64,c.period*3,c.rate);
+        const auto on=notes(expected),off=notes(expected,false);
+        ASSERT_EQ(on.size(),3u);ASSERT_EQ(off.size(),3u);
+        for(int n=0;n<3;++n)
+        {
+            EXPECT_EQ(std::get<0>(on[n]),13+n*c.period);
+            EXPECT_EQ(std::get<0>(off[n]),13+n*c.period+c.gate);
+        }
+        for(int block:{63,127,512})EXPECT_EQ(render(p,input,block,c.period*3,c.rate),expected);
+    }
+}
+
+TEST(Arpeggiator, SlowTempoKeepsHeldNotesAndFullGateWithinFrameRange)
+{
+    for(double rate:{8000.25,48000.,384000.})for(int gate:{64,127})
+    {
+        SCOPED_TRACE(::testing::Message()<<rate<<" "<<gate);
+        auto p=defaults();p.beat=0;p.gate=gate;
+        auto input=held({60},13);
+        input.addEvent(synth2::audio::MidiMessage::noteOff(1,60),997);
+        const auto events=render(p,input,64,2048,rate,1e-40);
+        const auto on=notes(events),off=notes(events,false);
+        ASSERT_EQ(on.size(),1u);ASSERT_EQ(off.size(),1u);
+        EXPECT_EQ(std::get<0>(on[0]),13);EXPECT_EQ(std::get<0>(off[0]),997);
+    }
+}
+
+TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
+{
+    synth2::dsp::CrtRandom random;
+    synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+    auto p=defaults();p.type=4;p.range=1;p.gate=127;
+    synth2::audio::MidiBuffer input;
+    input.addEvent(synth2::audio::MidiMessage(0x90,60,31),0);
+    input.addEvent(synth2::audio::MidiMessage(0x90,64,121),0);
+    auto expected=random;expected.next();expected.next();
+    Events events;
+    arp.process(input,0,1,p,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+    EXPECT_EQ(random.state,expected.state);
+    synth2::audio::MidiBuffer empty;
+    arp.process(empty,0,1000,p,120,[&](const auto& msg,int frame){capture(events,msg,frame+1);});
+    const auto on=notes(events);ASSERT_GT(on.size(),4u);
+    for(const auto& event:on)EXPECT_EQ(std::get<3>(event),31);
 }

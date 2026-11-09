@@ -40,6 +40,12 @@ namespace synth2::dsp
             const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
             return static_cast<int>(unit*1024.0f);
         }
+        static int unipolarControl(int depth,float sample) noexcept
+        {
+            float value=static_cast<float>(depth)*sample;
+            value+=static_cast<float>(depth);
+            return static_cast<int>(value)/2;
+        }
         static int filter(int depth,int phaseIndex) noexcept
         {
             return depth-amplitude(depth,phaseIndex);
@@ -119,10 +125,14 @@ namespace synth2::dsp
             const float curve=static_cast<float>((std::pow(10.0,static_cast<double>(unit))-1.0)*(1.0/9.0));
             return static_cast<int>((curve*5.0f)*128.0f);
         }
+        static int bipolarControl(int depth,float sample) noexcept
+        {
+            const float value=static_cast<float>(depth*2)*sample;
+            return static_cast<int>(value)/2;
+        }
         static int pan(int depth,int phaseIndex) noexcept
         {
-            const float value=static_cast<float>(depth*2)*sine()[static_cast<size_t>(phaseIndex)&2047u];
-            return static_cast<int>(value)/2;
+            return bipolarControl(depth,sine()[static_cast<size_t>(phaseIndex)&2047u]);
         }
         static int pitch(int depth,int phaseIndex) noexcept
         {

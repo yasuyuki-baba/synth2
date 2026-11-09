@@ -19,7 +19,14 @@ Preparation/retiming, history application, synchronization, chunk sampling,
 receiver queries and advancement remain separate ordered phases. Clock boundary
 queries do not advance state. Retain slot-1-before-slot-2 query ordering, disabled
 source advancement, nested partitions and shared draw chronology. Upstream key
-tracking remains distinct from generated ARP assignments.
+tracking remains distinct from generated ARP assignments. Requested first-key
+clock/target resets and active random-period boundaries remain observable after
+history invalidation; invalidation is an evidence boundary, not a clock stop.
+
+ARP uses one compatible period/gate calculation, including fractional host rates
+and bounded very slow tempos. Random order always consumes the borrowed CRT
+stream, including empty-keyboard clock events; there is no per-channel xorshift
+substitute when receiver history is unverified.
 
 The facade depends on value-only history/settings types, not Engine, Voice, patch,
 SDK or the render aggregate. `render/SharedModulationConfiguration.h` adapts the

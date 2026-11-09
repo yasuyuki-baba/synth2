@@ -71,3 +71,7 @@ with `--bypass-env`, `--bypass-filter` or `--bypass-fx`; the normal probe reject
 these switches. Bypass state belongs to the diagnostic rendering thread, is set
 outside processing callbacks, and is neither a patch control nor saved processor state.
 `--bypass-env` retains the probe's accompanying isolation dial overrides.
+
+`Synth2RenderProfile` profiles generated bridge playback scenarios without a
+pass/fail timing bound. See [host validation](../docs/validation/manual-platform.md) for the
+command and interpretation of its per-case CSV and final-block hashes.

@@ -6,8 +6,7 @@
 
 namespace synth2::dsp
 {
-    // CVcf control dispatch, Win64 RVA 0x3ad50. SynthVoice selects this with
-    // the native filter envelope on the verified single-core routing domain.
+    // Common CVcf control dispatch, reconstructed from Win64 RVA 0x3ad50.
     class CutoffControl
     {
     public:

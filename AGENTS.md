@@ -99,7 +99,7 @@
   restart a receiver; combine root span limits before advancing shared state.
 - Native input has one omni keyboard/performance state. CC121 resets ordinary
   bend separately from routed pitch, wheel and pedal state. Preserve per-note
-  velocity gain and actual pooled/local core ownership across program changes.
+  velocity gain and physical-core ownership across program changes.
 - Use one compatible shifted-note/tracked/fixed tuning and physical-core Portamento
   for every source and direct caller. Keep one ordinary PitchBendSmoother formula,
   channel-owned by Engine (the same local receiver for direct Voice callers), with

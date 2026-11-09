@@ -1,3 +1,4 @@
+#include "support/PooledTestVoice.h"
 #include <gtest/gtest.h>
 #include "../tools/host_scenarios.h"
 #include "midi/ControllerRuntime.h"
@@ -88,7 +89,7 @@ private:
 };
 std::vector<float> dispatch(const std::vector<Event>& events,const std::vector<int>& sizes)
 {
-    synth2::VoiceDispatcher dispatcher;
+    synth2::dsp::CrtRandom arpRandom;synth2::VoiceDispatcher dispatcher(arpRandom);
     dispatcher.addVoice(new MarkerVoice);
     dispatcher.addSound(new synth2::SynthSound);
     dispatcher.arpeggiator.prepare(48000);
@@ -250,10 +251,10 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
     for(bool configured:{false,true})
     {
         synth2::RenderControls controls;controls.pitchBendRange=12;
-        synth2::VoiceDispatcher dispatcher;dispatcher.params=configured ? &controls : nullptr;
+        synth2::dsp::CrtRandom arpRandom;synth2::VoiceDispatcher dispatcher(arpRandom);dispatcher.params=configured ? &controls : nullptr;
         dispatcher.setCurrentPlaybackSampleRate(44100);
         dispatcher.addSound(new synth2::SynthSound);
-        auto* voice=new synth2::SynthVoice(controls);voice->prepare(44100);dispatcher.addVoice(voice);
+        auto* voice=new synth2::test::PooledTestVoice(controls);voice->prepare(44100);dispatcher.addVoice(voice);
         synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();
         synth2::audio::MidiBuffer midi;
         midi.addEvent(synth2::audio::MidiMessage::pitchWheel(2,16383),0);

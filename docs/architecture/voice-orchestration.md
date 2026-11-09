@@ -2,7 +2,8 @@
 
 `VoiceDispatcher` owns MIDI/note dispatch and receiver regions. `SynthVoice` owns
 logical note lifecycle and borrows assigned physical `VoiceCore` state from
-`VoiceCorePool` (or its local storage for direct callers). Their declarations and
+`VoiceCorePool` in every play mode. Pool and phase-random references are mandatory;
+Voice holds no private core array or substitute phase-random source. Their declarations and
 pool/dispatcher implementations live in matching files. Core/pool/dispatcher headers
 must compile independently; the pool and dispatcher declarations use forward
 references rather than importing SynthVoice or SynthEngine.

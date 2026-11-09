@@ -9,6 +9,5 @@ namespace synth2
         int range { 0 }; // 0..3 additional octaves
         int beat { 11 }; // Native 19-position duration table
         int gate { 64 }; // 0..127
-        bool nativeRandom { false }; // Admitted shared CRT stream and empty-keyboard ticks.
     };
 }

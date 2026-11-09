@@ -51,8 +51,7 @@ namespace synth2::dsp
                     if (controls[i]->keySync)
                     {
                         slots[i].clock.resetPhase();
-                        if(random.valid)
-                            random.resetPhase(i,slots[i].clock.counter,
+                        random.resetPhase(i,slots[i].clock.counter,
                                 controls[i]->nativeSharedClock ? fractionalDial(controls[i]->amount) : -1.0f);
                     }
                 }
@@ -155,15 +154,12 @@ namespace synth2::dsp
     }
     int SharedModulationRuntime::randomBoundary(int count,const SharedModulationSettings& settings) const noexcept
     {
-        if((settings.lfos[0].nativeSharedClock || settings.lfos[1].nativeSharedClock) && random.valid)
-        {
-            int span=count;const LfoSettings* controls[]{&settings.lfos[0],&settings.lfos[1]};
-            for(size_t slot=0;slot<2;++slot)
-                if(controls[slot]->on && controls[slot]->wave>=4)
-                    span=std::min(span,slots[slot].clock.period-slots[slot].clock.counter);
-            return span;
-        }
-        return count;
+        int span=count;
+        const LfoSettings* controls[]{&settings.lfos[0],&settings.lfos[1]};
+        for(size_t slot=0;slot<2;++slot)
+            if(controls[slot]->on && controls[slot]->wave>=4)
+                span=std::min(span,slots[slot].clock.period-slots[slot].clock.counter);
+        return span;
     }
     void SharedModulationRuntime::renderSpan(int start,int count,const SharedModulationSettings& settings)
     {
