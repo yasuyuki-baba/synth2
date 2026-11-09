@@ -107,10 +107,9 @@ queue saturation, wraparound/reuse, concurrent producers and bridge recovery of
 publication after a drain. The realtime suite also checks that draining a saturated
 history queue does not use the measured heap allocators.
 
-Amplitude control composition retains shared held spans and every additional
-signal change boundary. Preserve aligned gain storage, per-core VCA state and
+Amplitude control composition retains each slot's physical held spans. Preserve aligned gain storage, per-core VCA state and
 release/retirement behavior. Sustain-stage VCA gain changes may carry an explicit
-interpolation horizon across buffer fragments for explicitly declared dispatch horizons and
+interpolation horizon across buffer fragments for declared gain dispatches and
 generated ARP events. ARP gain spans follow a 64-frame grid anchored to the
 Engine sample position. Known MIDI, ARP and receiver boundaries cap repeated
 spans, including events that emit no note. This gain-only grid does not partition

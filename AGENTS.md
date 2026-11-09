@@ -155,9 +155,8 @@
   keep the normal product independent of DSP bypass environment variables.
 - Use physical-core filter and oscillator AD envelopes for every caller. Resolve
   oscillator timing/depth from dials and destination; do not restore parallel
-  sample envelopes or approximate modulation-envelope math in the router. Keep
-  history admission for reuse/receiver transport and preserve remaining generic
-  LFO/performance contributions without double-counting admitted receivers.
+  sample envelopes or approximate modulation-envelope math. Borrow physical
+  controls directly, preserving each slot and the physical note/core lifecycle.
 - Static and modulated FM share physical-core FrequencyModulation state, receiver
   partitions and downstream phase correction. Do not restore a Voice-owned
   static smoother or an audio depth selector. Preserve base-setter horizons,
