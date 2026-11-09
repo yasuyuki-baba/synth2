@@ -24,7 +24,7 @@ and unison offsets, and arithmetic order. Sample-rate updates do not manufacture
 a note-on or reset every physical state.
 
 See [HostLifecycleTest.cpp](../../tests/HostLifecycleTest.cpp) and
-[PlaybackBehaviorTest.cpp](../../tests/PlaybackBehaviorTest.cpp). Observed reuse rules apply within their admitted rendering/history domains.
+[PlaybackBehaviorTest.cpp](../../tests/PlaybackBehaviorTest.cpp).
 
 Each physical core owns the only amplitude envelope. Direct callers and mapped
 patches use the same VCA configuration, per-core aligned gain block and natural
@@ -40,8 +40,7 @@ FM/filter transitions and state retention keep their existing boundaries.
 
 Physical filter and oscillator AD envelopes serve direct callers and mapped
 patches alike. Configure oscillator AD timing/depth from resolved dials and its
-actual destination. History flags retain their core-reuse and receiver-admission
-meaning, without selecting a parallel sample envelope. Filter release and
+actual destination. Evidence history does not select another reuse policy or envelope generator. Filter release and
 oscillator AD continuation after note-off keep their distinct schedules.
 
 Every nonlegato core start invalidates the FM target/elapsed clock. Idle starts

@@ -2,11 +2,9 @@
 #include "dsp/Unison.h"
 #include "SynthVoice.h"
 #include "VoiceCorePool.h"
-#include "dsp/ModulationRouter.h"
 #include "render/VoiceConfiguration.h"
 #include "render/VoiceAudioConfiguration.h"
 #include "render/VoiceTuningConfiguration.h"
-#include "render/VoiceLfoConfiguration.h"
 #include "render/VoiceLifecycleConfiguration.h"
 #include "dsp/AmplitudeBlockRenderer.h"
 #include "dsp/OscillatorTuning.h"
@@ -87,15 +85,14 @@ namespace synth2
     }
 
     void SynthVoice::startNote (int midiNoteNumber, float velocity,
-                                 ::synth2::audio::Sound*, int currentPitchWheelPosition)
+                                 ::synth2::audio::Sound*, int)
     {
         const auto transition=lifecycle.next();
         lifecycle.noteStarted();
         midiNote = midiNoteNumber;
         if(!transition.legato())filterMidiNote=midiNoteNumber;
         level = velocity;
-        if(currentPitchWheelPosition!=8192 || localPitchBend.current!=0 || localPitchBend.moving())
-            pitchWheelMoved(currentPitchWheelPosition);
+
 
         const bool nativeGlide = !params.portamentoAuto || transition.glide;
 
@@ -187,10 +184,7 @@ namespace synth2
         }
     }
 
-    void SynthVoice::pitchWheelMoved (int newPitchWheelValue)
-    {
-        localPitchBend.set(newPitchWheelValue);
-    }
+    void SynthVoice::pitchWheelMoved (int) {}
 
     void SynthVoice::controllerMoved (int, int) {}
 
@@ -199,16 +193,6 @@ namespace synth2
                                        int numSamples)
     {
         if (sampleRate <= 0.0 || lifecycle.phase()==dsp::VoiceLifecycle::Phase::Idle) return;
-        if(pitchBendSource==nullptr && localPitchBend.moving() && numSamples>32)
-        {
-            for(int offset=0;offset<numSamples;)
-            {
-                const int span=localPitchBend.moving() ? std::min(32,numSamples-offset) : numSamples-offset;
-                renderNextBlock(outputBuffer,startSample+offset,span);
-                offset+=span;
-            }
-            return;
-        }
         if (numSamples > 256)
         {
             for (int offset = 0; offset < numSamples; offset += 256)
@@ -217,8 +201,6 @@ namespace synth2
         }
         // Envelope retirement and logical note state keep separate lifetimes.
         const bool bypassEnv = offline::bypassEnvelopes();
-        const bool nativeVcaLfo = !bypassEnv && globalLfoBlock != nullptr
-            && ((params.lfo1.nativeSharedClock && params.lfo1.dest == 3) || (params.lfo2.nativeSharedClock && params.lfo2.dest == 3));
         bool amplitudeActive = false;
         for (int v = 0; v < activeCoreCount(); ++v)
             if (cores[v] != nullptr) amplitudeActive = amplitudeActive || cores[v]->amplitude.isActive();
@@ -233,28 +215,9 @@ namespace synth2
         if(bypassEnv)renderedSignal=true;
 
         const auto lfoView=render::receiverLfos(globalLfoBlock,startSample,params.lfo1,params.lfo2);
-        const auto modulationRouting=render::modulationRouting(params,nativeVcaLfo,lfoView.available);
-        auto audioLfos=lfoView;
-        for(size_t slot=0;slot<2;++slot)audioLfos.receivers[slot].enabled=modulationRouting.consumedLfos[slot];
-        const auto voiceLfoConfig=render::voiceLfoConfig(params);
-        const auto voiceLfoView=render::voiceLfoInput(globalLfoBlock,startSample,audioLfos);
         const auto oscillatorControl=render::oscillatorControls(params,sampleRate,bypassEnv);
         const auto filterControl=render::filterControls(params,bypassEnv);
-        std::array<dsp::ModulationRouter::ModResults,256> modulation;
-        dsp::VoiceControlBuffer additionalFm{},additionalFilter{};
-        dsp::AmplitudeControls additionalAmplitude{};
-        bool hasFm=false,hasFilter=false,hasAmplitude=false;
-        for(int i=0;i<numSamples;++i)
-        {
-            const auto input=dsp::VoiceLfoRenderer::sample(voiceLfoConfig,voiceLfoView,i);
-            modulation[i]=dsp::ModulationRouter::calculate(modulationRouting,input.values[0],input.values[1]);
-            additionalFm[i]=modulation[i].fmControl;additionalFilter[i]=modulation[i].filterControl;
-            hasFm=hasFm || additionalFm[i]!=0;hasFilter=hasFilter || additionalFilter[i]!=0;
-            for(size_t slot=0;slot<2;++slot)
-            {additionalAmplitude[slot][i]=modulation[i].amplitudeControl[slot];hasAmplitude=hasAmplitude || additionalAmplitude[slot][i]!=0;}
-        }
-        if(pitchBendSource==nullptr && localPitchBend.moving())localPitchBend.advance(static_cast<int>(params.pitchBendRange));
-        const int bend=pitchBendSource!=nullptr ? pitchBendSource->offset : localPitchBend.offset;
+        const int bend=pitchBendOffset;
         const auto oscillatorAudio=render::oscillatorAudio(params,bypassEnv,bend!=0);
         const auto filterAudio=render::filterAudio(params,bypassEnv);
         std::array<std::array<float,256>,8> nativeCoarsePitch;
@@ -271,12 +234,10 @@ namespace synth2
         for(int v=0;v<activeCoreCount();++v)if(cores[v])
             dsp::OscillatorControlRenderer::fm(oscillatorControl,lfoView,cores[v]->fm,
                 numSamples,nativeModPitch[v],nativeModRemaining[v],nativeFmDepth[v],
-                &cores[v]->coarse,&nativeCoarsePitch[v],
-                hasFm ? &additionalFm : nullptr);
+                &cores[v]->coarse,&nativeCoarsePitch[v]);
         for(int v=0;v<activeCoreCount();++v)if(cores[v])
             dsp::FilterControlRenderer::render(filterControl,lfoView,cores[v]->filterEnvelope,cores[v]->cutoff,
-                cores[v]->keyboardOffset,cores[v]->unisonOffset,numSamples,nativeCutoffIndices[v],
-                hasFilter ? &additionalFilter : nullptr);
+                cores[v]->keyboardOffset,cores[v]->unisonOffset,numSamples,nativeCutoffIndices[v]);
 
         // Native oscillator input is rendered for the entire callback before
         // the integer amplitude stage retires the voice. Keep those phase ticks.
@@ -290,9 +251,8 @@ namespace synth2
                 // Projected signals and generated ARP events retain gain progress.
                 // Ordinary receiver spans keep their actual dispatch length.
                 const bool coreRendered=dsp::AmplitudeBlockRenderer::render(
-                    render::amplitudeBlockSettings(modulationRouting,gainOffset,amplitudeGainHorizon,amplitudeGainBoundary),lfoView,
-                    cores[v]->amplitude,numSamples,amplitudeGains[v].data(),
-                    hasAmplitude ? &additionalAmplitude : nullptr);
+                    render::amplitudeBlockSettings(gainOffset,amplitudeGainHorizon,amplitudeGainBoundary),lfoView,
+                    cores[v]->amplitude,numSamples,amplitudeGains[v].data());
                 renderedSignal=renderedSignal || coreRendered;
             }
 
@@ -325,9 +285,15 @@ namespace synth2
                 float mixValue = params.oscMix;
                 float subGainValue = params.subOscGain;
 
-                const auto lfoInput=dsp::VoiceLfoRenderer::sample(voiceLfoConfig,voiceLfoView,i);
-
-                const auto& mods=modulation[i];
+                double firstPitch=0,secondPitch=0;
+                if(lfoView.available)for(size_t slot=0;slot<2;++slot)
+                    if(lfoView.receivers[slot].enabled)
+                    {
+                        const auto destination=lfoView.receivers[slot].destination;
+                        const double value=lfoView.values[slot][i];
+                        if(destination==1)firstPitch+=value;
+                        if(destination==0 || destination==1)secondPitch+=value;
+                    }
 
                 // Update frequencies, PW and Pan
                 float curPw = params.pulseWidth;
@@ -346,16 +312,16 @@ namespace synth2
                         coreFrequency.second=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
                     const dsp::OscillatorAudioInput oscillatorInput {
                         coreFrequency.first,coreFrequency.second,curPw,mixValue,subGainValue,syncEnabled,ringEnabled,
-                        lfoInput.firstPitch+bend+mods.firstPitch,
-                        lfoInput.secondPitch+bend+mods.secondPitch,
+                        firstPitch+bend,
+                        secondPitch+bend,
                         nativeGlidePitch[v][i],nativeModPitch[v][i],
                         nativeFmDepth[v][i],
-                        mods.pulseControl};
+                        0};
                     float vEnveloped;
                     if(audioFactor==1)
                     {
                         const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                            oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr);
+                            oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr);
 
                         const float vCombined = oscSignal;
 
@@ -372,7 +338,7 @@ namespace synth2
                         const int factor=audioFactor;
                         std::array<float,16> oscillatorFrame{};
                         dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                            oscillatorAudio,oscillatorInput,audioLfos,i,waveTableBankPtr,oscillatorFrame.data(),factor);
+                            oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr,oscillatorFrame.data(),factor);
                         const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
                         for(int step=0;step<factor;++step)
                         {
@@ -433,7 +399,7 @@ namespace synth2
                 // but the VCA's completed tail resets it before idle reuse.
                 cores[v]->fm.settle=true; // CVca end37f00 invokes CVco idle marker3dfd0.
                 cores[v]->modulationEnvelope.reset();
-                if(params.nativeIdleFilterReset)
+                if(params.resetIdleFilter)
                 {
                     cores[v]->filterEnvelope.reset();
                     cores[v]->cutoff.settle();
@@ -480,7 +446,7 @@ namespace synth2
             auto& core = *cores[v];
             core.unisonOffset = layout.filterIndex[layoutSlot(v)];
             // CVcf keeps its note while a legato assignment retunes only CVCO.
-            const int filterNote=params.nativeFilterEnvelope ? filterMidiNote : midiNote;
+            const int filterNote=filterMidiNote;
             dsp::VoiceEnvelopeConfigurator::filter(core.filterEnvelope,core.keyboardOffset,core.unisonOffset,
                 filterSettings,filterNote,level,sampleRate);
         }

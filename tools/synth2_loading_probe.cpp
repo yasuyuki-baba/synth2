@@ -110,7 +110,7 @@ int main(int argc,char** argv) try
                     {
                         const auto& lfo=slot==0 ? params.lfo1 : params.lfo2;
                         out<<id<<'\t'<<donor<<'\t'<<repeat<<'\t'<<slot<<'\t'<<lfo.on<<'\t'<<lfo.dest
-                           <<'\t'<<lfo.wave<<'\t'<<lfo.nativeSharedClock<<'\n';
+                           <<'\t'<<lfo.wave<<'\t'<<lfo.on<<'\n';
                     }
                     continue;
                 }
@@ -123,10 +123,9 @@ int main(int argc,char** argv) try
                     emit("filter_type",params.filterType);emit("filter_attack_seconds",params.filterEnv.attackSec);
                     emit("filter_decay_seconds",params.filterEnv.decaySec);emit("filter_sustain",params.filterEnv.sustain);
                     emit("filter_release_seconds",params.filterEnv.releaseSec);
-                    emit("native_filter_envelope",params.nativeFilterEnvelope);emit("native_filter_lfo",params.nativeFilterLfo);
-                    emit("native_filter_kernel",params.nativeOrdinaryStateVariable);
-                    emit("native_pitch_lfo",params.nativePitchLfo);emit("native_pw_lfo",params.nativePulseWidthLfo);
-                    emit("native_lfo1_clock",params.lfo1.nativeSharedClock);emit("native_lfo2_clock",params.lfo2.nativeSharedClock);
+                    emit("native_filter_lfo",params.hasLfo(2));
+                    emit("native_pitch_lfo",params.hasPitchLfo());emit("native_pw_lfo",params.hasLfo(4));
+                    emit("native_lfo1_clock",params.lfo1.on);emit("native_lfo2_clock",params.lfo2.on);
                     continue;
                 }
                 if(derived)
@@ -134,7 +133,7 @@ int main(int argc,char** argv) try
                     synth2::MappedSynthSnapshot params;
                     if(!synth2::readMappedSynthParams(*processor,params))throw std::runtime_error("Missing mapped processor state");
                     out<<id<<'\t'<<donor<<'\t'<<repeat<<'\t'<<source.at(64)<<'\t'<<normalized.at(64)
-                        <<'\t'<<params.chorus.type<<'\t'<<params.nativePitchLfo<<'\t'<<params.modEnv.nativePitch
+                        <<'\t'<<params.chorus.type<<'\t'<<params.hasPitchLfo()<<'\t'<<(params.modEnv.on && params.modEnv.dest==0)
                         <<'\n';
                     continue;
                 }

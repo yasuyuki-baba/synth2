@@ -40,23 +40,14 @@ fractional-product drift; it is not unbiased fractional phase accumulation.
 FilterAudioRenderer consumes one cutoff coordinate prepared from the physical
 filter envelope and receiver controls. It does not select a second envelope or
 cutoff approximation. Oscillator envelope generation likewise belongs to the
-physical core; the router composes remaining LFO/performance signals only.
+physical core; adapters borrow prepared physical LFO controls.
 
 Static and modulated FM consume the same physical-core depth buffer and phase
 correction. Voice owns no separate static-FM smoother, and the audio adapter has
-no static/modulated depth selector. History admission still governs generic
-LFO/performance input transport without choosing another FM coefficient engine.
-
-ModulationRouter converts only unconsumed prepared inputs to explicit pitch,
-filter, pulse and FM receiver coordinates. The render adapter owns the per-slot
-consumption mask. FM/filter extras enter control rendering before transfer/slew;
-the audio component accepts resolved FM depth and an additional real pulse control.
-There is no normalized FM offset or provisional phase multiplier in that adapter.
-
-AmplitudeBlockRenderer accepts admitted and additional per-slot controls in the
-same attenuation coordinates. Both independent factors reach the physical VCA;
-keep each signal boundary and native output alignment. No postmix amplitude-LFO
-gain or shared-renderer mode selects another amplitude path.
+no static/modulated depth selector. All LFO slots enter their physical receivers
+before transfer/slew; no generic normalized-input router or additional-buffer API
+remains. AmplitudeBlockRenderer combines independent per-slot attenuation at the
+physical VCA while preserving held spans, gain horizons and output alignment.
 
 StereoBalance supplies only static left/right balance coefficients. Voice core
 placement and output balance keep distinct positions and their defined float
@@ -66,10 +57,9 @@ across nonlinear effects or replace that receiver with a per-voice panner.
 
 Pan LFO is an output responsibility for every input source. Voice retains core
 and unison placement but has no global pan offset or unused per-voice pan state.
-Engine-owned LfoControlProjection prepares real pan controls during each source
-span; the output adapter selects one admitted/projected input per slot. The
-output enable expresses an active pan receiver, not source admission. The cubic
-curve, smoothing and lifecycle are the same physical PanLfo state for both.
+Engine prepares real pan controls for each MIDI subregion; output borrows one
+value per active slot. The cubic curve, smoothing and lifecycle belong to the
+same physical PanLfo state for all sources.
 
 Static global balance is also an output responsibility for every caller. Voice
 retains per-core/unison positions only, without a separate global sum factor.

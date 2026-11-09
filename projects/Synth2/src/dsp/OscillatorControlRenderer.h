@@ -63,8 +63,7 @@ namespace synth2::dsp
         static void fm(const OscillatorControlSettings& config,const ReceiverLfoView& lfos,
             FrequencyModulation& state,int count,const VoiceControlBuffer& envelopePitch,
             const VoiceSpanBuffer& remaining,VoiceControlBuffer& depth,
-            OscillatorCoarsePitch* coarse=nullptr,std::array<float,256>* exponents=nullptr,
-            const VoiceControlBuffer* additional=nullptr)
+            OscillatorCoarsePitch* coarse=nullptr,std::array<float,256>* exponents=nullptr)
         {
             int position=0;
             while(position<count)
@@ -77,8 +76,6 @@ namespace synth2::dsp
                         frames=std::min(frames,lfos.remaining[slot][position]);
                         if(lfos.receivers[slot].destination==5)control+=lfos.values[slot][position];
                     }
-                if(additional!=nullptr)
-                {control+=(*additional)[position];frames=std::min(frames,constantControlSpan(*additional,position,frames));}
                 if(coarse!=nullptr)frames=coarse->span(frames,static_cast<int>(config.sampleRate));
                 const int start=position;
                 state.render(FrequencyModulation::depth(static_cast<double>(fractionalDial(config.fmAmount)),control),

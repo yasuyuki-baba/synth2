@@ -179,10 +179,9 @@ TEST(FmPhaseCorrection, ResetExternalPhaseAndDisableDiscardStaleCorrection)
 
 TEST(FmPhaseCorrection, FmPolicyIsIndependentOfWaveformEnvelopeAndHistoryAdmission)
 {
-    synth2::RenderControls settings;settings.nativeFmLfo=true;
+    synth2::RenderControls settings;
     settings.lfo1.on=settings.lfo2.on=true;
     settings.lfo1.dest=settings.lfo2.dest=5;
-    settings.lfo1.nativeSharedClock=settings.lfo2.nativeSharedClock=true;
     for(int first=0;first<6;++first)for(int second=0;second<6;++second)
         for(bool envelope:{false,true})
         {
@@ -192,12 +191,12 @@ TEST(FmPhaseCorrection, FmPolicyIsIndependentOfWaveformEnvelopeAndHistoryAdmissi
             EXPECT_TRUE(config.correctFmPhase);
             EXPECT_FALSE(synth2::render::oscillatorAudio(settings,true).correctFmPhase);
         }
-    settings.nativeFmLfo=false;settings.modEnv.nativeFm=true;
-    EXPECT_TRUE(synth2::render::oscillatorAudio(settings,false).correctFmPhase);
-    settings.modEnv.nativeFm=false;settings.nativeVoicePerformance=true;
-    EXPECT_TRUE(synth2::render::oscillatorAudio(settings,false).correctFmPhase);
-    settings.nativeVoicePerformance=false;
-    EXPECT_TRUE(synth2::render::oscillatorAudio(settings,false).correctFmPhase);
+    settings.lfo1.on=settings.lfo2.on=false;
+    for(int destination:{0,2,3})
+    {
+        settings.modEnv.on=true;settings.modEnv.dest=destination;
+        EXPECT_TRUE(synth2::render::oscillatorAudio(settings,false).correctFmPhase);
+    }
 }
 
 TEST(FmPhaseCorrection, NativeRingDispatchBypassesFmCorrection)

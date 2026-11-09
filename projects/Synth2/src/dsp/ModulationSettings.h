@@ -8,7 +8,6 @@ namespace synth2
 {
     struct LfoSettings
     {
-        bool nativeSharedClock {false};
         bool on {false};
         int wave {0}; // Sine, triangle, saw, square, sample-and-hold, smoothed random.
         int dest {0}; // OSC2, both oscillators, filter, amplitude, PW, FM, pan.
@@ -18,22 +17,10 @@ namespace synth2
 
     struct ModulationEnvelopeControls
     {
-        bool nativePitch { false };
-        bool nativePulseWidth { false };
-        bool nativeFm { false };
         float amountDial {64};
         float attackDial {0},decayDial {0};
         bool  on         { false };
-        int   dest       { 0 };     // 0=osc2, 2=fm, 3=pw;1 is reserved for legacy direct callers
+        int   dest       { 0 };     // 0=osc2, 2=fm, 3=pw
     };
 
-}
-
-namespace synth2::dsp
-{
-    struct ModulationRoutingSettings
-    {
-        LfoSettings lfo1,lfo2;
-        std::array<bool,2> consumedLfos {};
-    };
 }

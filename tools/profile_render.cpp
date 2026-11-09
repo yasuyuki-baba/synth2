@@ -127,7 +127,7 @@ int main(int argc,char** argv) try
                     cases.push_back({mode,resonance,voices.first,voices.second,lfo});
     PerfControl control;
     std::ofstream csv(output);if(!csv)throw std::runtime_error("Cannot open output");
-    csv<<std::setprecision(12)<<"round,source_version,mode,resonance,notes,unison,lfo,cores,blocks,cpu_mean_us,wall_mean_us,native_filter_envelope,canonical_filter,native_scalar_oscillators,native_voice_performance,native_filter_lfo,native_tone,peak,final_block_hash\n";
+    csv<<std::setprecision(12)<<"round,source_version,mode,resonance,notes,unison,lfo,cores,blocks,cpu_mean_us,wall_mean_us,pitch_lfo,filter_lfo,fm_lfo,pulse_lfo,amplitude_lfo,pan_lfo,peak,final_block_hash\n";
     for(int round=0;round<rounds;++round)for(size_t at=0;at<cases.size();++at)
     {
         const auto& c=cases[(at+round*17)%cases.size()];
@@ -154,8 +154,8 @@ int main(int argc,char** argv) try
         for(int ch=0;ch<2;++ch)for(int i=0;i<64;++i)
         {uint32_t word{};const float value=audio.getSample(ch,i);std::memcpy(&word,&value,4);hash=(hash^word)*1099511628211uLL;}
         csv<<round<<','<<version<<','<<c.mode<<','<<c.resonance<<','<<c.notes<<','<<c.unison<<','<<c.lfo<<','<<cores<<','<<blocks<<','<<cpu/blocks<<','<<wall/blocks<<','
-            <<mapped.nativeFilterEnvelope<<','<<1<<','<<true<<','<<mapped.nativeVoicePerformance<<','
-            <<((mapped.lfo1.nativeSharedClock && mapped.lfo1.dest==2) || (mapped.lfo2.nativeSharedClock && mapped.lfo2.dest==2))<<','<<true<<','<<peak<<','<<hash<<'\n';
+            <<mapped.hasPitchLfo()<<','<<mapped.hasLfo(2)<<','<<mapped.hasLfo(5)<<','<<mapped.hasLfo(4)<<','
+            <<mapped.hasLfo(3)<<','<<mapped.hasLfo(6)<<','<<peak<<','<<hash<<'\n';
         csv.flush();if(!csv)throw std::runtime_error("Cannot finish profile CSV");
     }
     return 0;

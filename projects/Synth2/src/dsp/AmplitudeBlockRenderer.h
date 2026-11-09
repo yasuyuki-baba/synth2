@@ -7,14 +7,13 @@ namespace synth2::dsp
     // Horizons and the optional known event end are relative to this call.
     // repeatHorizon continues the caller's gain grid after its initial span.
     struct AmplitudeBlockSettings { int gainOffset {};int gainHorizon {};int repeatHorizon {};int boundaryFrames {}; };
-    using AmplitudeControls=std::array<VoiceControlBuffer,2>;
 
     struct AmplitudeBlockRenderer
     {
         // All inputs use physical VCA attenuation coordinates. Keep independent
         // slot products, caller-owned alignment and each source's held spans.
         static bool render(const AmplitudeBlockSettings& config,const ReceiverLfoView& lfos,
-            AmplitudeEnvelope& amplitude,int frames,float* gains,const AmplitudeControls* additional=nullptr)
+            AmplitudeEnvelope& amplitude,int frames,float* gains)
         {
             bool rendered=false;
             for(int offset=0;offset<frames;)
@@ -35,11 +34,6 @@ namespace synth2::dsp
                         control[slot]=lfos.values[slot][offset];
                         count=std::min(count,lfos.remaining[slot][offset]);
                         if(horizon>0)horizon=std::min(horizon,lfos.remaining[slot][offset]);
-                    }
-                    if(additional!=nullptr)
-                    {
-                        control[slot]+=(*additional)[slot][offset];
-                        count=std::min(count,constantControlSpan((*additional)[slot],offset,count));
                     }
                 }
                 amplitude.setModulation(control[0],control[1]);

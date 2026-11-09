@@ -767,7 +767,7 @@ TEST(PlaybackBehavior, PitchLfoUsesCommonDepthForLocalAndSharedSources)
                 EXPECT_EQ(controls.lfo1.wave,3);EXPECT_EQ(controls.lfo1.dest,destination);
                 EXPECT_EQ(controls.lfo1.keySync,keySync);EXPECT_EQ(controls.unisonVoices,1);
                 EXPECT_NEAR(controls.lfo1.amount,depth/127.f,1e-6);
-                if(version==1 && keySync)EXPECT_TRUE(controls.lfo1.nativeSharedClock);
+
             }
             for(int i=0;i<64;++i)
             {
@@ -833,7 +833,7 @@ TEST(PlaybackBehavior, PulseWidthLfoKeepsBoundsEnvelopeCompositionAndKeySync)
                 EXPECT_TRUE(synth2::readMappedSynthParams(processor,controls));
                 EXPECT_EQ(controls.lfo1.wave,3);EXPECT_EQ(controls.lfo1.dest,4);
                 EXPECT_TRUE(controls.lfo1.on);EXPECT_EQ(controls.lfo1.keySync,keySync);
-                if(version==1 && keySync)EXPECT_TRUE(controls.lfo1.nativeSharedClock);
+
                 if(envelope>=0){EXPECT_TRUE(controls.modEnv.on);EXPECT_EQ(controls.modEnv.dest,3);}
             }
             for(const auto& channel:audio)for(float value:channel)EXPECT_TRUE(std::isfinite(value));
@@ -906,7 +906,7 @@ TEST(PlaybackBehavior, FmLfoUsesCommonDepthForLocalAndSharedSources)
                 synth2::RenderControls controls;EXPECT_TRUE(synth2::readMappedSynthParams(processor,controls));
                 EXPECT_EQ(controls.lfo1.wave,3);EXPECT_EQ(controls.lfo1.dest,5);
                 EXPECT_TRUE(controls.lfo1.on);EXPECT_EQ(controls.lfo1.keySync,keySync);
-                if(version==1 && keySync)EXPECT_TRUE(controls.lfo1.nativeSharedClock);
+
             }
             for(const auto& channel:audio)for(float value:channel)EXPECT_TRUE(std::isfinite(value));
             samples.insert(samples.end(),audio[0].begin(),audio[0].end());
@@ -968,7 +968,7 @@ TEST(PlaybackBehavior, FilterLfoUsesCommonCutoffAndEnvelopeComposition)
                 synth2::RenderControls controls;EXPECT_TRUE(synth2::readMappedSynthParams(processor,controls));
                 EXPECT_EQ(controls.lfo1.wave,3);EXPECT_EQ(controls.lfo1.dest,2);
                 EXPECT_TRUE(controls.lfo1.on);EXPECT_EQ(controls.lfo1.keySync,keySync);
-                if(version==1 && keySync)EXPECT_TRUE(controls.lfo1.nativeSharedClock);
+
             }
             for(const auto& channel:audio)for(float value:channel)EXPECT_TRUE(std::isfinite(value));
             samples.insert(samples.end(),audio[0].begin(),audio[0].end());
@@ -1027,7 +1027,7 @@ Stereo lfoReceiverRms(double rate,int version,bool keySync,int destination,int d
             synth2::RenderControls controls;EXPECT_TRUE(synth2::readMappedSynthParams(processor,controls));
             EXPECT_EQ(controls.lfo1.dest,destination);EXPECT_EQ(controls.lfo1.wave,3);
             EXPECT_TRUE(controls.lfo1.on);EXPECT_EQ(controls.lfo1.keySync,keySync);
-            if(version==1 && keySync)EXPECT_TRUE(controls.lfo1.nativeSharedClock);
+
         }
         for(int channel=0;channel<2;++channel)for(int i=0;i<64;++i)
         {
@@ -1492,7 +1492,7 @@ TEST(PlaybackBehavior, FirstKeyResetsRequestedClocksAndRandomTargetsAfterHistory
         for(int n=0;n<8;++n)process();
         synth2::MappedSynthSnapshot controls;ASSERT_TRUE(synth2::readMappedSynthParams(processor,controls));
         ASSERT_FALSE(controls.nativeRandomLfoHistoryValid);ASSERT_TRUE(controls.lfo1.keySync);
-        ASSERT_FALSE(controls.lfo1.nativeSharedClock);ASSERT_GT(counter(),1);
+        ASSERT_GT(counter(),1);
         std::array<uint32_t,9> words{};ASSERT_TRUE(synth2::readNativeRandomLfoWords(processor,0,words));
         ASSERT_NE(words[3],words[4]);const auto before=random();
         ASSERT_TRUE(processor.enqueueMidi(63,0x90,60,100));process();
@@ -1540,7 +1540,7 @@ TEST(PlaybackBehavior, ActiveRandomPeriodsKeepDrawsAcrossCallbackSizesAfterHisto
         };
         for(int n=0;n<128;++n)for(auto* p:{&whole,&split})process(*p,256);
         synth2::MappedSynthSnapshot controls;ASSERT_TRUE(synth2::readMappedSynthParams(whole,controls));
-        ASSERT_FALSE(controls.nativeRandomLfoHistoryValid);ASSERT_FALSE(controls.lfo1.nativeSharedClock);
+        ASSERT_FALSE(controls.nativeRandomLfoHistoryValid);
         ASSERT_TRUE(controls.lfo1.on);ASSERT_EQ(controls.lfo1.wave,4);
         const auto& clock=whole.engineForInspection().getNativeLfoClock(0);
         ASSERT_EQ(clock.currentHz,clock.targetHz);

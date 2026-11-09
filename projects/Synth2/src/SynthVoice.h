@@ -5,7 +5,6 @@
 #include "dsp/VoiceLifecycle.h"
 #include "dsp/Amplifier.h"
 #include "dsp/LfoBlock.h"
-#include "dsp/PitchBendSmoother.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -52,7 +51,7 @@ namespace synth2
         dsp::VoiceLifecycle::Phase getLifecyclePhase() const noexcept { return lifecycle.phase(); }
         double getCurrentFrequency() const noexcept
         {return cores[0]!=nullptr ? static_cast<double>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
-        void setPitchBendSource(const dsp::PitchBendSmoother* source) noexcept {pitchBendSource=source;}
+        void setPitchBendOffset(int offset) noexcept {pitchBendOffset=offset;}
         // Offline read-only inspection of the core actually used by this
         // logical voice, using the same physical pool in every play mode.
         bool readRenderingCoreWords(size_t index,std::array<uint32_t,16>& words) const noexcept
@@ -120,8 +119,7 @@ namespace synth2
         int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
         bool renderedSignal {};
         int filterMidiNote {60};
-        dsp::PitchBendSmoother localPitchBend;
-        const dsp::PitchBendSmoother* pitchBendSource=nullptr;
+        int pitchBendOffset {};
         dsp::VoiceLifecycle lifecycle;
         float  level  { 0.0f };
 

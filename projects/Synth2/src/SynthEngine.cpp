@@ -85,7 +85,7 @@ namespace synth2
         const bool rateChanged = currentSampleRate != sampleRate;
         const bool preserveVoices = !sharedModulation.isInitial()
             && params.playMode == 0
-            && (params.lfo1.nativeSharedClock || params.lfo2.nativeSharedClock);
+            && (params.lfo1.on || params.lfo2.on);
         if(!preserveVoices || rateChanged)for(auto& channel:audioDownsamplers)channel.reset();
         currentSampleRate = sampleRate;
         outputPipeline.prepareGain(sampleRate,preserveVoices);
@@ -103,7 +103,7 @@ namespace synth2
         params.globalSampleCount = 0;
         previousPlayMode = params.playMode;
         outputPipeline.prepareProcessors(sampleRate,!sharedModulation.isInitial());
-        sharedModulation.prepareSources(sampleRate,samplesPerBlock,render::sharedModulation(params));
+        sharedModulation.prepareBlock(samplesPerBlock);
 
         initWaveTables (sampleRate);
         
@@ -112,7 +112,7 @@ namespace synth2
         // Keep this behavior within the audited imported sine-tremolo route.
         const bool preservePhase=!sharedModulation.isInitial() && params.playMode==0
             && params.unisonVoices==1 && params.polyphony==1
-            && (params.lfo1.nativeSharedClock || params.lfo2.nativeSharedClock);
+            && (params.lfo1.on || params.lfo2.on);
         if (!preserveVoices) corePool.prepare(spec,preservePhase);
         else if (rateChanged) corePool.updateSampleRate(spec);
         outputPipeline.prepareEffects(spec,preserveVoices,rateChanged);
@@ -163,7 +163,7 @@ namespace synth2
         // Keep native tone delay samples until the next prepare can decide
         // whether this is a rate change. Other prepares reset EQ as before.
         const bool retainTone = !sharedModulation.isInitial() && params.playMode == 0
-            && (params.lfo1.nativeSharedClock || params.lfo2.nativeSharedClock);
+            && (params.lfo1.on || params.lfo2.on);
         outputPipeline.release(retainTone);
     }
 

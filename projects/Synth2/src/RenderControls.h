@@ -27,14 +27,8 @@ namespace synth2
     {
         ArpeggiatorSettings arpeggiator;
         // Oscillators
-        bool nativePanLfo {false};
         int nativeMultiEffectType {-1};
         std::array<float,3> nativeMultiEffectDials {};
-        bool nativePitchLfo {false};
-        bool nativePulseWidthLfo {false};
-        bool nativeFmLfo {false};
-        bool nativeFilterLfo {false};
-        bool nativeResonantNoise {false};
         float osc1StackDial {0}; // Effective p76; rounded zero retains the scalar route.
         float osc1WaveIndex   { 0.0f };
         float osc2WaveIndex   { 0.0f };
@@ -60,8 +54,6 @@ namespace synth2
         // Import mapper selects native block segments; direct callers keep sample-clocked behavior.
         // Complete native VCF + gain + output Tone route, including verified LP24.
         // Core-history admission only; Filter always uses the common kernels.
-        bool nativeOrdinaryStateVariable {false};
-        bool nativeFilterEnvelope {false};
         float ampAttackSec      { 0.01f };
         float ampDecaySec       { 0.1f }; // Finite endpoint, not an exponential time constant.
         float ampSustain        { 0.8f };
@@ -77,7 +69,6 @@ namespace synth2
         float cutoffHz        { 0.0f };
         float resonanceNorm   { 0.0f };
         float filterEnvAmount { 0.0f };
-        float filterTracking  { 0.0f }; // p22: effective octave tracking; log2(1+raw/127), pivot MIDI 48.
         float filterKeyTrackNorm { 0.0f }; // Original dial value for native integer tracking.
         float filterVelocity  { 0.0f }; // p24: enables the measured filter-velocity response.
         float ampVelocity     { 0.0f }; // p30: 0..1 sets up to 30 dB velocity attenuation.
@@ -100,8 +91,7 @@ namespace synth2
         bool  isPolyphonic   { true }; 
         bool  portamentoAuto { false };
         float sourcePortamentoDial {0}; // Resolved real dial for the physical portamento receiver.
-        bool nativeIdleFilterReset {false}; // Audited mono noise idle reuse.
-        bool nativeVoicePerformance {false}; // Audited ordinary one-core note transitions.
+        bool resetIdleFilter {false}; // Audited mono noise idle reuse.
 
         // Effects
         bool nativePhaser { false };
@@ -115,6 +105,9 @@ namespace synth2
         float pitchBendRange  { 2.0f };   // p72 (semitones)
         float globalFineTune  { 0.0f };   // p72: OSC1/2 Fine Tune, cents
         float hostBpm         { 120.0f };
-        bool  globalQualityD  { false };  // p99: "D-flag" 8-tap averaging
+        bool hasLfo(int destination) const noexcept
+        { return (lfo1.on && lfo1.dest==destination) || (lfo2.on && lfo2.dest==destination); }
+        bool hasPitchLfo() const noexcept { return hasLfo(0) || hasLfo(1); }
+
     };
 }

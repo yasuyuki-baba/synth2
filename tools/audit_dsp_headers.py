@@ -11,17 +11,17 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT_HEADERS = (
     'HistoryQueue.h', 'Oscillator.h', 'OscillatorSection.h', 'LfoBlock.h',
-    'LfoControlProjection.h', 'StereoBalance.h', 'FractionalDial.h', 'ModulationSettings.h', 'ModulationRouter.h', 'OscillatorControlRenderer.h',
+    'StereoBalance.h', 'FractionalDial.h', 'ModulationSettings.h', 'OscillatorControlRenderer.h',
     'FilterControlRenderer.h', 'AmplitudeBlockRenderer.h', 'OscillatorAudioRenderer.h',
-    'FilterAudioRenderer.h', 'VoiceTuning.h', 'VoiceLfoRenderer.h', 'VoiceLifecycle.h',
+    'FilterAudioRenderer.h', 'VoiceTuning.h', 'VoiceLifecycle.h',
     'VoiceCorePolicy.h', 'VoiceEnvelopeConfigurator.h', 'OutputPipeline.h',
     'SharedModulationRuntime.h', 'SharedModulationSettings.h',
     'LfoHistoryEvent.h', 'EffectSettings.h', 'PitchBendSmoother.h', 'OscillatorCoarsePitch.h', 'FmPhaseCorrection.h', 'PulseWidthRead.h',
 )
 STANDARD_HEADERS = (
     'HistoryQueue.h', 'Oscillator.h', 'OscillatorSection.h', 'LfoBlock.h',
-    'LfoControlProjection.h', 'StereoBalance.h', 'FractionalDial.h', 'ModulationSettings.h', 'OscillatorControlRenderer.h', 'FilterControlRenderer.h',
-    'AmplitudeBlockRenderer.h', 'VoiceTuning.h', 'VoiceLfoRenderer.h', 'VoiceLifecycle.h', 'VoiceCorePolicy.h',
+    'StereoBalance.h', 'FractionalDial.h', 'ModulationSettings.h', 'OscillatorControlRenderer.h', 'FilterControlRenderer.h',
+    'AmplitudeBlockRenderer.h', 'VoiceTuning.h', 'VoiceLifecycle.h', 'VoiceCorePolicy.h',
     'VoiceEnvelopeConfigurator.h', 'SharedModulationSettings.h',
     'LfoHistoryEvent.h', 'EffectSettings.h', 'OutputPipelineSettings.h', 'PitchBendSmoother.h', 'OscillatorCoarsePitch.h', 'FmPhaseCorrection.h', 'PulseWidthRead.h',
 )

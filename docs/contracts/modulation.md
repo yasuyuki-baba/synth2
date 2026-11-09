@@ -9,20 +9,20 @@ scheduler. Phase/VCO randomness remains separate from the Engine-owned LFO pair.
 History setters, receiver queries and clock advances are distinct ordered actions.
 Preserve callback/receiver spans, slot order, random advancement, fractional-rate
 handling and state retention. Disabled shared sources may still advance their
-native histories. A clock being eligible for a receiver and its running history
-being valid are separate decisions.
+native histories. Destination enable and evidence validity are separate facts; evidence validity
+does not select the rendering algorithm.
 
 Consumers use read-only clock/random/block views. They must not advance shared
 clocks, reset them or draw additional random values. Key-synchronized sources are shared across all voices. The first held
 upstream key resets phase; overlapping keys do not. Generate waveform signals
-after MIDI dispatch, including events inside a host block. Retain fallback random
-targets and its running stream across key resets without note-based reseeding. Reprepare does not unconditionally clear held keys or
+after MIDI dispatch, including events inside a host block. Keep the shared CRT stream across key resets without note-based reseeding;
+requested random-target resets retain their observed draw order. Reprepare does not unconditionally clear held keys or
 running native history; apply the documented lifecycle and observed transition.
 
 Source/loaded controls, explicit same-value edits and observed initialization
 history remain distinct. Equal visible control values do not establish equal
-clock state. Admission guards must depend on supported histories and control
-meanings; unresolved histories must not silently be presented as native parity.
+clock state. Unresolved histories must stay marked unverified, rather than silently being
+presented as native parity or selecting another generator.
 
 During a full load, MIDI routing re-dispatches the loaded rate using the retained
 sync mode. The ordinary rate setter follows those re-dispatches, then the sync
@@ -44,14 +44,10 @@ Resolved deterministic LFOs and supported oscillator-envelope destinations use
 common receiver composition for every source format. Source-version conversion
 remains a loading concern; a format alone must not select a second modulation,
 oscillator, tuning or filter algorithm after mapping. This includes disabled LFOs,
-tempo sync and overlapping keys. Random receivers still require both admitted
-source loading and valid running history. Unadmitted legacy random ARP retains
-its existing composition restrictions even with deterministic or disabled LFOs.
-Deterministic amplitude receivers use
-the common control/VCA path even beside an unadmitted random source. This does not validate
-unknown random histories. When shared and fallback amplitude slots coexist,
-route each exactly once through its physical VCA input, preserving two independent
-attenuation factors rather than a second sample-gain multiplication.
+tempo sync and overlapping keys. Random receivers use the same retained CRT
+stream when evidence is incomplete. Keep that uncertainty in diagnostics; do not
+invent a substitute stream or promote it to verified original-engine history.
+Each active amplitude slot reaches one independent physical VCA factor.
 Random held and smoothed targets retain real current/previous levels. Each
 nonzero effective range uses one shared CRT draw and projects that same word
 through compatible endpoint knots; a zero range consumes no draw. Queries never
@@ -80,29 +76,14 @@ and separate compatible Sync reference are defined in
 
 ## Input coordinates and consumption
 
-Receiver admission is resolved per LFO slot in the render adapter. A prepared
-shared receiver is consumed once; another unconsumed slot must retain its input.
-Keep the original receiver view for physical control scheduling, even when a
-separate audio-consumption view excludes a slot. Do not infer a different clock,
-random seed or history from the coordinate conversion.
-
-Prepared normalized signals that lack an admitted receiver are projected through
-the compatible destination/depth endpoints. Pitch uses128 units per octave,
-filter uses1024 units of headroom-relative depth, pulse width uses128 units of
-relative width depth, and FM uses512 units of relative FM depth. Interpolate depth
-knots and retain real signal coordinates. This defines the extension for those
-unadmitted signals; it does not establish their original-DLL execution history.
-Amplitude uses2048 units of per-slot attenuation and reaches the same physical
-VCA for admitted and remaining inputs. Pan uses64 units per side and reaches
-the output PanLfo receiver for admitted and remaining inputs alike.
-
-Additional filter/FM controls enter the physical receiver before cutoff/depth
-mapping and slewing. Retain every actual change boundary and the original native
-receiver spans; a constant additional control does not force sample-sized calls.
-Pitch controls compose before the common pitch curve, and pulse controls compose
-with admitted LFO/envelope input before the common pulse-width curve. No linear
-FM phase multiplier or octave-offset filter approximation is selected by history.
-A missing prepared source is neutral, including unipolar filter/FM destinations.
+Every active slot supplies prepared physical control values and held spans.
+Pitch uses128 units per octave, filter uses1024 units of headroom-relative depth,
+pulse uses128 units of relative width depth, FM uses512 units of relative depth,
+amplitude uses2048 attenuation units, and pan uses64 units per side. Retain real
+coordinates and compatible fractional-depth knots. Missing prepared views are
+neutral. No normalized signal projection or second per-slot consumption route
+remains. Filter/FM inputs enter before transfer/slew, pitch composes before the
+common pitch curve, and pulse composes with the physical oscillator envelope.
 
 MIDI wheel and routed pitch use ControllerRuntime destination setters. Keep running
 inputs separate from mapped/source/getter/state values. There is no additional
@@ -129,7 +110,7 @@ history queue does not use the measured heap allocators.
 Amplitude control composition retains shared held spans and every additional
 signal change boundary. Preserve aligned gain storage, per-core VCA state and
 release/retirement behavior. Sustain-stage VCA gain changes may carry an explicit
-interpolation horizon across buffer fragments for projected continuous inputs or
+interpolation horizon across buffer fragments for explicitly declared dispatch horizons and
 generated ARP events. ARP gain spans follow a 64-frame grid anchored to the
 Engine sample position. Known MIDI, ARP and receiver boundaries cap repeated
 spans, including events that emit no note. This gain-only grid does not partition
@@ -145,11 +126,8 @@ There is no shared/nonshared amplitude renderer mode
 or Voice-level postmix tremolo factor. The explicit offline envelope bypass
 bypasses the entire VCA, including its LFO attenuation.
 
-Pan projection is stored by Engine-owned source generation using the depth of
-each actual MIDI subregion. Later output processing must not re-normalize earlier
-samples with the final depth of a host block. Per slot, use admitted receiver
-values or that prepared projection, never both. Do not promote source/history
-admission flags merely because the output DSP can consume the signal.
+Engine stores physical pan controls at each MIDI subregion's depth. Output
+consumes each active slot once, using that prepared value and its held span.
 
 All pan LFO inputs use the existing output cubic response, smoothing and
 retained device state after MultiFX/Tone and before wet effects. Voice consumes

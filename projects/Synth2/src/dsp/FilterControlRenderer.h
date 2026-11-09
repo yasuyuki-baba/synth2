@@ -15,7 +15,7 @@ namespace synth2::dsp
     {
         static void render(const FilterControlSettings& config,const ReceiverLfoView& lfos,
             FilterEnvelope& envelope,CutoffControl& cutoff,double keyboardOffset,double unisonOffset,
-            int count,VoiceControlBuffer& indices,const VoiceControlBuffer* additional=nullptr)
+            int count,VoiceControlBuffer& indices)
         {
             std::fill_n(indices.data(),count,0);
             if(!config.enabled)return;
@@ -29,8 +29,6 @@ namespace synth2::dsp
                         modulation+=lfos.values[slot][position];
                         frames=std::min(frames,lfos.remaining[slot][position]);
                     }
-                if(additional!=nullptr)
-                {modulation+=(*additional)[position];frames=std::min(frames,constantControlSpan(*additional,position,frames));}
                 envelope.render(frames,[&](double target,int size) {
                     const double desired=CutoffControl::target(config.cutoffIndex,keyboardOffset,unisonOffset,target,modulation,0);
                     cutoff.render(desired,size,[&](double index,int samples) {

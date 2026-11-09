@@ -136,18 +136,18 @@ TEST(OscillatorRead, PulseReceiverComposesSharedEnvelopeAndRemainingControlOnce)
     }
 }
 
-TEST(OscillatorRead, LegacyBothPitchDestinationUsesTheCommonEnvelopeAtOneOctaveRange)
+TEST(OscillatorRead, OscillatorTwoPitchEnvelopeUsesTheCommonOneOctaveControl)
 {
     for(bool receiver:{false,true})
     {
         synth2::dsp::OscillatorSection actual,reference;
         for(auto* oscillator:{&actual,&reference})oscillator->prepare({44100,64,2});
-        synth2::dsp::OscillatorAudioSettings config;config.pitchEnvelope=config.pitchEnvelopeBoth=true;config.pitchReceiver=receiver;
-        synth2::dsp::OscillatorAudioInput input;input.firstFrequency=220;input.secondFrequency=330;input.pulseWidth=.5f;input.envelope=640;
+        synth2::dsp::OscillatorAudioSettings config;config.pitchEnvelope=true;config.pitchReceiver=receiver;
+        synth2::dsp::OscillatorAudioInput input;input.firstFrequency=220;input.secondFrequency=330;input.pulseWidth=.5f;input.envelope=128;
         for(int frame=0;frame<256;++frame)
         {
             synth2::dsp::OscillatorAudioRenderer::process(actual,config,input,{},0,nullptr);
-            reference.processSample(440,660,.5f,0,0,false,false,0,0,-1,nullptr);
+            reference.processSample(220,660,.5f,0,0,false,false,0,0,-1,nullptr);
             EXPECT_EQ(actual.readPhaseWords(),reference.readPhaseWords());
         }
     }
