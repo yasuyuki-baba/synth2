@@ -87,7 +87,7 @@ TEST(FilterEnvelopePrecision, CommonConfiguratorPreservesIntegralSourceNormaliza
             settings.amount=(amount-63.0f)/64.0f;
             settings.sustain=multiply ? dial*(1.0f/127.0f) : dial/127.0f;
             // With zero Attack/Decay the first sample exposes the configured sustain.
-            const float depth=std::abs(std::clamp(settings.amount,-.5f,.5f))*1024.0f;
+            const float depth=std::abs(std::clamp(settings.amount,-.5,.5))*1024.0f;
             const double expected=std::trunc(depth*settings.sustain);
             FilterEnvelope envelope;double keyboard=0;
             VoiceEnvelopeConfigurator::filter(envelope,keyboard,0,settings,48,1,44100);

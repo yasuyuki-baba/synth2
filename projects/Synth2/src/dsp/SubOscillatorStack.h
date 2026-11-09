@@ -7,17 +7,17 @@ namespace synth2::dsp
     struct SubOscillatorStack
     {
         // Win64 0x2943b, followed by 0x3e540. Preserve the serialized knob.
-        static float level(int dial) noexcept
+        static double level(int dial) noexcept
         {
-            return static_cast<float>(std::clamp(dial,0,127)*4)*(1.0f/127.0f);
+            return static_cast<double>(std::clamp(dial,0,127)*4)/127.0;
         }
-        static float denominator(float level,float mix) noexcept
+        static double denominator(double level,double mix) noexcept
         {
-            return (level+1.0f)*(1.0f-mix)+mix;
+            return (level+1.0)*(1.0-mix)+mix;
         }
-        static float normalizer(float level,float mix) noexcept
+        static double normalizer(double level,double mix) noexcept
         {
-            return 1.0f/denominator(level,mix);
+            return 1.0/denominator(level,mix);
         }
         // Kernels share OSC1's full accumulator. Bit 27 is significant below.
         static uint32_t tableIndex(uint32_t phase,bool down) noexcept

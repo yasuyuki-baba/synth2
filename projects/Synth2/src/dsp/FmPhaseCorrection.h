@@ -15,11 +15,11 @@ namespace synth2::dsp
             uint32_t audibleOffset {},referenceOffset {},referenceBefore {},referenceAfter {};
         };
         void reset() noexcept { ready=false; }
-        Advance advance(double depth,float source,uint32_t increment,uint32_t phase,bool enabled) noexcept
+        Advance advance(double depth,double source,uint32_t increment,uint32_t phase,bool enabled) noexcept
         {
             constexpr uint32_t mask=0x07ffffffu;
             // Only the compatible Sync/noise reference retains the float product.
-            const int32_t native=static_cast<int32_t>(static_cast<float>(depth)*source);
+            const int32_t native=static_cast<int32_t>(static_cast<float>(depth)*static_cast<float>(source));
             if(!enabled)
             {
                 ready=false;
@@ -33,7 +33,7 @@ namespace synth2::dsp
             // Preserve compatible integer depth knots, interpolating real depth
             // through the same mapping rather than changing the phase policy.
             const double product=compatibleControlCurve(depth,[&](int value){
-                return static_cast<int32_t>(static_cast<float>(value)*source);
+                return static_cast<int32_t>(static_cast<float>(value)*static_cast<float>(source));
             });
             const double nextError=(phaseError+product-native)*(31.0/32.0);
             const double value=static_cast<double>(native)+nextError-phaseError+phaseCarry;

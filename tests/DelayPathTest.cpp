@@ -12,7 +12,7 @@ auto makeDelay(int kind=0,int tone=64)
     EXPECT_TRUE(delay->configure(44100,kind,.01f,0,50,100,tone));
     return delay;
 }
-void signal(std::array<float,128>& data,int frame)
+void signal(std::array<double,128>& data,int frame)
 {
     for(int i=0;i<64;++i)
     {
@@ -31,7 +31,7 @@ TEST(DelayPath, FractionalEditHistoryDoesNotSelectDifferentProcessingAfterReset)
         edited->setTimeSeconds(.01f);
         edited->setToneDial(64.25f);edited->setToneDial(static_cast<float>(tone));
         cold->reset();edited->reset();
-        std::array<float,128>a{},b{},sa{},sb{};
+        std::array<double,128>a{},b{},sa{},sb{};
         for(int frame=0;frame<44100*2;frame+=64)
         {
             if(frame==4096){cold->setTimeSeconds(.02f);edited->setTimeSeconds(.02f);}
@@ -51,7 +51,7 @@ TEST(DelayPath, ProcessingPartitionDoesNotChangeFractionalOrIntegralSlew)
     {
         auto block=makeDelay(kind,37),single=makeDelay(kind,37);
         block->reset();single->reset();
-        std::array<float,128>a{},b{},sa{},sb{};
+        std::array<double,128>a{},b{},sa{},sb{};
         for(int frame=0;frame<4096;frame+=64)
         {
             if(frame==1024)
@@ -75,7 +75,7 @@ TEST(DelayPath, EveryCoordinateUsesTheSameSettlingRule)
         auto delay=makeDelay();
         const double base=delay->getLeftFrames()+fraction;
         delay->setFrameTargets(base,base);delay->reset();
-        float dry[2]{1,0},send[2]{};
+        double dry[2]{1,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));
         delay->setFrameTargets(base+.0625,base+.0625);
         dry[0]=0;ASSERT_TRUE(delay->process(dry,send,1));
@@ -92,7 +92,7 @@ TEST(DelayPath, IntegralFrameTargetsPreserveTheExactImpulseEndpoint)
     ASSERT_TRUE(delay->setFrameTargets(endpoint,endpoint));delay->reset();
     for(int frame=0;frame<=endpoint+1;++frame)
     {
-        float dry[2]{frame==0 ? 1.f : 0.f,0},send[2]{};
+        double dry[2]{frame==0 ? 1.f : 0.f,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));
         EXPECT_EQ(send[0],frame==endpoint ? 1.f : 0.f);EXPECT_EQ(send[1],0);
     }

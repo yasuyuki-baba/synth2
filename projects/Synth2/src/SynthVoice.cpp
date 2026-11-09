@@ -16,12 +16,12 @@ namespace synth2
 {
     namespace
     {
-        static int mapWave (float norm)
+        static int mapWave (double norm)
         {
-            if (norm > 1.0f) return 4; // Noise
-            if (norm <= 0.25f) return 0; // Saw
-            if (norm <= 0.50f) return 1; // Square
-            if (norm <= 0.75f) return 2; // Tri
+            if (norm > 1.0) return 4; // Noise
+            if (norm <= 0.25) return 0; // Saw
+            if (norm <= 0.50) return 1; // Square
+            if (norm <= 0.75) return 2; // Tri
             return 3;                    // Sine
         }
     }
@@ -84,7 +84,7 @@ namespace synth2
         if (isVoiceActive()) updateEnvelopeConfiguration();
     }
 
-    void SynthVoice::startNote (int midiNoteNumber, float velocity,
+    void SynthVoice::startNote (int midiNoteNumber, double velocity,
                                  ::synth2::audio::Sound*, int)
     {
         const auto transition=lifecycle.next();
@@ -122,7 +122,7 @@ namespace synth2
                 static_cast<int>(params.octaveBase*12+params.keyShift));
             core.oscillator.params.osc1Wave = mapWave(params.osc1WaveIndex);
             core.oscillator.params.osc2Wave = mapWave(params.osc2WaveIndex);
-            const float coarse=dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis);
+            const double coarse=dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis);
             if(core.coarse.target!=coarse)core.coarse.set(coarse,false);
             core.coarse.noteOn();
             core.phase.setDial(params.oscillatorPhaseDial);
@@ -158,7 +158,7 @@ namespace synth2
 
     }
 
-    void SynthVoice::stopNote (float, bool allowTailOff)
+    void SynthVoice::stopNote (double, bool allowTailOff)
     {
         const auto action=lifecycle.stop(allowTailOff);
         if(action==dsp::VoiceLifecycle::StopAction::Preserve)return;
@@ -182,7 +182,7 @@ namespace synth2
 
     void SynthVoice::controllerMoved (int, int) {}
 
-    void SynthVoice::renderNextBlock (::synth2::audio::AudioBuffer<float>& outputBuffer,
+    void SynthVoice::renderNextBlock (::synth2::audio::AudioBuffer<double>& outputBuffer,
                                        int startSample,
                                        int numSamples)
     {
@@ -214,7 +214,7 @@ namespace synth2
         const int bend=pitchBendOffset;
         const auto oscillatorAudio=render::oscillatorAudio(params,bypassEnv,bend!=0);
         const auto filterAudio=render::filterAudio(params,bypassEnv);
-        std::array<std::array<float,256>,8> nativeCoarsePitch;
+        std::array<std::array<double,256>,8> nativeCoarsePitch;
         std::array<dsp::VoiceControlBuffer,8> nativeGlidePitch,nativeModPitch,nativeFmDepth,nativeCutoffIndices;
         std::array<dsp::VoiceSpanBuffer,8> nativeModRemaining;
         // Preserve the native stage order across all cores. Child controllers
@@ -235,10 +235,10 @@ namespace synth2
 
         // Native oscillator input is rendered for the entire callback before
         // the integer amplitude stage retires the voice. Keep those phase ticks.
-        // The native root advances its interleaved workspace by two floats
-        // per frame before the mono VCA receiver processes each subregion.
+        // The native workspace advances by two words per frame. Retain this
+        // scheduling coordinate independently of double gain/audio storage.
         const int gainOffset=!bypassEnv ? (((startSample-nativeWorkspaceOrigin)*2)&3) : 0;
-        alignas(16) std::array<std::array<float,260>,8> amplitudeGains;
+        alignas(16) std::array<std::array<double,260>,8> amplitudeGains;
         if (!bypassEnv)
             for (int v = 0; v < activeCoreCount(); ++v) if (cores[v] != nullptr)
             {
@@ -254,9 +254,9 @@ namespace synth2
 
         const dsp::VoiceTuning tuning(render::voiceTuning(params,bypassEnv),midiNote);
         const int numUnison=tuning.unisonCount();
-        const float velocityGain = dsp::AmplitudeEnvelope::velocityForDials(
+        const double velocityGain = dsp::AmplitudeEnvelope::velocityForDials(
             static_cast<int>(std::lround(level*127)),dsp::fractionalDial(params.ampVelocity));
-        const float sy1AmpGain = dsp::AmplitudeEnvelope::gainForDial(dsp::fractionalDial(params.ampGainMultiplier));
+        const double sy1AmpGain = dsp::AmplitudeEnvelope::gainForDial(dsp::fractionalDial(params.ampGainMultiplier));
 
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
@@ -271,8 +271,8 @@ namespace synth2
             cores[v]->oscillator.params.osc2Wave = mapWave(params.osc2WaveIndex);
         }
 
-        const bool syncEnabled = params.osc2Sync > 0.0f;
-        const bool ringEnabled = params.ringMod > 0.0f;
+        const bool syncEnabled = params.osc2Sync > 0.0;
+        const bool ringEnabled = params.ringMod > 0.0;
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -286,14 +286,14 @@ namespace synth2
                     if(destination==0 || destination==1)secondPitch+=value;
                 }
 
-            float combinedL = 0.0f;
-            float combinedR = 0.0f;
-            std::array<float,16> highLeft{},highRight{};
+            double combinedL = 0.0;
+            double combinedR = 0.0;
+            std::array<double,16> highLeft{},highRight{};
 
             for (int v = 0; v < activeCoreCount(); ++v)
             {
                 if (cores[v] == nullptr) continue;
-                const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
+                const double panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
 
                 auto coreFrequency=coreTuning[v];
                 if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)
@@ -305,13 +305,13 @@ namespace synth2
                     nativeGlidePitch[v][i],nativeModPitch[v][i],
                     nativeFmDepth[v][i],
                     0};
-                float vEnveloped;
+                double vEnveloped;
                 if(audioFactor==1)
                 {
-                    const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                    const double oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
                         oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr);
 
-                    const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                    const double vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
                         {oscSignal,nativeCutoffIndices[v][i]});
 
                     // Central gain stage: apply envelope to the signal before panner/unison sum.
@@ -322,30 +322,30 @@ namespace synth2
                 else
                 {
                     const int factor=audioFactor;
-                    std::array<float,16> oscillatorFrame{};
+                    std::array<double,16> oscillatorFrame{};
                     dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
                         oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr,oscillatorFrame.data(),factor);
-                    const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
+                    const double gain=bypassEnv ? 1. : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
                     for(int step=0;step<factor;++step)
                     {
-                        const float signal=oscillatorFrame[step];
-                        const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                        const double signal=oscillatorFrame[step];
+                        const double filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
                             {signal,nativeCutoffIndices[v][i]})*gain;
-                        float left,right;amplifier.processSample(filtered,1.f,panAmt,left,right);
+                        double left,right;amplifier.processSample(filtered,1.,panAmt,left,right);
                         highLeft[step]+=left;highRight[step]+=right;
                     }
                     continue;
                 }
 
-                float vL, vR;
-                amplifier.processSample (vEnveloped, 1.0f, panAmt, vL, vR);
+                double vL, vR;
+                amplifier.processSample (vEnveloped, 1.0, panAmt, vL, vR);
                 combinedL += vL;
                 combinedR += vR;
             }
 
         // Static gain/velocity are cached per segment; envelope and
         // modulation remain sample-varying and are applied exactly once.
-        float overallGain = bypassEnv
+        double overallGain = bypassEnv
             ? sy1AmpGain * params.masterVolume * velocityGain
             : params.masterVolume;
 
@@ -363,14 +363,14 @@ namespace synth2
 
         // Native resonant voices exceed unity. Preserve floating-point
         // headroom instead of introducing per-voice hard distortion.
-        const float outL = combinedL;
-        const float outR = combinedR;
+        const double outL = combinedL;
+        const double outR = combinedR;
 
         if (outputBuffer.getNumChannels() >= 2) {
             outputBuffer.addSample (0, startSample + i, outL);
             outputBuffer.addSample (1, startSample + i, outR);
         } else {
-            outputBuffer.addSample (0, startSample + i, (outL + outR) * 0.5f);
+            outputBuffer.addSample (0, startSample + i, (outL + outR) * 0.5);
         }
 
     }
@@ -414,7 +414,7 @@ namespace synth2
         {
             configureAmplitude(*cores[v]);configureModulationEnvelope(*cores[v]);
         }
-        const float coarse=dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis);
+        const double coarse=dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis);
         for(int v=0;v<activeCoreCount();++v)if(auto* core=cores[v];core!=nullptr && core->coarse.target!=coarse)
             core->coarse.set(coarse,core->modulationEnvelope.isActive());
         updateFilterEnvelopeConfiguration();

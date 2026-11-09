@@ -22,7 +22,7 @@ TEST(ProcessorContracts, DoubleOutputAndMidiBoundsRemainDeterministic)
     ASSERT_TRUE(a.enqueueMidi(7,0x90,69,100));ASSERT_TRUE(b.enqueueMidi(7,0x90,69,100));
     std::array<float,64> l{},r{};std::array<double,64> dl{},dr{};
     for(int block=0;block<8;++block)
-    {ASSERT_TRUE(a.process(l.data(),r.data(),64,90));ASSERT_TRUE(b.process(dl.data(),dr.data(),64,90));for(int i=0;i<64;++i){EXPECT_EQ(dl[i],static_cast<double>(l[i]));EXPECT_EQ(dr[i],static_cast<double>(r[i]));}}
+    {ASSERT_TRUE(a.process(l.data(),r.data(),64,90));ASSERT_TRUE(b.process(dl.data(),dr.data(),64,90));for(int i=0;i<64;++i){EXPECT_EQ(static_cast<float>(dl[i]),l[i]);EXPECT_EQ(static_cast<float>(dr[i]),r[i]);}}
     EXPECT_FALSE(a.enqueueMidi(-1,0x90,60,100));EXPECT_FALSE(a.enqueueMidi(0,0xf0,0,0));
     EXPECT_EQ(a.droppedMidiMessages(),2u);
     std::array<float,65> largeL{},largeR{};largeL.fill(1);largeR.fill(1);EXPECT_FALSE(a.process(largeL.data(),largeR.data(),65,120));

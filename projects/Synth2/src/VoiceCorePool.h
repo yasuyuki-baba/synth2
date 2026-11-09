@@ -55,7 +55,7 @@ namespace synth2
         {
             if(index>=slots.size())return false;
             const auto& state=slots[index].coarse;
-            const std::array<float,3> floats{state.current,state.target,state.anchor};
+            const std::array<float,3> floats{static_cast<float>(state.current),static_cast<float>(state.target),static_cast<float>(state.anchor)};
             std::memcpy(words.data(),floats.data(),sizeof(floats));
             words[3]=static_cast<uint32_t>(state.elapsed);words[4]=state.pending ? 1u : 0u;return true;
         }

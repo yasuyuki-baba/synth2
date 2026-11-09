@@ -36,13 +36,13 @@ namespace synth2
         dsp::Portamento portamento;
         dsp::FrequencyModulation fm;
         dsp::OscillatorCoarsePitch coarse;
-        float amplitudeReferenceVelocity {1.0f};
+        double amplitudeReferenceVelocity {1.0};
         double keyboardOffset {},unisonOffset {};
         int physicalSlot {-1};
         std::array<uint32_t,22> readFloatWords() const noexcept
         {
             const auto gains=amplitude.readGainState();const auto memory=filter.readNativeMemory();
-            std::array<float,21> values{gains[0],gains[1],gains[2],amplitudeReferenceVelocity};
+            std::array<float,21> values{static_cast<float>(gains[0]),static_cast<float>(gains[1]),static_cast<float>(gains[2]),static_cast<float>(amplitudeReferenceVelocity)};
             std::copy(memory.begin(),memory.end(),values.begin()+4);
             std::array<uint32_t,22> words{};std::memcpy(words.data(),values.data(),sizeof(values));
             words[21]=static_cast<uint32_t>(static_cast<int64_t>(amplitude.getCachedLevel()));return words;

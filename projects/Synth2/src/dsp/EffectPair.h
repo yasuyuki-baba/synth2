@@ -15,14 +15,14 @@ namespace synth2::dsp
         void prepare(double rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0,384000.0));reset();}
         void reset() noexcept {delay->reset();chorus.reset();initialized=false;}
         template<class DelaySettings,class ChorusSettings>
-        void setParams(const DelaySettings& d,const ChorusSettings& c,float bpm) noexcept
+        void setParams(const DelaySettings& d,const ChorusSettings& c,double bpm) noexcept
         {
-            std::array<float,12> next={fractionalDial(d.time),fractionalDial(d.feedback),fractionalDial(d.level),static_cast<float>(std::clamp(d.type,0,2)),fractionalDial(d.spread),fractionalDial(d.tone),
-                static_cast<float>(c.type==1 || c.type==4 ? c.type : 2),fractionalDial(c.time),fractionalDial(c.depth),fractionalDial(c.rate),fractionalDial(c.feedback),fractionalDial(c.level)};
+            std::array<double,12> next={fractionalDial(d.time),fractionalDial(d.feedback),fractionalDial(d.level),static_cast<double>(std::clamp(d.type,0,2)),fractionalDial(d.spread),fractionalDial(d.tone),
+                static_cast<double>(c.type==1 || c.type==4 ? c.type : 2),fractionalDial(c.time),fractionalDial(c.depth),fractionalDial(c.rate),fractionalDial(c.feedback),fractionalDial(c.level)};
             if(!std::isfinite(bpm) || bpm<=0)bpm=120;
             auto seconds=[&]{return interpolateDial(next[0],[&](int value){return EffectControls::delaySeconds(value,bpm);});};
             auto spread=[&]{return interpolateDial(next[4],[](int value){return EffectControls::spreadSeconds(value);});};
-            auto integer=[](float value){return static_cast<int>(std::round(value));};
+            auto integer=[](double value){return static_cast<int>(std::round(value));};
             if(!initialized)
             {
                 delay->configure(sampleRate,integer(next[3]),seconds(),spread(),integer(next[1]),integer(next[2]),integer(next[5]));
@@ -59,11 +59,11 @@ namespace synth2::dsp
             delay->setEnabled(d.enable);chorus.setEnabled(c.enabled);
             previous=next;tempo=bpm;initialized=true;
         }
-        void process(float* left,float* right,int frames) noexcept
+        void process(double* left,double* right,int frames) noexcept
         {
             processInternal(left,right,frames,nullptr);
         }
-        void process(float* left,float* right,int frames,bool& silent) noexcept
+        void process(double* left,double* right,int frames,bool& silent) noexcept
         {
             processInternal(left,right,frames,&silent);
         }
@@ -72,11 +72,11 @@ namespace synth2::dsp
             std::array<uint32_t,9> words {static_cast<uint32_t>(delay->getSilentFrames()),static_cast<uint32_t>(delay->getTailFrames()),
                 static_cast<uint32_t>(delay->getWritePosition()),static_cast<uint32_t>(chorus.getSilentFrames()),static_cast<uint32_t>(chorus.getTailFrames()),
                 static_cast<uint32_t>(chorus.getReadPosition()),static_cast<uint32_t>(chorus.getWritePosition())};
-            const float sine=chorus.getPhaseSin(),cosine=chorus.getPhaseCos();
+            const float sine=static_cast<float>(chorus.getPhaseSin()),cosine=static_cast<float>(chorus.getPhaseCos());
             std::memcpy(&words[7],&sine,4);std::memcpy(&words[8],&cosine,4);return words;
         }
     private:
-        void processInternal(float* left,float* right,int frames,bool* silent) noexcept
+        void processInternal(double* left,double* right,int frames,bool* silent) noexcept
         {
             const bool inputSilent=silent && *silent;bool allSilent=true;
             for(int offset=0;offset<frames;)
@@ -89,19 +89,19 @@ namespace synth2::dsp
                 allSilent=allSilent && flag!=0;
                 for(int i=0;i<count;++i)
                 {
-                    left[offset+i]=right ? dry[2*i] : (dry[2*i]+dry[2*i+1])*.5f;
+                    left[offset+i]=right ? dry[2*i] : (dry[2*i]+dry[2*i+1])*.5;
                     if(right)right[offset+i]=dry[2*i+1];
                 }
                 offset+=count;
             }
             if(silent)*silent=allSilent;
         }
-        std::array<double,2> delayFrames(float time,float spread,float bpm) const noexcept
+        std::array<double,2> delayFrames(double time,double spread,double bpm) const noexcept
         {
             const int t0=static_cast<int>(time),t1=std::min(127,t0+1);
             const int s0=static_cast<int>(spread),s1=std::min(127,s0+1);
             auto anchor=[&](int t,int s){
-                const int nominal=static_cast<int>(static_cast<float>(sampleRate)*EffectControls::delaySeconds(t,bpm));
+                const int nominal=static_cast<int>(static_cast<float>(sampleRate)*EffectControls::delaySeconds(t,static_cast<float>(bpm)));
                 const int aligned=nominal-nominal%4;
                 const float offset=EffectControls::spreadSeconds(s);
                 const int l=aligned+(offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0);
@@ -121,8 +121,8 @@ namespace synth2::dsp
         }
         std::unique_ptr<DelayKernel> delay=std::make_unique<DelayKernel>();
         ChorusKernel chorus;
-        std::array<float,512> dry {},send {};
-        std::array<float,12> previous {};
-        int sampleRate{44100};float tempo{120};bool initialized{};
+        std::array<double,512> dry {},send {};
+        std::array<double,12> previous {};
+        int sampleRate{44100};double tempo{120};bool initialized{};
     };
 }

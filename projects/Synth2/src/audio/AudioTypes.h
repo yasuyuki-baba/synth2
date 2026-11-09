@@ -27,8 +27,8 @@ private:T& ref;T previous;
 };
 struct Decibels
 {
-    static float decibelsToGain(float db,float floor=-100.f) {return db>floor ? std::pow(10.f,db*.05f) : 0.f;}
-    static float gainToDecibels(float gain,float floor=-100.f) {return gain>0.f ? std::max(floor,20.f*std::log10(gain)) : floor;}
+    static double decibelsToGain(double db,double floor=-100.0) {return db>floor ? std::pow(10.0,db*.05) : 0.0;}
+    static double gainToDecibels(double gain,double floor=-100.0) {return gain>0.0 ? std::max(floor,20.0*std::log10(gain)) : floor;}
 };
 struct ProcessSpec
 {

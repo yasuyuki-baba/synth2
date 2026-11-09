@@ -14,11 +14,11 @@ namespace synth2::dsp
     class ReleaseRamp
     {
     public:
-        static int durationFrames (float seconds,double sampleRate) noexcept
+        static int durationFrames (double seconds,double sampleRate) noexcept
         {
-            const float frames = seconds * static_cast<float> (sampleRate);
+            const double frames = seconds * static_cast<double> (sampleRate);
             if (!std::isfinite (frames) || frames <= 0) return 0;
-            if (frames >= static_cast<float> (std::numeric_limits<int>::max()))
+            if (frames >= static_cast<double> (std::numeric_limits<int>::max()))
                 return std::numeric_limits<int>::max();
             return static_cast<int> (frames);
         }
@@ -58,16 +58,16 @@ namespace synth2::dsp
         void advance (int frames,Segment&& segment,int horizon = 0) noexcept
         {
             if (!active) return;
-            const float reciprocal = 1.0f / static_cast<float> (std::max (1,duration));
+            const double reciprocal = 1.0 / static_cast<double> (std::max (1,duration));
             while (frames > 0 && counter < duration && (level > 0 || pending > 0))
             {
                 if(pending==0)
                 {
                     pending=std::min({std::max(frames,horizon),step,duration-counter});
-                    const float remaining = static_cast<float> (duration-counter-pending) * reciprocal;
-                    const float curve = std::exp ((remaining-1.0f)*8.0f)*remaining;
+                    const double remaining = static_cast<double> (duration-counter-pending) * reciprocal;
+                    const double curve = std::exp ((remaining-1.0)*8.0)*remaining;
                     level = compatibleControlCurve(initial,[&](int start) {
-                        return std::trunc(curve*static_cast<float>(start));
+                        return std::trunc(curve*static_cast<double>(start));
                     });
                 }
                 const int count=std::min(frames,pending);
@@ -79,7 +79,7 @@ namespace synth2::dsp
                 if (pending==0 && counter >= boundary) updateResolution();
             }
             if (pending==0 && (counter >= duration || level <= 0
-                || counter >= static_cast<int> (static_cast<float> (duration)*0.9f)))
+                || counter >= static_cast<int> (static_cast<double> (duration)*0.9)))
             {
                 level = 0;
                 active = false;

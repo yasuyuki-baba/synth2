@@ -47,10 +47,10 @@ namespace synth2
             modulation->trackKey(message,render::sharedModulation(*params));
     }
 
-    void VoiceDispatcher::noteOn (int midiChannel, int midiNoteNumber, float velocity)
+    void VoiceDispatcher::noteOn (int midiChannel, int midiNoteNumber, double velocity)
     {
         if (!dispatchingArpeggiator && midiChannel>=1 && midiChannel<=16 && midiNoteNumber>=0 && midiNoteNumber<128)
-            trackLfoKey(::synth2::audio::MidiMessage::noteOn(midiChannel,midiNoteNumber,velocity));
+            trackLfoKey(::synth2::audio::MidiMessage::noteOn(midiChannel,midiNoteNumber,static_cast<float>(velocity)));
         if (params == nullptr || params->playMode == 0)
         {
             if(nativeOmniInput && midiChannel>=1 && midiChannel<=16 && midiNoteNumber>=0 && midiNoteNumber<128)
@@ -76,12 +76,12 @@ namespace synth2
         const auto transition=continuing && overlapping && params->playMode==2 ? dsp::NoteTransitionKind::Legato
             : continuing ? dsp::NoteTransitionKind::RetainedRetrigger
             : dsp::NoteTransitionKind::Retrigger;
-        voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f && (!params->portamentoAuto || overlapping)});
+        voice->setNextTransition({transition,params->sourcePortamentoDial>0.0 && (!params->portamentoAuto || overlapping)});
         startVoice (voice, getSound(0), midiChannel, midiNoteNumber, velocity);
         monoVoices[channel] = voice;
     }
 
-    void VoiceDispatcher::noteOff (int channel, int note, float velocity, bool tail)
+    void VoiceDispatcher::noteOff (int channel, int note, double velocity, bool tail)
     {
         if (!dispatchingArpeggiator && channel >= 1 && channel <= 16 && note >= 0 && note < 128)
             trackLfoKey(::synth2::audio::MidiMessage::noteOff(channel,note));
@@ -114,7 +114,7 @@ namespace synth2
             {
                 const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
                     : dsp::NoteTransitionKind::RetainedRetrigger;
-                voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f});
+                voice->setNextTransition({transition,params->sourcePortamentoDial>0.0});
                 startVoice (voice, getSound(0), channel, previous, heldVelocity[c][previous]);
                 return;
             }
@@ -155,7 +155,7 @@ namespace synth2
                 render::applyControllerDial(*params,destination,dial);
                 if(destination==2)
                 {
-                    const float exponent=dsp::OscillatorTuning::coarseExponent(params->osc2PitchSemis);
+                    const double exponent=dsp::OscillatorTuning::coarseExponent(params->osc2PitchSemis);
                     if(corePool!=nullptr)corePool->setOsc2Coarse(exponent,false);
                 }
                 if(corePool!=nullptr)corePool->setControllerDial(destination,static_cast<int>(getSampleRate()));
@@ -198,7 +198,7 @@ namespace synth2
         for (int c = 0; c < 16; ++c)
             if (channel == 0 || channel == c + 1)
             {
-                heldOrder[c].fill (0); heldVelocity[c].fill (0.0f); monoVoices[c] = nullptr;
+                heldOrder[c].fill (0); heldVelocity[c].fill (0.0); monoVoices[c] = nullptr;
                 physicalKeys[c].fill(false);sustainDown[c]=false;
                 if(!dispatchingArpeggiator){inputKeys[c].fill(false);inputSustain[c]=false;}
             }
@@ -233,7 +233,7 @@ namespace synth2
         return steal ? oldest : nullptr;
     }
 
-    void VoiceDispatcher::renderVoicesWithLfos (::synth2::audio::AudioBuffer<float>& output, int start, int count,bool completeGainDispatch)
+    void VoiceDispatcher::renderVoicesWithLfos (::synth2::audio::AudioBuffer<double>& output, int start, int count,bool completeGainDispatch)
     {
         bool receiverBoundary=completeGainDispatch;
         if(params!=nullptr)
@@ -292,7 +292,7 @@ namespace synth2
         if(activeOutputSink)activeOutputSink(activeOutputContext,start,count,!renderedSignal);
     }
 
-    void VoiceDispatcher::renderRegion (::synth2::audio::AudioBuffer<float>& output,
+    void VoiceDispatcher::renderRegion (::synth2::audio::AudioBuffer<double>& output,
                                                const ::synth2::audio::MidiBuffer& midi,
                                                int startSample, int numSamples,
                                                void* outputContext,OutputSink outputSink)
@@ -306,7 +306,7 @@ namespace synth2
         const int voiceLimit = corePool != nullptr && params != nullptr && params->playMode == 0
             ? getNumVoices() : logicalVoiceLimit (params, getNumVoices());
         for (int i = voiceLimit; i < getNumVoices(); ++i)
-            if (auto* voice = getVoice (i); voice->isVoiceActive()) stopVoice (voice, 0.0f, false);
+            if (auto* voice = getVoice (i); voice->isVoiceActive()) stopVoice (voice, 0.0, false);
         const int endSample = startSample + numSamples;
         int cursor = startSample;
         nativeWorkspaceOrigin=startSample;

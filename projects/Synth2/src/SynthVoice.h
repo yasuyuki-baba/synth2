@@ -25,18 +25,18 @@ namespace synth2
 
         void prepare (double newSampleRate);
         void setAudioChunkStart(int start) noexcept {audioChunkStart=start;}
-        void setAudioOutput(int factor,float* left,float* right) noexcept
+        void setAudioOutput(int factor,double* left,double* right) noexcept
         {audioFactor=factor;audioLeft=left;audioRight=right; }
         void updateSampleRate (double newSampleRate);
 
-        void startNote (int midiNoteNumber, float velocity,
+        void startNote (int midiNoteNumber, double velocity,
                         ::synth2::audio::Sound*, int) override;
-        void stopNote (float velocity, bool allowTailOff) override;
+        void stopNote (double velocity, bool allowTailOff) override;
         void pitchWheelMoved (int newPitchWheelValue) override;
         void updateFilterEnvelopeConfiguration();
         void controllerMoved (int controllerNumber, int newControllerValue) override;
 
-        void renderNextBlock (::synth2::audio::AudioBuffer<float>& outputBuffer,
+        void renderNextBlock (::synth2::audio::AudioBuffer<double>& outputBuffer,
                               int startSample,
                               int numSamples) override;
 
@@ -89,7 +89,9 @@ namespace synth2
             const auto& oscillator=cores[index]->oscillator;
             const float depth=dsp::OscillatorStack::depth(oscillator.stackDial);
             std::memcpy(words.data(),&depth,4);
-            std::memcpy(words.data()+1,oscillator.stackFrequencies.data(),32);
+            std::array<float,8> frequencies{};
+            std::copy(oscillator.stackFrequencies.begin(),oscillator.stackFrequencies.end(),frequencies.begin());
+            std::memcpy(words.data()+1,frequencies.data(),32);
             std::copy(oscillator.stackPhases.begin(),oscillator.stackPhases.end(),words.begin()+9);
             return true;
         }
@@ -116,12 +118,12 @@ namespace synth2
         double sampleRate { 0.0 };
         int nativeWorkspaceOrigin {};
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
-        int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
+        int audioFactor=1,audioChunkStart=0;double* audioLeft=nullptr;double* audioRight=nullptr;
         bool renderedSignal {};
         int filterMidiNote {60};
         int pitchBendOffset {};
         dsp::VoiceLifecycle lifecycle;
-        float  level  { 0.0f };
+        double  level  { 0.0 };
 
         std::array<VoiceCore*,8> cores {};
         VoiceCorePool& pool;

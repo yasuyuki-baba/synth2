@@ -36,7 +36,7 @@ namespace synth2
         void requestNativeLfoRateUpdate(size_t index) noexcept { sharedModulation.touchRate(index); }
         void applyNativeLfoHistory(const dsp::LfoHistoryEvent&) noexcept;
 
-        void render (::synth2::audio::AudioBuffer<float>& buffer,
+        void render (::synth2::audio::AudioBuffer<double>& buffer,
                      ::synth2::audio::MidiBuffer& midiMessages,
                      int startSample,
                      int numSamples);
@@ -55,7 +55,7 @@ namespace synth2
         RenderControls& getParams() { return params; }
         const RenderControls& getParams() const { return params; }
         const dsp::LfoClock& getNativeLfoClock(size_t index) const noexcept { return sharedModulation.clock(index); }
-        std::array<float,7> getNativeMultiEffectState() const noexcept { return outputPipeline.multiEffectState(); }
+        std::array<double,7> getNativeMultiEffectState() const noexcept { return outputPipeline.multiEffectState(); }
         bool readCoreWords(size_t index,std::array<uint32_t,9>& words) const noexcept { return corePool.readCoreWords(index,words); }
         bool readCoreEnvelopeWords(size_t index,std::array<int,13>& words) const noexcept { return corePool.readCoreEnvelopeWords(index,words); }
         bool readCoreFloatWords(size_t index,std::array<uint32_t,22>& words) const noexcept { return corePool.readCoreFloatWords(index,words); }
@@ -94,7 +94,7 @@ namespace synth2
     private:
         void initWaveTables (double sampleRate);
         int audioFactor=1;
-        std::array<std::array<float,256*16>,2> oversampledAudio{};
+        std::array<std::array<double,256*16>,2> oversampledAudio{};
         std::array<dsp::AudioDownsampler,2> audioDownsamplers;
         RenderControls params;
         render::RenderHistory renderHistory;

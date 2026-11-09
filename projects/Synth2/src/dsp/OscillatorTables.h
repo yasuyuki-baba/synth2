@@ -26,20 +26,20 @@ namespace synth2::dsp
     }
 
     // Native shapes 1/2: float sum of sine harmonics, then 2/pi.
-    inline ShapeTables buildNativeSaw (const std::vector<float>& sine)
+    inline ShapeTables buildNativeSaw (const std::vector<double>& sine)
     {
         ShapeTables result;
         constexpr double inversePi = 0.3183098861837907;
         for (float border : nativeTriangleBorders())
         {
-            const int limit = static_cast<int> (22050.0f / border);
+            const int limit = static_cast<int> (22050.0 / border);
             const auto offset = result.data.size();
             for (int n = 0; n < 2048; ++n)
             {
-                float sum = 0;
+                double sum = 0;
                 for (int k = 1; k <= limit; ++k)
-                    sum += sine[static_cast<std::size_t>((n*k)&2047)] / static_cast<float>(k);
-                result.data.push_back (static_cast<float> (static_cast<double> (sum*2.0f)*inversePi));
+                    sum += sine[static_cast<std::size_t>((n*k)&2047)] / static_cast<double>(k);
+                result.data.push_back (static_cast<double> (static_cast<double> (sum*2.0)*inversePi));
             }
             result.infos.push_back ({offset,2048,border});
         }
@@ -48,24 +48,24 @@ namespace synth2::dsp
 
     // Native shape 3: alternating odd sine harmonics, float accumulation,
     // 8/pi^2 gain. No window, peak normalization, or sample-rate rescaling.
-    inline ShapeTables buildNativeTriangle (const std::vector<float>& sine)
+    inline ShapeTables buildNativeTriangle (const std::vector<double>& sine)
     {
         ShapeTables result;
         constexpr double inversePi = 0.3183098861837907;
         for (float border : nativeTriangleBorders())
         {
-            const int limit = static_cast<int> (22050.0f / border);
+            const int limit = static_cast<int> (22050.0 / border);
             const auto offset = result.data.size();
             for (int n = 0; n < 2048; ++n)
             {
-                float sum = 0;
+                double sum = 0;
                 for (int k = 1; k <= limit; k += 2)
                 {
-                    const float term = sine[static_cast<std::size_t> ((n*k) & 2047)] / static_cast<float> (k*k);
+                    const double term = sine[static_cast<std::size_t> ((n*k) & 2047)] / static_cast<double> (k*k);
                     if ((k & 3) == 1) sum += term;
                     else sum -= term;
                 }
-                result.data.push_back (static_cast<float> (static_cast<double> (sum * 8.0f) * inversePi * inversePi));
+                result.data.push_back (static_cast<double> (static_cast<double> (sum * 8.0) * inversePi * inversePi));
             }
             result.infos.push_back ({offset,2048,border});
         }

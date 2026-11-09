@@ -1,12 +1,14 @@
 #include "SynthDiagnostics.h"
 #include "SynthEngine.h"
 #include <cstring>
+#include <algorithm>
 
 bool synth2::readNativeMultiEffectWords(synth2::host::ProcessorBridge& processor,std::array<uint32_t,7>& words) noexcept
 {
     const auto* engine=&processor.engineForInspection();
 
-    const auto state=engine->getNativeMultiEffectState();
+    const auto precise=engine->getNativeMultiEffectState();
+    std::array<float,7> state{};std::copy(precise.begin(),precise.end(),state.begin());
     std::memcpy(words.data(),state.data(),sizeof(words));return true;
 }
 
@@ -17,7 +19,8 @@ bool synth2::readNativeLfoClockWords(synth2::host::ProcessorBridge& processor,si
     const auto& clock=engine->getNativeLfoClock(index);
     words={{static_cast<uint32_t>(clock.sampleRate),static_cast<uint32_t>(clock.step),0,0,
         static_cast<uint32_t>(clock.counter),static_cast<uint32_t>(clock.period),static_cast<uint32_t>(clock.rate)}};
-    std::memcpy(words.data()+2,&clock.currentHz,4);std::memcpy(words.data()+3,&clock.targetHz,4);
+    const float current=static_cast<float>(clock.currentHz),target=static_cast<float>(clock.targetHz);
+    std::memcpy(words.data()+2,&current,4);std::memcpy(words.data()+3,&target,4);
     return true;
 }
 

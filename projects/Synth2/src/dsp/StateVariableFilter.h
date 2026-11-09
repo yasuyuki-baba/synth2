@@ -10,52 +10,52 @@ namespace synth2::dsp
     {
     public:
         void reset() noexcept { low=band=0; }
-        void configure (double sampleRate,double index,float resonance) noexcept
+        void configure (double sampleRate,double index,double resonance) noexcept
         {
             index=std::clamp(index,0.0,1023.0);
             if (sampleRate==lastRate && index==lastIndex && resonance==lastResonance) return;
             lastRate=sampleRate; lastIndex=index; lastResonance=resonance;
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+            const double exponent=static_cast<double>(index)*(1.0/1024.0);
+            const double frequency=static_cast<double>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
             const double boundedFrequency=std::min(static_cast<double>(frequency),sampleRate*.5);
-            f=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
+            f=static_cast<double>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
             configureCoefficients(f,resonance);
         }
-        void configureCoefficients (float coefficient,float resonance) noexcept
+        void configureCoefficients (double coefficient,double resonance) noexcept
         {
             clipping=static_cast<double>(resonance)>0.9;
-            const float r=std::clamp(resonance,0.0f,1.0f);
-            damping=r-1.0f;
+            const double r=std::clamp(resonance,0.0,1.0);
+            damping=r-1.0;
             // The Chamberlin step is stable when f^2-2*damping*f < 4.
             // Keep the existing coefficient whenever it is inside that domain;
             // low-rate/high-cutoff inputs must not cross the marginal pole.
             const double d=damping;
-            const float limit=std::nextafter(static_cast<float>(d+std::sqrt(d*d+4.0)),0.0f);
+            const double limit=std::nextafter(static_cast<double>(d+std::sqrt(d*d+4.0)),0.0);
             f=std::min(coefficient,limit);
-            gain=static_cast<float>(1.0-static_cast<double>(r)*.7);
+            gain=static_cast<double>(1.0-static_cast<double>(r)*.7);
         }
-        float process (float input,int mode=0) noexcept
+        double process (double input,int mode=0) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            const float scaled=input*gain;
+            const double scaled=input*gain;
             low+=f*band;
-            float high=(scaled-low)+damping*band;
+            double high=(scaled-low)+damping*band;
             band+=f*high;
             low+=f*band;
             high=(scaled-low)+damping*band;
             band+=f*high;
-            const float output=mode==2 ? high : mode==3 ? band : low;
-            return clipping ? std::clamp(output,-20.0f,20.0f) : output;
+            const double output=mode==2 ? high : mode==3 ? band : low;
+            return clipping ? std::clamp(output,-20.0,20.0) : output;
         }
-        float getCoefficient() const noexcept { return f; }
-        float getGain() const noexcept { return gain; }
-        float getLow() const noexcept { return low; }
-        float getBand() const noexcept { return band; }
+        double getCoefficient() const noexcept { return f; }
+        double getGain() const noexcept { return gain; }
+        double getLow() const noexcept { return low; }
+        double getBand() const noexcept { return band; }
     private:
-        double lastRate {-1}; double lastIndex {-1}; float lastResonance {-1};
+        double lastRate {-1}; double lastIndex {-1}; double lastResonance {-1};
         bool clipping {};
-        float f {},damping {-1},gain {1},low {},band {};
+        double f {},damping {-1},gain {1},low {},band {};
     };
 }

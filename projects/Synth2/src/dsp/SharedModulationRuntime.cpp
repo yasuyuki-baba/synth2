@@ -52,13 +52,13 @@ namespace synth2::dsp
         }
     }
 
-    void SharedModulationRuntime::updateRate(size_t slot,float dial,float bpm) noexcept
+    void SharedModulationRuntime::updateRate(size_t slot,double dial,double bpm) noexcept
     {
         if(slots[slot].tempoSync)slots[slot].clock.setSynchronizedRate(dial,bpm);
         else slots[slot].clock.setRate(dial);
     }
 
-    void SharedModulationRuntime::applyHistory(const LfoHistoryEvent& event,float bpm) noexcept
+    void SharedModulationRuntime::applyHistory(const LfoHistoryEvent& event,double bpm) noexcept
     {
         if(event.kind==4){random.edit(event.a,event.b);return;}
         if(event.kind==1 || event.kind==2)
@@ -114,7 +114,7 @@ namespace synth2::dsp
         for (size_t i = 0; i < 2; ++i)
         {
             auto& clock=slots[i].clock;
-            const float dial=fractionalDial(lfoControls[i]->speed);
+            const double dial=fractionalDial(lfoControls[i]->speed);
             if(initial)
             {
                 clock=LfoClock{};slots[i].tempoSync=false;

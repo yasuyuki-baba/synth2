@@ -9,6 +9,7 @@
 #include "SynthEngine.h"
 #include "../tools/host_scenarios.h"
 #include <cmath>
+#include <bit>
 #include <cstring>
 #include <type_traits>
 #include <vector>
@@ -37,7 +38,7 @@ TEST(ModulationBehavior, FractionalSharedDepthChangesSignalsWithoutChangingClock
         a.lfos[0].dest=b.lfos[0].dest=3;
         a.lfos[0].wave=b.lfos[0].wave=wave;
         a.lfos[0].speed=b.lfos[0].speed=64.0f/127;
-        a.lfos[0].amount=64.03125f/127;b.lfos[0].amount=64.0625f/127;
+        a.lfos[0].amount=64.03125/127;b.lfos[0].amount=64.0625/127;
         SharedModulationRuntime first,second;prepare(first,a);prepare(second,b);
         bool differs=false,fractional=false;
         for(int block=0;block<512;++block)
@@ -67,7 +68,7 @@ TEST(ModulationBehavior, FractionalRandomDepthPreservesSharedDrawSequenceAndKeyS
         auto a=sharedSettings(),b=a;
         a.lfos[0].dest=b.lfos[0].dest=3;a.lfos[0].wave=b.lfos[0].wave=wave;
         a.lfos[0].speed=b.lfos[0].speed=64.0f/127;
-        a.lfos[0].amount=64.03125f/127;b.lfos[0].amount=64.0625f/127;
+        a.lfos[0].amount=64.03125/127;b.lfos[0].amount=64.0625/127;
         LfoHistoryEvent load;load.kind=1;load.randomAdmitted=true;
         load.randomControls={{{4,wave==4 ? 3 : 4,64},{1,0,0}}};
         SharedModulationRuntime first,second;
@@ -99,7 +100,7 @@ TEST(ModulationBehavior, FractionalSharedRateSurvivesBothSlotsSyncAndRepeatedUpd
     {
         SCOPED_TRACE(slot);
         auto a=sharedSettings(),b=a;
-        a.lfos[slot].speed=64.03125f/127;b.lfos[slot].speed=64.0625f/127;
+        a.lfos[slot].speed=64.03125/127;b.lfos[slot].speed=64.0625/127;
         SharedModulationRuntime first,second;prepare(first,a);prepare(second,b);
         const double firstHz=first.clock(slot).targetHz,secondHz=second.clock(slot).targetHz;
         ASSERT_LT(firstHz,secondHz);
@@ -145,6 +146,20 @@ TEST(ModulationBehavior, SharedFreeRateRetainsDoublePrecisionThroughClockStorage
         EXPECT_NE(actual,static_cast<double>(static_cast<float>(actual)));
         advance(runtime,settings);
         EXPECT_EQ(runtime.clock(slot).targetHz,actual);
+    }
+}
+
+TEST(ModulationBehavior, DiagnosticClockWordsKeepTheirFloat32Format)
+{
+    auto processor=hostvalidation::processor();
+    hostvalidation::load(*processor,hostvalidation::patch());processor->prepare(48000,64);
+    for(size_t slot=0;slot<2;++slot)
+    {
+        std::array<uint32_t,7> words{};
+        ASSERT_TRUE(synth2::readNativeLfoClockWords(*processor,slot,words));
+        const auto& clock=processor->engineForInspection().getNativeLfoClock(slot);
+        EXPECT_EQ(std::bit_cast<float>(words[2]),static_cast<float>(clock.currentHz));
+        EXPECT_EQ(std::bit_cast<float>(words[3]),static_cast<float>(clock.targetHz));
     }
 }
 
@@ -302,7 +317,7 @@ TEST(PanInputs, BothPreparedSlotsUseTheirOwnDepthAtTheOutputOffset)
 }
 namespace
 {
-    std::vector<float> renderFragmentedTone(int hostFrames,int wave,bool arp,int preparedFrames=64,bool amplitudeLfo=true)
+    std::vector<double> renderFragmentedTone(int hostFrames,int wave,bool arp,int preparedFrames=64,bool amplitudeLfo=true)
     {
         synth2::SynthEngine engine;auto& p=engine.getParams();
         p.osc1WaveIndex=1;p.oscMix=0;p.unisonVoices=1;
@@ -313,11 +328,11 @@ namespace
         p.arpeggiator.enabled=arp;p.arpeggiator.type=2;
         p.arpeggiator.range=1;p.arpeggiator.beat=14;p.arpeggiator.gate=64;
         engine.prepareToPlay(48000,preparedFrames);
-        std::vector<float> result;
+        std::vector<double> result;
         for(int position=0;position<9000;position+=hostFrames)
         {
             const int count=std::min(hostFrames,9000-position);
-            synth2::audio::AudioBuffer<float> audio(2,count+5);audio.clear();
+            synth2::audio::AudioBuffer<double> audio(2,count+5);audio.clear();
             synth2::audio::MidiBuffer midi;
             if(position<=119 && 119<position+count)
                 midi.addEvent(synth2::audio::MidiMessage::noteOn(1,62,uint8_t{91}),5+119-position);
@@ -348,7 +363,7 @@ TEST(ModulationBehavior, SilentTailFragmentsDoNotChangeRetainedPhysicalOscillato
         for(int position=0;position<total;position+=64)
         {
             const int count=std::min(64,total-position);
-            synth2::audio::AudioBuffer<float> audio(2,count);audio.clear();
+            synth2::audio::AudioBuffer<double> audio(2,count);audio.clear();
             synth2::audio::MidiBuffer midi;
             if(position==0)midi.addEvent(synth2::audio::MidiMessage::noteOn(1,65,uint8_t{93}),0);
             if(position==256)midi.addEvent(synth2::audio::MidiMessage::noteOff(1,65),0);
@@ -373,7 +388,7 @@ TEST(AmplitudeInputs, GainHorizonRetainsProgressAndCanBeInterruptedByANewTarget)
     {
         synth2::dsp::AmplitudeEnvelope state(true);
         state.setParameters(0,0,2048,64);state.setGainScale(.35f);state.noteOn();
-        std::vector<float> gains(512);
+        std::vector<double> gains(512);
         const std::array<int,5> edges{{0,113,197,259,512}};
         for(size_t section=0;section+1<edges.size();++section)
         {
@@ -392,7 +407,7 @@ TEST(AmplitudeInputs, GainHorizonRetainsProgressAndCanBeInterruptedByANewTarget)
     const auto expected=render(64);
     for(int block:{1,3,17,127})
     {
-        const auto actual=render(block);float difference=0;
+        const auto actual=render(block);double difference=0;
         for(size_t i=0;i<actual.size();++i)difference=std::max(difference,std::abs(actual[i]-expected[i]));
         EXPECT_LT(difference,2e-6f)<<block;
     }
@@ -407,7 +422,7 @@ TEST(AmplitudeInputs, CompleteVoiceDispatchUsesItsDeclaredGainHorizon)
         p.lfo1.on=mode!=0;p.lfo1.dest=mode==1 ? 0 : 3;
         p.lfo1.amount=mode==2 ? .8f : 0;
         engine.prepareToPlay(44100,64);
-        synth2::audio::AudioBuffer<float> audio(2,1);audio.clear();
+        synth2::audio::AudioBuffer<double> audio(2,1);audio.clear();
         synth2::audio::MidiBuffer midi;
         midi.addEvent(synth2::audio::MidiMessage::noteOn(1,60,uint8_t{100}),0);
         engine.render(audio,midi,0,1);
@@ -421,14 +436,14 @@ TEST(AmplitudeInputs, CompleteVoiceDispatchUsesItsDeclaredGainHorizon)
 TEST(ModulationBehavior, ArpGainRampsSurviveHostFragmentsWithoutAmplitudeModulation)
 {
     const auto expected=renderFragmentedTone(64,0,true,64,false);
-    float peak=0;for(float value:expected)peak=std::max(peak,std::abs(value));
+    double peak=0;for(double value:expected)peak=std::max(peak,std::abs(value));
     for(int block:{1,17,127,1000})
     {
         const auto actual=renderFragmentedTone(block,0,true,64,false);
-        float difference=0;
+        double difference=0;
         for(size_t i=0;i<expected.size();++i)
             difference=std::max(difference,std::abs(expected[i]-actual[i]));
-        EXPECT_LT(difference,std::max(2e-6f,peak*1e-4f))<<block;
+        EXPECT_LT(difference,std::max(2e-6,peak*1e-4))<<block;
     }
 }
 
@@ -436,9 +451,9 @@ TEST(AmplitudeInputs, RepeatedGainSpansStopAtTheDeclaredEventBoundary)
 {
     synth2::dsp::AmplitudeEnvelope actual(true);
     actual.setParameters(0,0,2048,10000);actual.setGainScale(.4f);actual.noteOn();
-    alignas(16) std::array<float,64> warm{};actual.render(warm.data(),64);actual.noteOff();
+    alignas(16) std::array<double,64> warm{};actual.render(warm.data(),64);actual.noteOff();
     auto expected=actual;
-    alignas(16) std::array<float,100> got{},want{};
+    alignas(16) std::array<double,100> got{},want{};
     int offset=0;
     for(int count:{10,64,26})
     {

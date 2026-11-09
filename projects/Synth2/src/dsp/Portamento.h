@@ -12,26 +12,26 @@ namespace synth2::dsp
     // Pitch offsets use128 units per octave, including endpoint quantization.
     struct Portamento
     {
-        float seconds {};
+        double seconds {};
         int duration {},elapsed {},segment {},span {},note {},threshold {};
         double offset {},delta {};
 
-        static float timeSeconds(int dial) noexcept
+        static double timeSeconds(int dial) noexcept
         {
             dial=std::clamp(dial,0,127);
-            const float exponent=(static_cast<float>(dial)*(1.0f/127.0f)-1.0f)*2.5f;
-            return static_cast<float>(std::exp(static_cast<double>(exponent))
+            const double exponent=(static_cast<double>(dial)*(1.0/127.0)-1.0)*2.5;
+            return static_cast<double>(std::exp(static_cast<double>(exponent))
                 *static_cast<double>(dial)*(1.0/127.0)*2.5);
         }
 
-        static float timeSeconds(float dial) noexcept
+        static double timeSeconds(double dial) noexcept
         {return interpolateDial(dial,[](int value){return timeSeconds(value);});}
 
-        void setDuration(float value,int sampleRate) noexcept
+        void setDuration(double value,int sampleRate) noexcept
         {
             const int previous=duration;
             seconds=value;
-            duration=static_cast<int>(static_cast<float>(sampleRate)*value);
+            duration=static_cast<int>(static_cast<double>(sampleRate)*value);
             if(previous!=0)
             {
                 const auto rescale=[&](int n) {return static_cast<int>(static_cast<int64_t>(n)*duration/previous);};

@@ -11,7 +11,7 @@ namespace synth2::dsp
     {
     public:
         void reset() noexcept { state.fill(0);lastRate=lastIndex=-1; }
-        void configure(int rate,double index,float resonance) noexcept
+        void configure(int rate,double index,double resonance) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -20,8 +20,8 @@ namespace synth2::dsp
             if(rate==lastRate && index==lastIndex && resonance==lastResonance)return;
             lastRate=rate;lastIndex=index;lastResonance=resonance;
             oversampling=rate<=48000 ? 2 : 1;
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+            const double exponent=static_cast<double>(index)*(1.0/1024.0);
+            const double frequency=static_cast<double>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
             const double cutoff=std::min(static_cast<double>(frequency)*1.5,(static_cast<double>(rate)*.5)*.9);
             const double inverseRate=1.0/static_cast<double>(rate*oversampling);
             const double g=std::tan((cutoff*3.141592653589793)*inverseRate);
@@ -47,9 +47,9 @@ namespace synth2::dsp
             hpB=(hpG*2.0)*hpA;hpNegative=-hpA;
             k=static_cast<double>(resonance)*15.0;
             feedback=hpA*k;denominator=1.0/(1.0+feedback*(f*e));
-            scale=static_cast<double>(static_cast<float>(oversampling)*0.6499999761581421f)*(1.0+k*0.20000000298023224);
+            scale=static_cast<double>(static_cast<double>(oversampling)*0.6499999761581421)*(1.0+k*0.20000000298023224);
         }
-        float process(float input) noexcept
+        double process(double input) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -75,12 +75,12 @@ namespace synth2::dsp
                 state[4]+=(v4*k-state[4])*hpB;
                 output=v3;
             }
-            return static_cast<float>(output*scale);
+            return static_cast<double>(output*scale);
         }
         const std::array<double,5>& readState() const noexcept {return state;}
     private:
         std::array<double,5> state{};
-        int lastRate{-1},oversampling{1};double lastIndex{-1};float lastResonance{};
+        int lastRate{-1},oversampling{1};double lastIndex{-1};double lastResonance{};
         double a{},G{},p{},b{},c{},d{},e{},f{},h{},ib{},ic{},ia{},hpB{},hpNegative{},k{},feedback{},denominator{},scale{};
     };
 }

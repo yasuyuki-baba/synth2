@@ -15,11 +15,11 @@ class Voice
 public:
     virtual ~Voice()=default;
     virtual bool canPlaySound(Sound*)=0;
-    virtual void startNote(int,float,Sound*,int)=0;
-    virtual void stopNote(float,bool)=0;
+    virtual void startNote(int,double,Sound*,int)=0;
+    virtual void stopNote(double,bool)=0;
     virtual void pitchWheelMoved(int)=0;
     virtual void controllerMoved(int,int)=0;
-    virtual void renderNextBlock(AudioBuffer<float>&,int,int)=0;
+    virtual void renderNextBlock(AudioBuffer<double>&,int,int)=0;
     virtual void aftertouchChanged(int){}
     virtual void channelPressureChanged(int){}
     bool isVoiceActive()const{return note>=0;}
@@ -54,7 +54,7 @@ public:
         allNotesOff(0,false);sampleRate=rate;
         for(auto& voice:voices)voice->sampleRate=rate;
     }
-    virtual void noteOn(int c,int note,float velocity)
+    virtual void noteOn(int c,int note,double velocity)
     {
         for(auto& sound:sounds)
         {
@@ -64,7 +64,7 @@ public:
             startVoice(findFreeVoice(sound.get(),c,note,stealNotes),sound.get(),c,note,velocity);
         }
     }
-    virtual void noteOff(int c,int note,float velocity,bool tail)
+    virtual void noteOff(int c,int note,double velocity,bool tail)
     {
         for(auto& v:voices)
         {
@@ -83,7 +83,7 @@ public:
 protected:
     virtual Voice* findFreeVoice(Sound* sound,int,int,bool)const
     {for(auto& v:voices)if(!v->isVoiceActive() && v->canPlaySound(sound))return v.get();return nullptr;}
-    void startVoice(Voice* v,Sound* sound,int c,int note,float velocity)
+    void startVoice(Voice* v,Sound* sound,int c,int note,double velocity)
     {
         if(!v || !sound || c<1 || c>16)return;
         if(v->sound)v->stopNote(0.f,false);
@@ -91,8 +91,8 @@ protected:
         v->keyDown=true;v->sostenuto=false;v->sustain=sustain[c-1];
         v->startNote(note,velocity,sound,pitch[c-1]);
     }
-    void stopVoice(Voice* voice,float velocity,bool tail){voice->stopNote(velocity,tail);}
-    void renderVoices(AudioBuffer<float>& output,int start,int frames)
+    void stopVoice(Voice* voice,double velocity,bool tail){voice->stopNote(velocity,tail);}
+    void renderVoices(AudioBuffer<double>& output,int start,int frames)
     {for(auto& voice:voices)voice->renderNextBlock(output,start,frames);}
     virtual void handlePitchWheel(int c,int value) {
         pitch[c-1]=value;for(auto& v:voices)if(v->channel==c)v->pitchWheelMoved(value);
