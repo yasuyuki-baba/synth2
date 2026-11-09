@@ -248,7 +248,7 @@ int main(int argc,char** argv) try {
             if(!synth2::readNativePitchBendWords(*processor,pitch))throw std::runtime_error("Cannot inspect pitch bend");
             controllerTrace<<rendered+samplesThisBlock;
             for(auto word:pitch)controllerTrace<<'\t'<<word;
-            controllerTrace<<'\t'<<true<<'\t'
+            controllerTrace<<'\t'
                 <<values.cutoffIndex<<'\t'<<values.osc1FmAmount<<'\t'
                 <<values.ampGainMultiplier<<'\t'<<values.lfo1.amount<<'\t'<<values.lfo2.amount<<'\n';
         }

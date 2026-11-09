@@ -200,7 +200,7 @@ TEST(AmplitudeBehavior, FullPoolReusesAReleasingCoreBeforeStealingAHeldNote)
     ASSERT_TRUE(held->readRenderingCoreWords(0,nextWords));EXPECT_EQ(nextWords[15],heldWords[15]);
 }
 
-TEST(EnvelopeBehavior, DirectFilterEnvelopeUsesPhysicalStateWithoutHistoryAdmission)
+TEST(EnvelopeBehavior, FilterEnvelopeAdvancesOnTheAssignedPhysicalCore)
 {
     synth2::RenderControls p;p.cutoffIndex=256;p.filterEnvAmount=.5f;p.filterEnv.attackSec=.01f;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
@@ -209,7 +209,7 @@ TEST(EnvelopeBehavior, DirectFilterEnvelopeUsesPhysicalStateWithoutHistoryAdmiss
     EXPECT_GT(words[10],0u);EXPECT_GT(words[11],0u);
 }
 
-TEST(EnvelopeBehavior, DirectOscillatorEnvelopeUsesResolvedDialsWithoutReceiverAdmission)
+TEST(EnvelopeBehavior, OscillatorEnvelopeUsesTheResolvedPitchDials)
 {
     synth2::RenderControls on;on.modEnv.on=true;on.modEnv.dest=0;
     on.modEnv.amountDial=127;on.modEnv.attackDial=0;on.modEnv.decayDial=127;
@@ -221,29 +221,29 @@ TEST(EnvelopeBehavior, DirectOscillatorEnvelopeUsesResolvedDialsWithoutReceiverA
     EXPECT_GT(first[5],second[5]*4);
 }
 
-TEST(FmBehavior, DirectStaticFmUsesTheSamePhysicalSlewWithoutHistoryAdmission)
+TEST(FmBehavior, LiveStaticFmEditRetainsCurrentValueAndPhysicalCoreUntilSettled)
 {
-    synth2::RenderControls direct;direct.osc1FmAmount=32.25f/127.f;
-    auto admitted=direct;
-    auto a=std::make_unique<synth2::test::PooledTestVoice>(direct),b=std::make_unique<synth2::test::PooledTestVoice>(admitted);
-    for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
-    synth2::audio::AudioBuffer<float> audio(2,64);
-    std::array<uint32_t,7> first{},second{};
-    for(int block=0;block<80;++block)
-    {
-        if(block==2)
-        {
-            direct.osc1FmAmount=admitted.osc1FmAmount=64.25f/127.f;
-            a->setControllerDial(45);b->setControllerDial(45);
-        }
-        audio.clear();a->renderNextBlock(audio,0,64);audio.clear();b->renderNextBlock(audio,0,64);
-        ASSERT_TRUE(a->readRenderingFmWords(0,first));ASSERT_TRUE(b->readRenderingFmWords(0,second));
-        EXPECT_EQ(first,second);
-        if(block==2){EXPECT_EQ(first[5],4410u);EXPECT_GT(first[2],0u);EXPECT_NE(first[0],first[3]);}
-        std::array<uint32_t,16> aCore{},bCore{};
-        ASSERT_TRUE(a->readRenderingCoreWords(0,aCore));ASSERT_TRUE(b->readRenderingCoreWords(0,bCore));EXPECT_EQ(aCore,bCore);
-    }
-    EXPECT_EQ(first[2],0u);EXPECT_EQ(first[0],first[3]);
+    synth2::RenderControls controls;controls.osc1FmAmount=32.25f/127.f;
+    auto voice=std::make_unique<synth2::test::PooledTestVoice>(controls);
+    voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
+    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
+    std::array<uint32_t,7> initial{},edited{},settled{};
+    std::array<uint32_t,16> initialCore{},editedCore{};
+    ASSERT_TRUE(voice->readRenderingFmWords(0,initial));
+    ASSERT_TRUE(voice->readRenderingCoreWords(0,initialCore));
+    EXPECT_EQ(initial[0],initial[3]);EXPECT_EQ(initial[2],0u);
+
+    controls.osc1FmAmount=64.25f/127.f;voice->setControllerDial(45);
+    ASSERT_TRUE(voice->readRenderingFmWords(0,edited));EXPECT_EQ(edited[0],initial[0]);
+    audio.clear();voice->renderNextBlock(audio,0,64);
+    ASSERT_TRUE(voice->readRenderingFmWords(0,edited));
+    EXPECT_EQ(edited[1],initial[0]);EXPECT_EQ(edited[5],4410u);EXPECT_GT(edited[2],0u);
+    EXPECT_GT(edited[3],initial[3]);EXPECT_GE(edited[0],initial[0]);EXPECT_LT(edited[0],edited[3]);
+    ASSERT_TRUE(voice->readRenderingCoreWords(0,editedCore));EXPECT_EQ(editedCore[15],initialCore[15]);
+
+    for(int block=0;block<80;++block){audio.clear();voice->renderNextBlock(audio,0,64);}
+    ASSERT_TRUE(voice->readRenderingFmWords(0,settled));
+    EXPECT_EQ(settled[2],0u);EXPECT_EQ(settled[0],settled[3]);EXPECT_EQ(settled[3],edited[3]);
 }
 
 TEST(FmBehavior, SoundingRetriggerRetainsPhysicalFmSlewAndInvalidatesItsTarget)
@@ -375,7 +375,7 @@ TEST(TuningBehavior, ChannelBendUsesThirtyTwoFramePartitionsAcrossCallbacks)
     }
 }
 
-TEST(TuningBehavior, GlideUsesThePhysicalReceiverWithoutPerformanceAdmission)
+TEST(TuningBehavior, GlideRetainsThePhysicalReceiverAcrossLegato)
 {
     synth2::RenderControls p;p.sourcePortamentoDial=64;p.portamentoAuto=true;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);

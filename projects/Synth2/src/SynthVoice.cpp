@@ -93,7 +93,6 @@ namespace synth2
         if(!transition.legato())filterMidiNote=midiNoteNumber;
         level = velocity;
 
-
         const bool nativeGlide = !params.portamentoAuto || transition.glide;
 
         if (transition.legato())
@@ -127,7 +126,7 @@ namespace synth2
             if(core.coarse.target!=coarse)core.coarse.set(coarse,false);
             core.coarse.noteOn();
             core.phase.setDial(params.oscillatorPhaseDial);
-            if (i < activeCores && core.phase.start(phaseRandom,activeCores,i,params.unisonPhaseDial))
+            if (core.phase.start(phaseRandom,activeCores,i,params.unisonPhaseDial))
             {
                 core.oscillator.resetFmPhase();
                 core.oscillator.osc1.setPhaseFixed27(core.phase.osc1);
@@ -138,15 +137,12 @@ namespace synth2
             // Physical core reuse is separate from logical note state.
             if(reuse.resetFilter)core.filter.reset();
             if(reuse.resetFilterEnvelope)core.filterEnvelope.reset();
-            if (i < activeCores)
-            {
-                configureAmplitude(core,true);
-                core.amplitude.noteOn();
-                configureModulationEnvelope(core);
-                core.modulationEnvelope.noteOn();
-                if(reuse.settleFm)core.fm.settle=true;
-                core.fm.noteOn();
-            }
+            configureAmplitude(core,true);
+            core.amplitude.noteOn();
+            configureModulationEnvelope(core);
+            core.modulationEnvelope.noteOn();
+            if(reuse.settleFm)core.fm.settle=true;
+            core.fm.noteOn();
         };
         startingNote = true;
         assignedCount = activeCores;
@@ -158,9 +154,7 @@ namespace synth2
         startingNote = false;
         updateEnvelopeConfiguration();
 
-
         for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.noteOn(); core->cutoff.settle(); }
-
 
     }
 
@@ -280,115 +274,106 @@ namespace synth2
         const bool syncEnabled = params.osc2Sync > 0.0f;
         const bool ringEnabled = params.ringMod > 0.0f;
 
-            for (int i = 0; i < numSamples; ++i)
-            {
-                float mixValue = params.oscMix;
-                float subGainValue = params.subOscGain;
-
-                double firstPitch=0,secondPitch=0;
-                if(lfoView.available)for(size_t slot=0;slot<2;++slot)
-                    if(lfoView.receivers[slot].enabled)
-                    {
-                        const auto destination=lfoView.receivers[slot].destination;
-                        const double value=lfoView.values[slot][i];
-                        if(destination==1)firstPitch+=value;
-                        if(destination==0 || destination==1)secondPitch+=value;
-                    }
-
-                // Update frequencies, PW and Pan
-                float curPw = params.pulseWidth;
-
-                float combinedL = 0.0f;
-                float combinedR = 0.0f;
-                std::array<float,16> highLeft{},highRight{};
-
-                for (int v = 0; v < activeCoreCount(); ++v)
+        for (int i = 0; i < numSamples; ++i)
+        {
+            double firstPitch=0,secondPitch=0;
+            if(lfoView.available)for(size_t slot=0;slot<2;++slot)
+                if(lfoView.receivers[slot].enabled)
                 {
-                    if (cores[v] == nullptr) continue;
-                    const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
-
-                    auto coreFrequency=coreTuning[v];
-                    if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)
-                        coreFrequency.second=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
-                    const dsp::OscillatorAudioInput oscillatorInput {
-                        coreFrequency.first,coreFrequency.second,curPw,mixValue,subGainValue,syncEnabled,ringEnabled,
-                        firstPitch+bend,
-                        secondPitch+bend,
-                        nativeGlidePitch[v][i],nativeModPitch[v][i],
-                        nativeFmDepth[v][i],
-                        0};
-                    float vEnveloped;
-                    if(audioFactor==1)
-                    {
-                        const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                            oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr);
-
-                        const float vCombined = oscSignal;
-
-                        const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
-                            {vCombined,nativeCutoffIndices[v][i]});
-
-                        // Central gain stage: apply envelope to the signal before panner/unison sum.
-                        vEnveloped = vFiltered;
-                        if (!bypassEnv)
-                            vEnveloped *= amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
-                    }
-                    else
-                    {
-                        const int factor=audioFactor;
-                        std::array<float,16> oscillatorFrame{};
-                        dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
-                            oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr,oscillatorFrame.data(),factor);
-                        const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
-                        for(int step=0;step<factor;++step)
-                        {
-                            const float signal=oscillatorFrame[step];
-                            const float mixed=signal;
-                            const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
-                                {mixed,nativeCutoffIndices[v][i]})*gain;
-                            float left,right;amplifier.processSample(filtered,1.f,panAmt,left,right);
-                            highLeft[step]+=left;highRight[step]+=right;
-                        }
-                        continue;
-                    }
-
-                    float vL, vR;
-                    amplifier.processSample (vEnveloped, 1.0f, panAmt, vL, vR);
-                    combinedL += vL;
-                    combinedR += vR;
+                    const auto destination=lfoView.receivers[slot].destination;
+                    const double value=lfoView.values[slot][i];
+                    if(destination==1)firstPitch+=value;
+                    if(destination==0 || destination==1)secondPitch+=value;
                 }
 
-            // Static gain/velocity are cached per segment; envelope and
-            // modulation remain sample-varying and are applied exactly once.
-            float overallGain = bypassEnv
-                ? sy1AmpGain * params.masterVolume * velocityGain
-                : params.masterVolume;
+            float combinedL = 0.0f;
+            float combinedR = 0.0f;
+            std::array<float,16> highLeft{},highRight{};
 
-            if(audioFactor>1)
+            for (int v = 0; v < activeCoreCount(); ++v)
             {
-                for(int step=0;step<audioFactor;++step)
+                if (cores[v] == nullptr) continue;
+                const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
+
+                auto coreFrequency=coreTuning[v];
+                if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)
+                    coreFrequency.second=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
+                const dsp::OscillatorAudioInput oscillatorInput {
+                    coreFrequency.first,coreFrequency.second,params.pulseWidth,params.oscMix,params.subOscGain,syncEnabled,ringEnabled,
+                    firstPitch+bend,
+                    secondPitch+bend,
+                    nativeGlidePitch[v][i],nativeModPitch[v][i],
+                    nativeFmDepth[v][i],
+                    0};
+                float vEnveloped;
+                if(audioFactor==1)
                 {
-                    audioLeft[(startSample+i-audioChunkStart)*audioFactor+step]+=highLeft[step]*overallGain;
-                    audioRight[(startSample+i-audioChunkStart)*audioFactor+step]+=highRight[step]*overallGain;
+                    const float oscSignal=dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                        oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr);
+
+                    const float vFiltered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                        {oscSignal,nativeCutoffIndices[v][i]});
+
+                    // Central gain stage: apply envelope to the signal before panner/unison sum.
+                    vEnveloped = vFiltered;
+                    if (!bypassEnv)
+                        vEnveloped *= amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
                 }
-                continue;
+                else
+                {
+                    const int factor=audioFactor;
+                    std::array<float,16> oscillatorFrame{};
+                    dsp::OscillatorAudioRenderer::process(cores[v]->oscillator,
+                        oscillatorAudio,oscillatorInput,lfoView,i,waveTableBankPtr,oscillatorFrame.data(),factor);
+                    const float gain=bypassEnv ? 1.f : amplitudeGains[v][static_cast<size_t>(i+gainOffset)];
+                    for(int step=0;step<factor;++step)
+                    {
+                        const float signal=oscillatorFrame[step];
+                        const float filtered=dsp::FilterAudioRenderer::process(cores[v]->filter,filterAudio,
+                            {signal,nativeCutoffIndices[v][i]})*gain;
+                        float left,right;amplifier.processSample(filtered,1.f,panAmt,left,right);
+                        highLeft[step]+=left;highRight[step]+=right;
+                    }
+                    continue;
+                }
+
+                float vL, vR;
+                amplifier.processSample (vEnveloped, 1.0f, panAmt, vL, vR);
+                combinedL += vL;
+                combinedR += vR;
             }
-            combinedL *= overallGain;
-            combinedR *= overallGain;
 
-            // Native resonant voices exceed unity. Preserve floating-point
-            // headroom instead of introducing per-voice hard distortion.
-            const float outL = combinedL;
-            const float outR = combinedR;
+        // Static gain/velocity are cached per segment; envelope and
+        // modulation remain sample-varying and are applied exactly once.
+        float overallGain = bypassEnv
+            ? sy1AmpGain * params.masterVolume * velocityGain
+            : params.masterVolume;
 
-            if (outputBuffer.getNumChannels() >= 2) {
-                outputBuffer.addSample (0, startSample + i, outL);
-                outputBuffer.addSample (1, startSample + i, outR);
-            } else {
-                outputBuffer.addSample (0, startSample + i, (outL + outR) * 0.5f);
+        if(audioFactor>1)
+        {
+            for(int step=0;step<audioFactor;++step)
+            {
+                audioLeft[(startSample+i-audioChunkStart)*audioFactor+step]+=highLeft[step]*overallGain;
+                audioRight[(startSample+i-audioChunkStart)*audioFactor+step]+=highRight[step]*overallGain;
             }
-
+            continue;
         }
+        combinedL *= overallGain;
+        combinedR *= overallGain;
+
+        // Native resonant voices exceed unity. Preserve floating-point
+        // headroom instead of introducing per-voice hard distortion.
+        const float outL = combinedL;
+        const float outR = combinedR;
+
+        if (outputBuffer.getNumChannels() >= 2) {
+            outputBuffer.addSample (0, startSample + i, outL);
+            outputBuffer.addSample (1, startSample + i, outR);
+        } else {
+            outputBuffer.addSample (0, startSample + i, (outL + outR) * 0.5f);
+        }
+
+    }
         for (auto* core : cores) if (core != nullptr) core->filter.finishNativeBlock();
         if (!bypassEnv)
         {

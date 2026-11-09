@@ -386,7 +386,7 @@ TEST(PlaybackBehavior, UnchangedCallbacksMatchExplicitRefreshThroughLiveTransiti
     }
 }
 
-TEST(PlaybackBehavior, RunningHistoryInvalidationRefreshesAdmissionWithoutSourceEdits)
+TEST(PlaybackBehavior, RunningHistoryInvalidationUpdatesDiagnosticsWithoutChangingSavedState)
 {
     ProcessorBridge processor;
     processor.prepare(44100,64);

@@ -75,3 +75,9 @@ outside processing callbacks, and is neither a patch control nor saved processor
 `Synth2RenderProfile` profiles generated bridge playback scenarios without a
 pass/fail timing bound. See [host validation](../docs/validation/manual-platform.md) for the
 command and interpretation of its per-case CSV and final-block hashes.
+
+`SYNTH2_PROBE_CONTROLLER_TRACE` writes one tab-separated numeric row per processed
+callback: end frame; bend current, target, moving and offset; cutoff index; FM
+amount; amplitude gain; LFO1 depth; LFO2 depth. Rows have ten columns. The retired
+receiver-admission flag is omitted; the first five pitch-history columns retain
+their order. Historical eleven-column captures contain that old flag at index5.
