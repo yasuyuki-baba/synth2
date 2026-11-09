@@ -101,7 +101,7 @@ TEST(ModulationBehavior, FractionalSharedRateSurvivesBothSlotsSyncAndRepeatedUpd
         auto a=sharedSettings(),b=a;
         a.lfos[slot].speed=64.03125f/127;b.lfos[slot].speed=64.0625f/127;
         SharedModulationRuntime first,second;prepare(first,a);prepare(second,b);
-        const float firstHz=first.clock(slot).targetHz,secondHz=second.clock(slot).targetHz;
+        const double firstHz=first.clock(slot).targetHz,secondHz=second.clock(slot).targetHz;
         ASSERT_LT(firstHz,secondHz);
         bool differs=false;
         for(int block=0;block<256;++block)
@@ -126,6 +126,25 @@ TEST(ModulationBehavior, FractionalSharedRateSurvivesBothSlotsSyncAndRepeatedUpd
             if(sync)EXPECT_EQ(first.clock(slot).targetHz,second.clock(slot).targetHz);
             else {EXPECT_EQ(first.clock(slot).targetHz,firstHz);EXPECT_EQ(second.clock(slot).targetHz,secondHz);}
         }
+    }
+}
+
+TEST(ModulationBehavior, SharedFreeRateRetainsDoublePrecisionThroughClockStorage)
+{
+    auto settings=sharedSettings();
+    settings.lfos[0].speed=64.0f/127;
+    settings.lfos[1].speed=82.0f/127;
+    synth2::dsp::SharedModulationRuntime runtime;
+    prepare(runtime,settings);
+    for(int slot=0;slot<2;++slot)
+    {
+        const int dial=slot==0 ? 64 : 82;
+        const long double expected=std::pow(1500.0L,dial/127.0L)/12.0L;
+        const double actual=runtime.clock(slot).targetHz;
+        EXPECT_NEAR(actual,static_cast<double>(expected),static_cast<double>(expected)*1e-14);
+        EXPECT_NE(actual,static_cast<double>(static_cast<float>(actual)));
+        advance(runtime,settings);
+        EXPECT_EQ(runtime.clock(slot).targetHz,actual);
     }
 }
 

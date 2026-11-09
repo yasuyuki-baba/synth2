@@ -66,6 +66,26 @@ TEST(OscillatorBehavior, OctaveFrequencyDoublesPitchAndResetRestoresPhase)
     { EXPECT_EQ(low.renderSample(3,.5f,0,&bank),expected); low.advancePhase(); }
 }
 
+TEST(OscillatorBehavior, UnchangedPitchUsesTheNewSampleRateWithoutResettingPhase)
+{
+    synth2::dsp::Oscillator oscillator;
+    oscillator.setSampleRate(48000);
+    oscillator.updatePhaseIncrement(440);
+    oscillator.advancePhase();
+    const auto phase=oscillator.getPhaseFixed27();
+    const auto increment=oscillator.getPhaseIncFixed27();
+    oscillator.setSampleRate(96000);
+    oscillator.updatePhaseIncrement(440);
+    EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
+    EXPECT_NEAR(oscillator.getPhaseIncFixed27()*2.0,increment,1.0);
+    oscillator.updatePhaseIncrement(880);
+    EXPECT_NEAR(oscillator.getPhaseIncFixed27(),increment,1.0);
+    oscillator.reset();
+    oscillator.updatePhaseIncrement(880);
+    oscillator.advancePhase();
+    EXPECT_NEAR(oscillator.getPhaseFixed27(),increment,1.0);
+}
+
 TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
 {
     using Envelope=synth2::dsp::AmplitudeEnvelope;

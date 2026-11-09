@@ -264,6 +264,14 @@ audio equivalence. See [validation](validation.md).
 
 ## Bounded precision improvements
 
+Continuous arithmetic should retain precision through its intermediate signal
+storage. A double expression followed by a float buffer is still a narrowing
+boundary. The audio graph currently retains float sample/state storage in several
+stages; double host I/O does not certify a double internal signal path.
+Oscillator phase increments are cached by effective frequency and invalidated by
+sample-rate changes. Their rate calculation uses double precision, retaining the
+compatible final float rounding before conversion to the discrete phase word.
+
 Legacy loading resolves the compatible integer parameters before promoting those
 exact values to floating-point dials. Fractional edits follow promotion; source
 conversion must not run a second time. DSP-derived initial sample counts and
