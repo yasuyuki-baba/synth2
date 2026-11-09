@@ -43,7 +43,7 @@ namespace synth2::dsp
             else if(parameter==42 || parameter==47){controls[slot].wave=value;targets[slot].setWave(value,ranges[slot].first,ranges[slot].second,random);}
             else valid=false;
         }
-        std::pair<double,double> effectiveRange(size_t slot,float depth=-1) const noexcept
+        std::pair<double,double> effectiveRange(size_t slot,double depth=-1) const noexcept
         {
             // Whole render dials leave the observed setter history authoritative.
             // Fractional edits extend that history without redrawing held targets.
@@ -51,17 +51,17 @@ namespace synth2::dsp
             return {compatibleControlCurve(depth,[&](int dial) {return lfoDepthRange(controls[slot].destination,dial).first;}),
                 compatibleControlCurve(depth,[&](int dial) {return lfoDepthRange(controls[slot].destination,dial).second;})};
         }
-        void resetPhase(size_t slot,int& counter,float depth=-1) noexcept
+        void resetPhase(size_t slot,int& counter,double depth=-1) noexcept
         {
             const auto range=effectiveRange(slot,depth);
             targets[slot].resetPhase(counter,controls[slot].wave,range.first,range.second,random);
         }
-        void advance(size_t slot,int samples,int counter,int period,float depth=-1) noexcept
+        void advance(size_t slot,int samples,int counter,int period,double depth=-1) noexcept
         {
             const auto range=effectiveRange(slot,depth);
             targets[slot].advance(samples,counter,period,controls[slot].wave,range.first,range.second,random);
         }
-        std::pair<double,int> query(size_t slot,int counter,int period,int step,float depth=-1) const noexcept
+        std::pair<double,int> query(size_t slot,int counter,int period,int step,double depth=-1) const noexcept
         {
             const auto range=effectiveRange(slot,depth);
             return targets[slot].query(controls[slot].wave,range.first,range.second,counter,period,step);

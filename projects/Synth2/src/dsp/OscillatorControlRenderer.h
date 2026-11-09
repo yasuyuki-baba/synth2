@@ -12,9 +12,9 @@ namespace synth2::dsp
     struct OscillatorControlSettings
     {
         bool envelopeEnabled {},oscillatorLfo {},applyPortamento {},envelopeFm {},fmLfo {};
-        float portamentoDial {-1};
+        double portamentoDial {-1};
         double sampleRate {44100.0};
-        float fmAmount {};
+        double fmAmount {};
         bool ringMod {};
     };
     // Caller-owned buffers and state; no global clocks, RNG or voice lifecycle.
@@ -43,8 +43,8 @@ namespace synth2::dsp
         {
             std::fill_n(pitch.data(),count,0);
             if(config.portamentoDial<0)return;
-            const float seconds=Portamento::timeSeconds(config.portamentoDial);
-            if(state.seconds!=seconds || state.duration!=static_cast<int>(static_cast<float>(config.sampleRate)*seconds))
+            const double seconds=Portamento::timeSeconds(config.portamentoDial);
+            if(state.seconds!=seconds || state.duration!=static_cast<int>(static_cast<double>(config.sampleRate)*seconds))
                 state.setDuration(seconds,static_cast<int>(config.sampleRate));
             int position=0;
             while(position<count)
@@ -63,7 +63,7 @@ namespace synth2::dsp
         static void fm(const OscillatorControlSettings& config,const ReceiverLfoView& lfos,
             FrequencyModulation& state,int count,const VoiceControlBuffer& envelopePitch,
             const VoiceSpanBuffer& remaining,VoiceControlBuffer& depth,
-            OscillatorCoarsePitch* coarse=nullptr,std::array<float,256>* exponents=nullptr)
+            OscillatorCoarsePitch* coarse=nullptr,std::array<double,256>* exponents=nullptr)
         {
             int position=0;
             while(position<count)

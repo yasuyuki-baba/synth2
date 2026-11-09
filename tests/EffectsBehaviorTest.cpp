@@ -8,16 +8,16 @@
 
 namespace
 {
-using Stereo=std::array<std::vector<float>,2>;
+using Stereo=std::array<std::vector<double>,2>;
 Stereo impulse(int count=2048)
 {
-    Stereo result{std::vector<float>(count),std::vector<float>(count)};
+    Stereo result{std::vector<double>(count),std::vector<double>(count)};
     result[0][0]=.25f;
     return result;
 }
 void finite(const Stereo& audio)
 { for(const auto& channel:audio) for(float value:channel) ASSERT_TRUE(std::isfinite(value)); }
-double tailEnergy(const std::vector<float>& audio)
+double tailEnergy(const std::vector<double>& audio)
 { double energy=0; for(size_t i=1;i<audio.size();++i) energy+=double(audio[i])*audio[i]; return energy; }
 }
 
@@ -32,9 +32,9 @@ TEST(EffectsBehavior, PipelineBypassPreservesDrySamplesWithAllEffectGroupsEnable
     synth2::dsp::OutputProcessContext context;
     context.bypassEffects=true; context.sampleRate=48000;
     pipeline->prepareGain(48000,false);
-    synth2::audio::AudioBuffer<float> warm(2,64);warm.clear();
+    synth2::audio::AudioBuffer<double> warm(2,64);warm.clear();
     for(int i=0;i<256;++i)pipeline->process(warm,0,64,settings,context,{});
-    synth2::audio::AudioBuffer<float> audio(2,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);
     for(int ch=0;ch<2;++ch) for(int i=0;i<64;++i) audio.setSample(ch,i,(ch==0 ? 1.f : -1.f)*i/128);
     pipeline->process(audio,0,64,settings,context,{});
     for(int ch=0;ch<2;++ch) for(int i=0;i<64;++i)
@@ -145,7 +145,7 @@ TEST(EffectsBehavior, AllMultiEffectsRemainFiniteAndColdPrepareRestoresFreshStat
         // isolation means the right output is unchanged by a left impulse.
         synth2::dsp::MultiEffect zeroInput;
         zeroInput.prepare(rate); zeroInput.setDials(dial,dial,dial);
-        Stereo zeros{std::vector<float>(2048),std::vector<float>(2048)};
+        Stereo zeros{std::vector<double>(2048),std::vector<double>(2048)};
         zeroInput.process(type,zeros[0].data(),zeros[1].data(),zeros[0].size(),false);
         EXPECT_EQ(a[1],zeros[1]);
     }
@@ -191,7 +191,7 @@ TEST(EffectsBehavior, FractionalWetEditingPreservesAllIntegerDialImpulseResponse
 TEST(EffectsBehavior, EveryContinuousWetControlChangesAudioWithinOneIntegerBin)
 {
     using D=synth2::DelaySettings;using C=synth2::ChorusSettings;
-    for(float D::* field:{&D::time,&D::feedback,&D::level,&D::spread,&D::tone})
+    for(double D::* field:{&D::time,&D::feedback,&D::level,&D::spread,&D::tone})
     {
         SCOPED_TRACE(field==&D::time ? "delay time" : field==&D::feedback ? "delay feedback" : field==&D::level ? "delay mix" : field==&D::spread ? "delay spread" : "delay tone");
         D d;C c;d.enable=true;d.time=1.0f/127;
@@ -201,7 +201,7 @@ TEST(EffectsBehavior, EveryContinuousWetControlChangesAudioWithinOneIntegerBin)
         d.*field=(start+.375f)/127;const auto b=wetRender(d,c);
         finite(a);finite(b);EXPECT_NE(a,b);
     }
-    for(float C::* field:{&C::time,&C::depth,&C::rate,&C::feedback,&C::level})
+    for(double C::* field:{&C::time,&C::depth,&C::rate,&C::feedback,&C::level})
     {
         SCOPED_TRACE(field==&C::time ? "chorus time" : field==&C::depth ? "chorus depth" : field==&C::rate ? "chorus rate" : field==&C::feedback ? "chorus feedback" : "chorus level");
         D d;C c;c.enabled=true;c.type=2;

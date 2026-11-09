@@ -10,11 +10,11 @@ TEST(FilterPath, SelectedCompatibleKernelKeepsTheSameStateAcrossResonance112)
         selected.prepare({rate,64,1});reference.prepare({rate,64,1});
         for(int frame=0;frame<4096;++frame)
         {
-            const float dial=110.f+static_cast<float>(frame%512)/128.f;
-            const float envelope=static_cast<float>(std::sin(frame*.031))*.25f;
-            const float input=static_cast<float>(std::sin(frame*.07))*.01f;
-            for(auto* filter:{&selected,&reference})filter->setParams(mode,400.25f,dial/127.f,.25f,.5f,.125f);
-            const float index=std::clamp(400.25f+1023.f*envelope*.25f+.5f,0.f,1023.f);
+            const double dial=110.+static_cast<double>(frame%512)/128.;
+            const double envelope=static_cast<double>(std::sin(frame*.031))*.25;
+            const double input=static_cast<double>(std::sin(frame*.07))*.01;
+            for(auto* filter:{&selected,&reference})filter->setParams(mode,400.25,dial/127.,.25,.5,.125);
+            const double index=std::clamp(400.25+1023.*envelope*.25+.5,0.,1023.);
             EXPECT_EQ(selected.processSample(input,envelope),reference.processNativeIndex(input,index));
             if(frame%64==63){selected.finishNativeBlock();reference.finishNativeBlock();}
         }
@@ -27,14 +27,14 @@ TEST(FilterPath, CompatibleResonanceEditsAreContinuousAround112)
     for(double rate:{44100.,48000.,96000.})for(int mode=0;mode<=4;++mode)
     {
         synth2::dsp::Filter seed;seed.prepare({rate,64,1});
-        seed.setParams(mode,400.25f,112.f/127,0,0,0);
-        for(int frame=0;frame<64;++frame)seed.processSample(frame==0 ? .5f : 0.f,0);
+        seed.setParams(mode,400.25,112./127,0,0,0);
+        for(int frame=0;frame<64;++frame)seed.processSample(frame==0 ? .5 : 0.,0);
         auto exact=seed,lower=seed,upper=seed;
-        lower.setParams(mode,400.25f,111.9999f/127,0,0,0);
-        upper.setParams(mode,400.25f,112.0001f/127,0,0,0);
-        const float expected=exact.processSample(.01f,0);
-        EXPECT_NEAR(lower.processSample(.01f,0),expected,.00001f);
-        EXPECT_NEAR(upper.processSample(.01f,0),expected,.00001f);
+        lower.setParams(mode,400.25,111.9999/127,0,0,0);
+        upper.setParams(mode,400.25,112.0001/127,0,0,0);
+        const double expected=exact.processSample(.01,0);
+        EXPECT_NEAR(lower.processSample(.01,0),expected,.00001);
+        EXPECT_NEAR(upper.processSample(.01,0),expected,.00001);
     }
 }
 
@@ -46,11 +46,11 @@ TEST(FilterPath, CoordinateAdaptersShareOneHistoryAcrossParameterChanges)
         alternating.prepare({44100,64,1});reference.prepare({44100,64,1});
         for(int frame=0;frame<1024;++frame)
         {
-            const float cutoff=400.25f+(frame%64)*.125f;
-            const float resonance=(frame%128)/127.f;
+            const double cutoff=400.25+(frame%64)*.125;
+            const double resonance=(frame%128)/127.;
             for(auto* filter:{&alternating,&reference})filter->setParams(mode,cutoff,resonance,0,0);
-            const float input=frame%37==0 ? .01f : 0.f;
-            const float actual=frame%2 ? alternating.processNativeIndex(input,cutoff) : alternating.processSample(input,0);
+            const double input=frame%37==0 ? .01 : 0.;
+            const double actual=frame%2 ? alternating.processNativeIndex(input,cutoff) : alternating.processSample(input,0);
             EXPECT_EQ(actual,reference.processNativeIndex(input,cutoff));
         }
         EXPECT_EQ(alternating.readNativeMemory(),reference.readNativeMemory());
@@ -62,16 +62,16 @@ TEST(FilterPath, CoordinateAdaptersShareOneHistoryAcrossParameterChanges)
 TEST(FilterPath, LowRateCutoffSweepsStayFiniteWithoutChangingKernels)
 {
     for(double rate:{8000.,16000.,22050.})for(int mode=0;mode<=4;++mode)
-    for(float resonance:{0.f,.5f,1.f})
+    for(double resonance:{0.,.5,1.})
     {
         synth2::dsp::Filter filter;filter.prepare({rate,64,1});
         for(int frame=0;frame<12000;++frame)
         {
-            const float index=(frame%2048)*(1023.f/2047.f);
+            const double index=(frame%2048)*(1023./2047.);
             filter.setParams(mode,index,resonance,0,0);
-            const float output=filter.processSample(frame%97==0 ? .5f : 0.f,0);
+            const double output=filter.processSample(frame%97==0 ? .5 : 0.,0);
             ASSERT_TRUE(std::isfinite(output)) << rate << " " << mode << " " << resonance;
-            ASSERT_LT(std::abs(output),10.f) << rate << " " << mode << " " << resonance;
+            ASSERT_LT(std::abs(output),10.) << rate << " " << mode << " " << resonance;
             if(frame%64==63)filter.finishNativeBlock();
         }
         filter.reset();

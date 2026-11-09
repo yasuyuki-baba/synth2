@@ -22,6 +22,11 @@ resolved integer offset and owns no local bend component or alternate slew.
 Ordinary bend advancement does not depend on an LFO provider. Keep it separate
 from routed MIDI pitch and CC121 routing/sustain state.
 
+Voice audio and gain buffers, physical filter state and Engine accumulation use
+double precision. Output effects and resampler histories keep that precision;
+only the host adapter converts final samples to float when requested. Compatible
+source/tuning/event words and compact offline snapshots retain their own formats.
+
 Voice borrows read-only LfoBlock receiver values and spans. Engine alone prepares
 both slots after MIDI dispatch. Render policy resolves controls only, without
 source/history admission flags or a normalized modulation router. Evidence

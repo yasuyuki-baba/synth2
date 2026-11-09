@@ -259,7 +259,7 @@ TEST(FmPhaseCorrection, AudioAdapterRetainsWideDepthWithCompatibleSyncReference)
             return oscillator.processSample(261.625f,261.625f,.5f,1,depth,true,false,
                 0,0,0,nullptr,-1,0,0,false,true);
         };
-        const float output=synth2::dsp::OscillatorAudioRenderer::process(adapted,config,input,{},0,nullptr);
+        const double output=synth2::dsp::OscillatorAudioRenderer::process(adapted,config,input,{},0,nullptr);
         EXPECT_EQ(output,render(wide,input.fmDepth));
         EXPECT_EQ(output,render(narrow,static_cast<float>(input.fmDepth)));
         EXPECT_EQ(adapted.getOsc1Phase(),wide.getOsc1Phase());

@@ -11,25 +11,25 @@ namespace synth2::dsp
     public:
         void prepare(double rate,bool preserve=false) noexcept
         {
-            const float interval=static_cast<float>(static_cast<int>(rate))*0.0020000000949949026f;
-            coefficient=static_cast<float>(1.0-std::pow(0.5,1.0/static_cast<double>(interval)));
+            const double interval=static_cast<double>(static_cast<int>(rate))*0.0020000000949949026;
+            coefficient=static_cast<double>(1.0-std::pow(0.5,1.0/static_cast<double>(interval)));
             if(!preserve)left=right=0;
         }
-        static float curve(float value) noexcept
+        static double curve(double value) noexcept
         {
-            const float x=value+(value<0 ? 1.0f : -1.0f);
-            const float cubic=(x*x)*x;
-            return value<0 ? cubic : static_cast<float>(static_cast<double>(cubic)*0.5+1.5);
+            const double x=value+(value<0 ? 1.0 : -1.0);
+            const double cubic=(x*x)*x;
+            return value<0 ? cubic : static_cast<double>(static_cast<double>(cubic)*0.5+1.5);
         }
-        void process(float& l,float& r,double control,float pan) noexcept
+        void process(double& l,double& r,double control,double pan) noexcept
         {
-            const float x=static_cast<float>(control)*(1.0f/64.0f);
+            const double x=static_cast<double>(control)*(1.0/64.0);
             const auto balance=StereoBalance::gains(pan);
-            const float targetL=curve(x)*balance.left;
-            const float targetR=curve(-x)*balance.right;
+            const double targetL=curve(x)*balance.left;
+            const double targetR=curve(-x)*balance.right;
             left+=(targetL-left)*coefficient;right+=(targetR-right)*coefficient;
             l*=left;r*=right;
         }
-        float left {},right {},coefficient {};
+        double left {},right {},coefficient {};
     };
 }

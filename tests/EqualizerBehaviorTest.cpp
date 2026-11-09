@@ -29,10 +29,10 @@ TEST(Equalizer, StereoChannelsKeepIndependentFilterHistory)
     eq.prepare ({44100.0, 256, 2});
     synth2::EqualizerSettings p; p.tone = 0.0f; p.level = 64.0f / 127.0f;
     eq.setParams (p);
-    synth2::audio::AudioBuffer<float> buffer (2, 256); buffer.clear();
+    synth2::audio::AudioBuffer<double> buffer (2, 256); buffer.clear();
     buffer.setSample (0, 0, 1.0f);
-    synth2::audio::AudioBlock<float> block (buffer);
-    synth2::audio::ProcessContextReplacing<float> context (block);
+    synth2::audio::AudioBlock<double> block (buffer);
+    synth2::audio::ProcessContextReplacing<double> context (block);
     eq.process (context);
     EXPECT_GT(buffer.getMagnitude (0, 0, 256), 0.001f);
     EXPECT_FLOAT_EQ(buffer.getMagnitude (1, 0, 256), 0.0f);
@@ -56,12 +56,12 @@ TEST(Equalizer, ContextBypassPreservesDryAudioAndHistory)
     synth2::dsp::Equalizer eq;
     eq.prepare ({48000.0, 64, 2});
     synth2::EqualizerSettings p; p.tone = 0.0f; eq.setParams (p);
-    synth2::audio::AudioBuffer<float> audio (2, 64);
+    synth2::audio::AudioBuffer<double> audio (2, 64);
     for (int channel = 0; channel < 2; ++channel)
     for (int frame = 0; frame < 64; ++frame) audio.setSample (channel, frame, frame * 0.001f);
-    const synth2::audio::AudioBuffer<float> original (audio);
-    synth2::audio::AudioBlock<float> block (audio);
-    synth2::audio::ProcessContextReplacing<float> context (block);
+    const synth2::audio::AudioBuffer<double> original (audio);
+    synth2::audio::AudioBlock<double> block (audio);
+    synth2::audio::ProcessContextReplacing<double> context (block);
     context.isBypassed = true; eq.process (context);
     for (int channel = 0; channel < 2; ++channel)
     for (int frame = 0; frame < 64; ++frame)
@@ -92,10 +92,10 @@ TEST(Equalizer, ParameterEndpointsRemainFiniteAcrossSampleRates)
 
 namespace
 {
-std::array<float,1024> eqImpulse(synth2::EqualizerSettings p,double rate)
+std::array<double,1024> eqImpulse(synth2::EqualizerSettings p,double rate)
 {
     synth2::dsp::Equalizer eq;eq.prepare(rate);eq.setParams(p);
-    std::array<float,1024> output{};
+    std::array<double,1024> output{};
     bool silent=false;
     output[0]=.1f;
     for(int at=0;at<1024;at+=64)eq.processNative(output.data()+at,nullptr,64,silent);
@@ -120,7 +120,7 @@ TEST(Equalizer, EquivalentIntegralNormalizationsProduceTheSameNativeResponse)
 TEST(Equalizer, FractionalNativeControlsChangeAudioWithoutRoundingToAnotherDial)
 {
     using P=synth2::EqualizerSettings;
-    for(float P::* field:{&P::freq,&P::level,&P::q,&P::tone})
+    for(double P::* field:{&P::freq,&P::level,&P::q,&P::tone})
     {
         P p;
         p.freq=p.q=p.tone=64.0f/127;p.level=80.0f/127;
@@ -157,13 +157,13 @@ TEST(Equalizer, SampleContextAndStereoGraphUseTheSameFractionalKernels)
         for(auto* eq:{&sample,&context,&graph}){eq->prepare(rate);eq->setParams(p);}
         for(int block=0;block<4;++block)
         {
-            synth2::audio::AudioBuffer<float> a(2,64),b(2,64),c(2,64);
+            synth2::audio::AudioBuffer<double> a(2,64),b(2,64),c(2,64);
             for(int channel=0;channel<2;++channel)for(int i=0;i<64;++i)
             {
                 const float value=.1f*std::sin((block*64+i+channel*13)*.17f);
                 a.setSample(channel,i,sample.processSample(value,channel));b.setSample(channel,i,value);c.setSample(channel,i,value);
             }
-            synth2::audio::AudioBlock<float> audio(b);synth2::audio::ProcessContextReplacing<float> processing(audio);context.process(processing);
+            synth2::audio::AudioBlock<double> audio(b);synth2::audio::ProcessContextReplacing<double> processing(audio);context.process(processing);
             bool silent=false;graph.processNative(c.getWritePointer(0),c.getWritePointer(1),64,silent);
             for(int channel=0;channel<2;++channel)for(int i=0;i<64;++i)
             {EXPECT_EQ(a.getSample(channel,i),b.getSample(channel,i));EXPECT_EQ(a.getSample(channel,i),c.getSample(channel,i));}

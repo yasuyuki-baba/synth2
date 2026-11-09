@@ -1,4 +1,5 @@
 #pragma once
+#include "CompatibleControlCurve.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -7,24 +8,26 @@ namespace synth2::dsp
 {
     struct OscillatorStack
     {
-        // Native 0x29160: serialized p76 -> cents between alternating lanes.
-        static float depth(int dial) noexcept
+        static double depth(double dial) noexcept
+        {return compatibleControlCurve(std::clamp(dial,0.0,127.0),[](int value){return depthKnot(value);});}
+        static std::array<double,8> frequencies(double base,double dial) noexcept
         {
-            return static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f)*20.0f;
+            dial=std::clamp(dial,0.0,127.0);
+            const int low=static_cast<int>(dial);
+            auto result=frequencyKnot(static_cast<float>(base),low);
+            if(dial==low)return result;
+            const auto next=frequencyKnot(static_cast<float>(base),low+1);
+            for(size_t i=0;i<result.size();++i)result[i]+=(next[i]-result[i])*(dial-low);
+            return result;
         }
-        static float depth(float dial) noexcept
-        {return std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f)*20.0f;}
-
-        // Native 0x3bc40: eight additional oscillators, +/-1,3,5,7 steps.
-        static std::array<float,8> frequencies(float base,int dial) noexcept
-        {return fromSpacing(base,depth(dial));}
-        static std::array<float,8> frequencies(float base,float dial) noexcept
-        {return fromSpacing(base,depth(dial));}
     private:
-        static std::array<float,8> fromSpacing(float base,float spacing) noexcept
+        // Compatible tuning knots are source coordinates, not audio storage.
+        static float depthKnot(int dial) noexcept
+        {return static_cast<float>(dial)*(1.0f/127.0f)*20.0f;}
+        static std::array<double,8> frequencyKnot(float base,int dial) noexcept
         {
-            std::array<float,8> result {};
-            const float logTwo=std::log(2.0f);
+            std::array<double,8> result{};
+            const float spacing=depthKnot(dial),logTwo=std::log(2.0f);
             for(int pair=0;pair<4;++pair)
             {
                 const float cents=static_cast<float>(pair*2+1)*spacing;

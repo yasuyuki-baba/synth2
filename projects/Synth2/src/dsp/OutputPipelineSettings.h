@@ -9,10 +9,10 @@ namespace synth2::dsp
         bool panLfo {};
         bool nativeGainSilence {},nativeSilenceGraph {},nativePhaser {};
         int nativeMultiEffectType {-1};
-        std::array<float,3> nativeMultiEffectDials {};
-        float nativePhaserDepth {},nativePhaserRate {},nativePhaserFeedback {64};
+        std::array<double,3> nativeMultiEffectDials {};
+        double nativePhaserDepth {},nativePhaserRate {},nativePhaserFeedback {64};
         int nativePhaserPairs {1};
-        float pan {},masterVolume {1},hostBpm {120};
+        double pan {},masterVolume {1},hostBpm {120};
         EqualizerSettings eq;
         ChorusSettings chorus;
         DelaySettings delay;

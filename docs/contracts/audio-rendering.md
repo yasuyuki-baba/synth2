@@ -266,8 +266,12 @@ audio equivalence. See [validation](validation.md).
 
 Continuous arithmetic should retain precision through its intermediate signal
 storage. A double expression followed by a float buffer is still a narrowing
-boundary. The audio graph currently retains float sample/state storage in several
-stages; double host I/O does not certify a double internal signal path.
+boundary. The internal audio graph uses double sample/state storage through waveform reads,
+physical filters, VCA/pan, voice accumulation, oversampling and output effects.
+The bridge retains double scratch storage and applies transition gains before its
+single conversion to the requested host sample type. Float source parameters,
+compatible tuning/event knots and 32-bit diagnostic words are explicit boundaries;
+they must not become intermediate audio buffers.
 Oscillator phase increments are cached by effective frequency and invalidated by
 sample-rate changes. Their rate calculation uses double precision, retaining the
 compatible final float rounding before conversion to the discrete phase word.
@@ -328,10 +332,10 @@ filter. Integer coefficient steps, turns and intentional jumps remain intact whe
 their products are integral. The physical FM receiver owns coefficient slewing independently of the
 downstream phase correction.
 
-FmPhaseCorrection receives double depth and float oscillator source without
+FmPhaseCorrection receives double depth and oscillator source without
 narrowing the depth in the audio adapter. The audible product is evaluated in
 double precision while the compatible Sync/noise reference offset remains
-`int32(float(depth) * source)`. Accumulated
+`int32(float(depth) * float(source))`. Accumulated
 product error feeds back toward that compatible trajectory over the native
 32-frame coefficient interval; a fractional carry retains the remainder when
 converting the corrected audible offset to a phase word. This feedback deliberately
@@ -356,7 +360,7 @@ establish perceptual improvement or unrestricted equivalence.
 Ring uses the same product-mix expression for every caller, before FM dispatch.
 Selecting Ring suppresses FM phase offsets. Pulse/noise wrapper gains can still
 change when FM is selected; these are device semantics rather than alternate
-Ring algorithms. Preserve the existing float multiplication/addition order.
+Ring algorithms. Preserve the multiplication/addition order in the double signal path.
 
 Sub uses one level mapping (four times the normalized source dial) and the
 compatible carrier/sub/mix normalizer for every render route. Its full OSC1-linked

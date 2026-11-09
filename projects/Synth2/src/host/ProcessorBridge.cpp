@@ -63,7 +63,7 @@ struct ProcessorBridge::Impl
 {
     SynthEngine engine;
     std::atomic<int> requestedOversampling{1};
-    int fadeOut=0,fadeIn=0;float fadeFrom=1,fadeGain=1;
+    int fadeOut=0,fadeIn=0;double fadeFrom=1,fadeGain=1;
     std::array<std::atomic<float>,parameterCount> values{};
     std::array<ParameterInfo,parameterCount> info{};
     std::array<std::atomic<float>*,126> rawSourceValues{};
@@ -96,7 +96,7 @@ struct ProcessorBridge::Impl
     struct Event{int offset;uint8_t status,data1,data2;};
     std::array<Event,midiCapacity> events{};
     size_t eventCount=0;uint64_t drops=0;bool overflow=false;int capacity=0;
-    audio::AudioBuffer<float> scratch;
+    audio::AudioBuffer<double> scratch;
     audio::MidiBuffer midi,incoming;
     EditorMidiInput editorMidi;
     Impl()
@@ -398,10 +398,10 @@ struct ProcessorBridge::Impl
             ++drops;midi.clear();editorMidi.resetAudio();
             for(int c=1;c<=16;++c)midi.addEvent(audio::MidiMessage::allSoundOff(c),0);
         }
-        float* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<float> buffer(pointers,2,frames);buffer.clear();
+        double* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<double> buffer(pointers,2,frames);buffer.clear();
         const NoDenormals noDenormals;
         bpm=std::isfinite(bpm) && bpm>0 && bpm<=1000 ? bpm : 120;
-        engine.getParams().hostBpm=static_cast<float>(bpm);
+        engine.getParams().hostBpm=bpm;
         const bool randomArp=values[59].load()!=0 && values[31].load()==4;
         if((randomArp && bpm!=120.) || frames>64)engine.invalidateNativeRandomHistory();
         for(const auto& metadata:midi)
@@ -419,10 +419,9 @@ struct ProcessorBridge::Impl
         const bool changing=fadeOut>0;
         for(int i=0;i<frames;++i)
         {
-            if(changing){fadeGain=fadeFrom*static_cast<float>(fadeOut)/64.f;if(fadeOut>0)--fadeOut;}
-            else if(fadeIn>0){fadeGain=static_cast<float>(129-fadeIn)/128.f;--fadeIn;}
-            left[i]=pointers[0][i];right[i]=pointers[1][i];
-            if(changing || fadeIn>0 || fadeGain!=1){left[i]*=fadeGain;right[i]*=fadeGain;}
+            if(changing){fadeGain=fadeFrom*static_cast<double>(fadeOut)/64.0;if(fadeOut>0)--fadeOut;}
+            else if(fadeIn>0){fadeGain=static_cast<double>(129-fadeIn)/128.0;--fadeIn;}
+            left[i]=static_cast<Sample>(pointers[0][i]*fadeGain);right[i]=static_cast<Sample>(pointers[1][i]*fadeGain);
         }
         if(changing && fadeOut==0)
         {engine.setOversamplingFactor(desired);fadeIn=128;fadeGain=0;}

@@ -10,23 +10,23 @@ namespace synth2::dsp
     public:
         void prepare (double rate, bool preserveState = false) noexcept
         {
-            coefficient=std::exp(-1.0f/(static_cast<float>(rate)*0.005000000353902578f));
+            coefficient=std::exp(-1.0/(static_cast<double>(rate)*0.005000000353902578));
             if (!preserveState) reset();
         }
         void reset() noexcept { excess=0; }
-        float process (float input) noexcept
+        double process (double input) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            const float target=std::max(std::abs(input)-1.1f,0.0f);
+            const double target=std::max(std::abs(input)-1.1,0.0);
             excess=(excess-target)*coefficient+target;
-            return (1.1f/(excess+1.1f))*input;
+            return (1.1/(excess+1.1))*input;
         }
         void finish() noexcept { if(static_cast<double>(excess)<1e-5) excess=0; }
-        float getCoefficient() const noexcept { return coefficient; }
-        float value() const noexcept { return excess; }
+        double getCoefficient() const noexcept { return coefficient; }
+        double value() const noexcept { return excess; }
     private:
-        float coefficient {},excess {};
+        double coefficient {},excess {};
     };
 }

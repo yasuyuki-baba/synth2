@@ -117,10 +117,10 @@ TEST(PwmPrecision, CommonReadPreservesIntegralOffsetsAndWrapsWithoutAdvancingPha
     {
         const auto sample=[](uint32_t offset){return static_cast<float>(offset*offset);};
         const auto low=static_cast<uint32_t>(bins);
-        const float expected=sample(low)+(sample(low+1)-sample(low))*static_cast<float>(bins-low);
+        const double expected=static_cast<double>(sample(low))+(sample(low+1)-sample(low))*static_cast<float>(bins-low);
         EXPECT_EQ(synth2::dsp::PulseWidthRead::interpolate(bins,sample),expected);
-        const float a=oscillator.renderPhaseDiffSawNoAdvance(low<<16,&bank,0,5);
-        const float b=oscillator.renderPhaseDiffSawNoAdvance((low+1)<<16,&bank,0,5);
+        const double a=oscillator.renderPhaseDiffSawNoAdvance(low<<16,&bank,0,5);
+        const double b=oscillator.renderPhaseDiffSawNoAdvance((low+1)<<16,&bank,0,5);
         EXPECT_EQ(oscillator.renderSample(1,.5f,0,&bank,bins),a+(b-a)*static_cast<float>(bins-low));
         EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
     }

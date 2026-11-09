@@ -9,17 +9,17 @@ namespace synth2::dsp
     // divides by the voice count and therefore has a negative mean offset.
     struct Unison
     {
-        std::array<float, 8> pitchCents {};
+        std::array<double, 8> pitchCents {};
         std::array<double, 8> filterIndex {};
 
         // RVA0x36870, with source84 normalized as (dial-64)/64.
         // Registered slots repeat the group layout; one active core is centred.
-        static float panOffset (int count, int slot, float amount) noexcept
+        static double panOffset (int count, int slot, double amount) noexcept
         {
             count = std::clamp (count, 1, 8);
-            if (count == 1) return 0.0f;
-            return (static_cast<float>(std::max(slot,0)%count)/static_cast<float>(count-1))
-                   * (amount*2.0f) - amount;
+            if (count == 1) return 0.0;
+            return (static_cast<double>(std::max(slot,0)%count)/static_cast<double>(count-1))
+                   * (amount*2.0) - amount;
         }
 
         static Unison layout(int count, int dial, int pitchDial = 24) noexcept
@@ -48,14 +48,14 @@ namespace synth2::dsp
             }
             return result;
         }
-        static Unison layout(int count,float dial,int pitchDial=24) noexcept
+        static Unison layout(int count,double dial,int pitchDial=24) noexcept
         {
-            dial=std::clamp(dial,0.0f,127.0f);
+            dial=std::clamp(dial,0.0,127.0);
             const int low=static_cast<int>(dial);
             auto result=layout(count,low,pitchDial);
             if(dial==low)return result;
             const auto next=layout(count,std::min(127,low+1),pitchDial);
-            const float fraction=dial-low;
+            const double fraction=dial-low;
             for(std::size_t slot=0;slot<result.pitchCents.size();++slot)
             {
                 result.pitchCents[slot]+=(next.pitchCents[slot]-result.pitchCents[slot])*fraction;

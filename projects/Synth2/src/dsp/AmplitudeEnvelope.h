@@ -16,25 +16,25 @@ namespace synth2::dsp
     public:
         explicit AmplitudeEnvelope (bool useVectorRamp = false) noexcept : vectorRamp (useVectorRamp) {}
         enum class Phase { Idle, Attack, Decay, Sustain, Release };
-        static float gainForDial(int dial) noexcept
+        static double gainForDial(int dial) noexcept
         {
             dial=std::clamp(dial,0,127);
             if(dial==0)return 0;
             const double exponent=std::pow(static_cast<double>(dial)*(1.0/127.0),0.3);
-            return static_cast<float>(std::exp(std::log(2048.0)*exponent)*(1.0/2048.0));
+            return static_cast<double>(std::exp(std::log(2048.0)*exponent)*(1.0/2048.0));
         }
-        static float velocityForDials(int velocity,int sensitivity) noexcept
+        static double velocityForDials(int velocity,int sensitivity) noexcept
         {
             velocity=std::clamp(velocity,0,127);sensitivity=std::clamp(sensitivity,0,127);
-            const float amount=(static_cast<float>(sensitivity)*(1.0f/127.0f))*(-30.0f);
+            const double amount=(static_cast<double>(sensitivity)*(1.0/127.0))*(-30.0);
             double exponent=static_cast<double>(amount)*static_cast<double>(127-velocity);
             exponent*=1.0/127.0;exponent*=0.05;
-            return static_cast<float>(std::exp(std::log(10.0)*exponent));
+            return static_cast<double>(std::exp(std::log(10.0)*exponent));
         }
 
-        static float gainForDial(float dial) noexcept
+        static double gainForDial(double dial) noexcept
         {return interpolateDial(dial,[](int value){return gainForDial(value);});}
-        static float velocityForDials(int velocity,float sensitivity) noexcept
+        static double velocityForDials(int velocity,double sensitivity) noexcept
         {return interpolateDial(sensitivity,[&](int value){return velocityForDials(velocity,value);});}
 
         void setParameters (int attackFrames,int decayFrames,double sustainLevel,int releaseFrames) noexcept
@@ -62,22 +62,22 @@ namespace synth2::dsp
         Phase getPhase() const noexcept { return phase; }
         double getLevel() const noexcept { return level; }
         int getCounter() const noexcept { return phase == Phase::Release ? release.getCounter() : counter; }
-        float getCurrentLevel() const noexcept { return static_cast<float>(level)/2048.0f; }
+        double getCurrentLevel() const noexcept { return static_cast<double>(level)/2048.0; }
         // Offline diagnostics; callers serialize with rendering.
-        std::array<float,3> readGainState() const noexcept { return {currentGain,targetGain,gainScale}; }
+        std::array<double,3> readGainState() const noexcept { return {currentGain,targetGain,gainScale}; }
         double getCachedLevel() const noexcept { return lastLevel; }
         bool wasSilent() const noexcept { return silent; }
 
-        void setGainScale (float value) noexcept
+        void setGainScale (double value) noexcept
         {
-            setGainFactors(1.0f,value);
+            setGainFactors(1.0,value);
         }
         // CVca applies the two native factors before normalizing its target.
-        // Their separate products preserve the native float rounding order.
-        void setGainFactors(float first,float second) noexcept
+        // Keep their product order while retaining double signal precision.
+        void setGainFactors(double first,double second) noexcept
         {
-            first=std::isfinite(first) ? std::max(0.0f,first) : 0.0f;
-            second=std::isfinite(second) ? std::max(0.0f,second) : 0.0f;
+            first=std::isfinite(first) ? std::max(0.0,first) : 0.0;
+            second=std::isfinite(second) ? std::max(0.0,second) : 0.0;
             if(first!=gainFirst || second!=gainScale){gainFirst=first;gainScale=second;lastLevel=-1;}
         }
 
@@ -111,7 +111,7 @@ namespace synth2::dsp
         // timing remains separate from the pending sustain-gain interpolation.
         // Storage must describe its real alignment: the native SSE ramp uses
         // four independent additions, with a scalar alignment prefix and tail.
-        void render (float* gains,int frames,int gainHorizon = 0) noexcept
+        void render (double* gains,int frames,int gainHorizon = 0) noexcept
         {
             silent=true;
             // The native envelope's zero-duration release exit keeps its
@@ -152,10 +152,10 @@ namespace synth2::dsp
                     while (offset < frames && counter < decay && level > sustain)
                     {
                         const int count = std::min ({frames-offset,step,decay-counter});
-                        const float remaining = static_cast<float>(decay-counter-count)*(1.0f/static_cast<float>(decay));
-                        const float curve = std::exp ((remaining-1.0f)*8.0f)*remaining;
+                        const double remaining = static_cast<double>(decay-counter-count)*(1.0/static_cast<double>(decay));
+                        const double curve = std::exp ((remaining-1.0)*8.0)*remaining;
                         level = compatibleControlCurve(2048-sustain,[&](int range) {
-                            return std::trunc(curve*static_cast<float>(range));
+                            return std::trunc(curve*static_cast<double>(range));
                         })+sustain;
                         segment (gains+offset,count,level);
                         offset += count; counter += count;
@@ -169,11 +169,11 @@ namespace synth2::dsp
                 else
                 {
                     if (phase == Phase::Sustain) segment (gains+offset,available,sustain,gainHorizon);
-                    else std::fill_n (gains+offset,available,0.0f);
+                    else std::fill_n (gains+offset,available,0.0);
                     offset = frames;
                 }
             }
-            if (offset < frames) std::fill_n (gains+offset,frames-offset,0.0f);
+            if (offset < frames) std::fill_n (gains+offset,frames-offset,0.0);
         }
 
     private:
@@ -188,12 +188,12 @@ namespace synth2::dsp
             step = std::max (1,boundary/2);
         }
 
-        void segment (float* output,int count,double target,int horizon = 0) noexcept
+        void segment (double* output,int count,double target,int horizon = 0) noexcept
         {
             if (count <= 0) return;
             if (lastLevel == target && rampRemaining==0)
             {
-                if(targetGain!=0.0f)silent=false;
+                if(targetGain!=0.0)silent=false;
                 std::fill_n (output,count,targetGain);
                 return;
             }
@@ -202,20 +202,20 @@ namespace synth2::dsp
             silent=false;
             if(lastLevel!=target)
             {
-                targetGain=static_cast<float>(target)*gainFirst;
+                targetGain=static_cast<double>(target)*gainFirst;
                 targetGain*=gainScale;
-                targetGain*=1.0f/2048.0f;
+                targetGain*=1.0/2048.0;
                 if (modulation1!=0 || modulation2!=0)
                 {
-                    const float ratio=static_cast<float>((2048-modulation1)*(2048-modulation2))*(1.0f/4194304.0f);
+                    const double ratio=static_cast<double>((2048-modulation1)*(2048-modulation2))*(1.0/4194304.0);
                     targetGain=ratio*targetGain;
                 }
                 rampRemaining=horizon>0 ? horizon : count;
-                rampDelta=(targetGain-currentGain)/static_cast<float>(rampRemaining);
+                rampDelta=(targetGain-currentGain)/static_cast<double>(rampRemaining);
             }
             const int total=count;
             count=std::min(count,rampRemaining);
-            const float delta=rampDelta;
+            const double delta=rampDelta;
             int i = 0;
             if (vectorRamp && count >= 7)
             {
@@ -224,11 +224,11 @@ namespace synth2::dsp
                     currentGain += delta;
                     output[i++] = currentGain;
                 }
-                float lane3 = currentGain;
-                float lane2 = lane3-delta;
-                float lane1 = lane2-delta;
-                float lane0 = lane1-delta;
-                const float four = delta*4.0f;
+                double lane3 = currentGain;
+                double lane2 = lane3-delta;
+                double lane1 = lane2-delta;
+                double lane0 = lane1-delta;
+                const double four = delta*4.0;
                 for (; i < count-3; i += 4)
                 {
                     lane0 += four; lane1 += four; lane2 += four; lane3 += four;
@@ -243,7 +243,7 @@ namespace synth2::dsp
         }
 
         int rampRemaining {};
-        float rampDelta {};
+        double rampDelta {};
         bool vectorRamp {};
         bool silent {true};
         ReleaseRamp release;
@@ -251,8 +251,8 @@ namespace synth2::dsp
         int attack {},decay {},releaseDuration {};
         int counter {},boundary {},step {1};
         double sustain {2048},level {},lastLevel {-1};
-        float currentGain {},targetGain {};
-        float gainScale {1.0f},gainFirst {1.0f};
+        double currentGain {},targetGain {};
+        double gainScale {1.0},gainFirst {1.0};
         double modulation1 {},modulation2 {};
     };
 }

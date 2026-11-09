@@ -22,7 +22,7 @@ namespace synth2::dsp
             const int range=destination==1 ? 512 : destination==2 ? 128 : 640;
             return static_cast<int>(std::abs(amount(dial))*static_cast<float>(range));
         }
-        static double peak(float dial,int destination=0) noexcept
+        static double peak(double dial,int destination=0) noexcept
         {
             return compatibleControlCurve(std::clamp(static_cast<double>(dial),0.0,127.0),
                 [&](int value) {return peak(value,destination);});
@@ -33,16 +33,8 @@ namespace synth2::dsp
             return static_cast<float>(std::exp(std::log(attack ? 56000.0 : 6000.0)
                        *static_cast<double>(normalized))*(attack ? .0005 : .01));
         }
-        static float timeSeconds(float dial,bool attack) noexcept
+        static double timeSeconds(double dial,bool attack) noexcept
         {return interpolateDial(dial,[&](int value){return timeSeconds(value,attack);});}
-        static float pitchFrequency(float frequency,int control) noexcept
-        {
-            control=std::clamp(control,-1280,1280);
-            const int quotient=control/128,remainder=control%128;
-            const float ratio=fineTable()[static_cast<std::size_t>(remainder+128)]
-                *std::ldexp(1.0f,quotient);
-            return std::min(frequency*ratio,22000.0f);
-        }
         static int pulseWidthBins(float base,int control) noexcept
         {
             // Win64 0x3c10c: positive depth approaches 2, negative approaches 0.
@@ -51,10 +43,14 @@ namespace synth2::dsp
             const float width=control>0 ? base+(2.0f-base)*modulation : base*(1.0f+modulation);
             return static_cast<int>(std::clamp(static_cast<double>(width),.01,1.99)*1024.0);
         }
-        static float pitchFrequency(float frequency,double control) noexcept
+        static double pitchFrequency(double frequency,double control) noexcept
         {
             control=std::clamp(control,-1280.0,1280.0);
-            return static_cast<float>(compatibleControlCurve(control,[&](int value){return pitchFrequency(frequency,value);}));
+            const double ratio=compatibleControlCurve(control,[](int value) {
+                const int quotient=value/128,remainder=value%128;
+                return fineTable()[static_cast<std::size_t>(remainder+128)]*std::ldexp(1.0f,quotient);
+            });
+            return std::min(frequency*ratio,22000.0);
         }
         static double pulseWidthBins(float base,double control) noexcept
         {return compatibleControlCurve(control,[&](int value){return pulseWidthBins(base,value);});}

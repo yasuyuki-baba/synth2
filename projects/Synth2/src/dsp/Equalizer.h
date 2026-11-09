@@ -37,7 +37,7 @@ namespace synth2::dsp
             cached = false;
             nativeTone.prepare(rate,true);
             nativePeak.prepare(rate,true);
-            peakSilence.prepare(rate,.2f,true);toneSilence.prepare(rate,.2f,true);
+            peakSilence.prepare(rate,.2,true);toneSilence.prepare(rate,.2,true);
         }
 
         void setParams (const EqualizerSettings& p) noexcept
@@ -46,7 +46,7 @@ namespace synth2::dsp
                 && p.tone == previous.tone && p.freq == previous.freq) return;
             previous = p;
             cached = true;
-            const float levelDial=fractionalDial(p.level);
+            const double levelDial=fractionalDial(p.level);
             peakEnabled = levelDial != 64;
             nativePeak.setDials(fractionalDial(p.freq),levelDial,fractionalDial(p.q));
             nativeTone.setFractionalDial(fractionalDial(p.tone));
@@ -56,13 +56,13 @@ namespace synth2::dsp
         {
             nativeTone.prepare(sampleRate);
             nativePeak.prepare(sampleRate);
-            peakSilence.prepare(sampleRate,.2f);toneSilence.prepare(sampleRate,.2f);
+            peakSilence.prepare(sampleRate,.2);toneSilence.prepare(sampleRate,.2);
         }
 
-        inline float processSample (float in, int channel = 0) noexcept
+        inline double processSample (double in, int channel = 0) noexcept
         {
             channel = std::clamp (channel, 0, 1);
-            const float out = peakEnabled ? nativePeak.process(in,channel) : in;
+            const double out = peakEnabled ? nativePeak.process(in,channel) : in;
             return nativeTone.process(out,channel);
         }
 
@@ -74,16 +74,16 @@ namespace synth2::dsp
 
         // Canonical stereo graph, CEq wrapper 0xe8b0. Inactive/bypassed
         // stages preserve the upstream flag and their retained histories.
-        void processNative(float* left,float* right,int frames,bool& silent,float fillScale=1.0f) noexcept
+        void processNative(double* left,double* right,int frames,bool& silent,double fillScale=1.0) noexcept
         {
-            if(peakEnabled && peakSilence.process(left,right,frames,silent,1e-6f*fillScale))
+            if(peakEnabled && peakSilence.process(left,right,frames,silent,1e-6*fillScale))
                 for(int i=0;i<frames;++i)
                 {
                     left[i]=nativePeak.process(left[i],0);
                     if(right)right[i]=nativePeak.process(right[i],1);
                 }
             const bool bypass=nativeTone.isBypassed();
-            if(!bypass && toneSilence.process(left,right,frames,silent,1e-6f*fillScale))
+            if(!bypass && toneSilence.process(left,right,frames,silent,1e-6*fillScale))
                 for(int i=0;i<frames;++i)
                 {
                     left[i]=nativeTone.process(left[i],0);

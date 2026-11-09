@@ -56,13 +56,13 @@ TEST(OscillatorBehavior, OctaveFrequencyDoublesPitchAndResetRestoresPhase)
     low.setSampleRate(48000); high.setSampleRate(48000);
     low.updatePhaseIncrement(220); high.updatePhaseIncrement(440);
     EXPECT_NEAR(double(high.getPhaseIncFixed27())/low.getPhaseIncFixed27(),2,1e-5);
-    std::vector<float> first;
+    std::vector<double> first;
     for(int i=0;i<257;++i)
     { first.push_back(low.renderSample(3,.5f,0,&bank)); low.advancePhase(); }
     ASSERT_NE(low.getPhaseFixed27(),0u);
     low.reset();
     EXPECT_EQ(low.getPhaseFixed27(),0u);
-    for(float expected:first)
+    for(double expected:first)
     { EXPECT_EQ(low.renderSample(3,.5f,0,&bank),expected); low.advancePhase(); }
 }
 
@@ -97,7 +97,7 @@ TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
     {
         const auto phase=envelope.getPhase();
         const double before=envelope.getLevel();
-        float gain{}; envelope.render(&gain,1);
+        double gain{}; envelope.render(&gain,1);
         ASSERT_TRUE(std::isfinite(gain));
         EXPECT_GE(envelope.getLevel(),0); EXPECT_LE(envelope.getLevel(),2048);
         if(phase==Envelope::Phase::Attack)
@@ -113,7 +113,7 @@ TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
     for(int i=0;i<1024;++i)
     {
         const double before=envelope.getLevel();
-        float gain{}; envelope.render(&gain,1);
+        double gain{}; envelope.render(&gain,1);
         EXPECT_LE(envelope.getLevel(),before);
         ASSERT_TRUE(std::isfinite(gain));
     }
@@ -125,7 +125,7 @@ TEST(AmplitudeBehavior, ResetAndZeroDurationStagesDoNotLeaveAHeldEnvelope)
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(0,0,1024,0);
     envelope.noteOn();
-    std::array<float,256> gains{};
+    std::array<double,256> gains{};
     envelope.render(gains.data(),gains.size());
     EXPECT_EQ(envelope.getLevel(),1024);
     envelope.noteOff(); envelope.render(gains.data(),gains.size());
@@ -169,10 +169,10 @@ TEST(AmplitudeBehavior, ConfigurationKeepsAssignedVelocityAndRunningEnvelopeOnEd
     using namespace synth2::dsp;
     AmplitudeEnvelope envelope;
     AmplitudeEnvelopeSettings settings{.01f,.1f,.8f,.03f,1.f,1.f};
-    float reference=1;
+    double reference=1;
     VoiceEnvelopeConfigurator::amplitude(envelope,reference,settings,64.f/127,44100,true);
     EXPECT_GT(reference,0);EXPECT_LT(reference,1);
-    const float assigned=reference;envelope.noteOn();std::array<float,64> gains{};envelope.render(gains.data(),64);
+    const double assigned=reference;envelope.noteOn();std::array<double,64> gains{};envelope.render(gains.data(),64);
     const auto phase=envelope.getPhase();const auto level=envelope.getLevel();const auto counter=envelope.getCounter();
     settings.sensitivity=0;settings.gain=.75f;
     VoiceEnvelopeConfigurator::amplitude(envelope,reference,settings,1,44100,false);
@@ -189,7 +189,7 @@ TEST(AmplitudeBehavior, DirectVoiceUsesPhysicalVcaAndRetiresAfterItsRelease)
     voice->startNote(60,1,nullptr,8192);
     std::array<uint32_t,16> words{};ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
     EXPECT_EQ(words[6],static_cast<uint32_t>(synth2::dsp::AmplitudeEnvelope::Phase::Attack));
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     ASSERT_TRUE(voice->readRenderingCoreWords(0,words));EXPECT_GT(words[7],0u);
     voice->stopNote(0,true);ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
     EXPECT_EQ(words[6],static_cast<uint32_t>(synth2::dsp::AmplitudeEnvelope::Phase::Release));
@@ -209,7 +209,7 @@ TEST(AmplitudeBehavior, FullPoolReusesAReleasingCoreBeforeStealingAHeldNote)
     auto replacement=std::make_unique<synth2::SynthVoice>(params,phase,*pool);
     for(auto* voice:{held.get(),released.get(),replacement.get()})voice->prepare(44100);
     held->startNote(60,1,nullptr,8192);released->startNote(67,1,nullptr,8192);
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();
     held->renderNextBlock(audio,0,64);released->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> heldWords{},releasedWords{},nextWords{};
     ASSERT_TRUE(held->readRenderingCoreWords(0,heldWords));ASSERT_TRUE(released->readRenderingCoreWords(0,releasedWords));
@@ -224,7 +224,7 @@ TEST(EnvelopeBehavior, FilterEnvelopeAdvancesOnTheAssignedPhysicalCore)
 {
     synth2::RenderControls p;p.cutoffIndex=256;p.filterEnvAmount=.5f;p.filterEnv.attackSec=.01f;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> words{};ASSERT_TRUE(voice->readRenderingCoreWords(0,words));
     EXPECT_GT(words[10],0u);EXPECT_GT(words[11],0u);
 }
@@ -236,7 +236,7 @@ TEST(EnvelopeBehavior, OscillatorEnvelopeUsesTheResolvedPitchDials)
     auto off=on;off.modEnv.on=false;
     auto a=std::make_unique<synth2::test::PooledTestVoice>(on),b=std::make_unique<synth2::test::PooledTestVoice>(off);
     for(auto* voice:{a.get(),b.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();a->renderNextBlock(audio,0,64);b->renderNextBlock(audio,0,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();a->renderNextBlock(audio,0,64);b->renderNextBlock(audio,0,64);
     std::array<uint32_t,16> first{},second{};ASSERT_TRUE(a->readRenderingCoreWords(0,first));ASSERT_TRUE(b->readRenderingCoreWords(0,second));
     EXPECT_GT(first[5],second[5]*4);
 }
@@ -246,7 +246,7 @@ TEST(FmBehavior, LiveStaticFmEditRetainsCurrentValueAndPhysicalCoreUntilSettled)
     synth2::RenderControls controls;controls.osc1FmAmount=32.25f/127.f;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(controls);
     voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,7> initial{},edited{},settled{};
     std::array<uint32_t,16> initialCore{},editedCore{};
     ASSERT_TRUE(voice->readRenderingFmWords(0,initial));
@@ -270,7 +270,7 @@ TEST(FmBehavior, SoundingRetriggerRetainsPhysicalFmSlewAndInvalidatesItsTarget)
 {
     synth2::RenderControls controls;controls.osc1FmAmount=.1f;controls.playMode=1;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(controls);voice->prepare(44100);voice->startNote(60,1,nullptr,8192);
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();voice->renderNextBlock(audio,0,64);
     controls.osc1FmAmount=.75f;voice->setControllerDial(45);audio.clear();voice->renderNextBlock(audio,0,64);
     std::array<uint32_t,7> before{},after{};ASSERT_TRUE(voice->readRenderingFmWords(0,before));ASSERT_GT(before[2],0u);
     voice->startNote(67,1,nullptr,8192);ASSERT_TRUE(voice->readRenderingFmWords(0,after));
@@ -282,7 +282,7 @@ TEST(FmBehavior, SoundingRetriggerRetainsPhysicalFmSlewAndInvalidatesItsTarget)
 #include "dsp/PanLfo.h"
 TEST(StereoBalance, CenterEdgesAndOutOfRangeKeepTheNearChannelAtUnity)
 {
-    for(const auto values:std::array<std::array<float,3>,7>{{{-2,1,0},{-1,1,0},{-.5f,1,.5f},{0,1,1},{.5f,.5f,1},{1,0,1},{2,0,1}}})
+    for(const auto values:std::array<std::array<double,3>,7>{{{-2,1,0},{-1,1,0},{-.5f,1,.5f},{0,1,1},{.5f,.5f,1},{1,0,1},{2,0,1}}})
     {
         const auto gains=synth2::dsp::StereoBalance::gains(values[0]);
         EXPECT_EQ(gains.left,values[1]);EXPECT_EQ(gains.right,values[2]);
@@ -292,12 +292,12 @@ TEST(StereoBalance, VoiceAndSmoothedPanUseTheSameStaticLawAtTheirOwnStages)
 {
     for(float position:{-.5f,0.f,.5f})
     {
-        synth2::dsp::Amplifier voice;float voiceLeft=0,voiceRight=0;
+        synth2::dsp::Amplifier voice;double voiceLeft=0,voiceRight=0;
         voice.processSample(1,1,position,voiceLeft,voiceRight);
         const float left=position==.5f ? .5f : 1.f,right=position==-.5f ? .5f : 1.f;
         EXPECT_EQ(voiceLeft,left*synth2::dsp::OutputGain::defaultTarget);
         EXPECT_EQ(voiceRight,right*synth2::dsp::OutputGain::defaultTarget);
-        synth2::dsp::PanLfo pan;pan.prepare(44100);float l=1,r=1;pan.process(l,r,0,position);
+        synth2::dsp::PanLfo pan;pan.prepare(44100);double l=1,r=1;pan.process(l,r,0,position);
         EXPECT_EQ(l,left*pan.coefficient);EXPECT_EQ(r,right*pan.coefficient);
     }
 }
@@ -311,7 +311,7 @@ TEST(PanInputs, VoiceRetainsUnisonPlacementWithoutApplyingTheGlobalPanLfo)
     for(int frame=0;frame<256;++frame)lfos.controlRemaining[0][frame]=256-frame;
     actual->setGlobalLfoBlock(&lfos);
     for(auto* voice:{actual.get(),expected.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
-    synth2::audio::AudioBuffer<float> first(2,64),second(2,64);first.clear();second.clear();
+    synth2::audio::AudioBuffer<double> first(2,64),second(2,64);first.clear();second.clear();
     actual->renderNextBlock(first,0,64);expected->renderNextBlock(second,0,64);
     double energy=0;
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
@@ -324,7 +324,7 @@ TEST(PanInputs, OversizeUnknownHistoryCallbacksKeepEveryChunkAndSurroundingSampl
     p.osc1WaveIndex=1.1f;p.lfo1.on=true;p.lfo1.dest=6;p.lfo1.amount=.5f;
 
     engine->prepareToPlay(44100,64);
-    synth2::audio::AudioBuffer<float> audio(2,1040);audio.clear();
+    synth2::audio::AudioBuffer<double> audio(2,1040);audio.clear();
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<1040;++frame)
         if(frame<8 || frame>=1032)audio.setSample(channel,frame,7);
     synth2::audio::MidiBuffer midi;midi.addEvent(synth2::audio::MidiMessage::noteOn(1,60,uint8_t{100}),8);
@@ -347,7 +347,7 @@ TEST(StaticPanInputs, VoiceCorePlacementIsIndependentOfGlobalBalance)
         auto centered=p;centered.pan=0;
         auto actual=std::make_unique<synth2::test::PooledTestVoice>(p),reference=std::make_unique<synth2::test::PooledTestVoice>(centered);
         for(auto* voice:{actual.get(),reference.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
-        synth2::audio::AudioBuffer<float> got(2,64),expected(2,64);got.clear();expected.clear();
+        synth2::audio::AudioBuffer<double> got(2,64),expected(2,64);got.clear();expected.clear();
         actual->renderNextBlock(got,0,64);reference->renderNextBlock(expected,0,64);
         double energy=0;
         for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
@@ -384,7 +384,7 @@ TEST(TuningBehavior, ChannelBendUsesThirtyTwoFramePartitionsAcrossCallbacks)
         synth2::audio::MidiBuffer midi,empty;
         midi.addEvent(synth2::audio::MidiMessage::pitchWheel(1,target),0);
         midi.addEvent(synth2::audio::MidiMessage::noteOn(1,69,1.f),0);
-        synth2::audio::AudioBuffer<float> a(2,128),b(2,128);a.clear();b.clear();
+        synth2::audio::AudioBuffer<double> a(2,128),b(2,128);a.clear();b.clear();
         whole.render(a,midi,0,128);split.render(b,midi,0,32);
         if(target==8320)split.render(b,empty,32,96);
         else for(int start=32;start<128;start+=32)split.render(b,empty,start,32);
@@ -399,7 +399,7 @@ TEST(TuningBehavior, GlideRetainsThePhysicalReceiverAcrossLegato)
 {
     synth2::RenderControls p;p.sourcePortamentoDial=64;p.portamentoAuto=true;
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);
-    synth2::audio::AudioBuffer<float> audio(2,32);audio.clear();
+    synth2::audio::AudioBuffer<double> audio(2,32);audio.clear();
     voice->startNote(69,1,nullptr,8192);voice->renderNextBlock(audio,0,32);
     EXPECT_NEAR(voice->getCurrentFrequency(),440,.001);
     voice->setNextTransition({synth2::dsp::NoteTransitionKind::Legato,true});
@@ -414,7 +414,7 @@ TEST(AmplitudeBehavior, AttackDurationEditsRetainProgressAndFractionalLevel)
 {
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(100,441,496,480);envelope.noteOn();
-    std::array<float,64> gain{};envelope.render(gain.data(),25);
+    std::array<double,64> gain{};envelope.render(gain.data(),25);
     EXPECT_EQ(envelope.getCounter(),25);EXPECT_EQ(envelope.getLevel(),512);
     envelope.setParameters(200,441,496,480);
     EXPECT_EQ(envelope.getCounter(),50);EXPECT_EQ(envelope.getLevel(),512);

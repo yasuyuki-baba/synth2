@@ -11,7 +11,7 @@ synth2::dsp::OutputGain settleGain(synth2::dsp::OutputPipeline& pipeline,double 
     synth2::dsp::OutputGain reference;reference.prepare(rate);
     synth2::dsp::OutputPipelineSettings settings;synth2::dsp::OutputProcessContext context;
     context.sampleRate=rate;context.bypassEffects=true;
-    synth2::audio::AudioBuffer<float> zero(2,64);zero.clear();
+    synth2::audio::AudioBuffer<double> zero(2,64);zero.clear();
     for(int i=0;i<512;++i)
     {
         pipeline.process(zero,0,64,settings,context,{});
@@ -39,7 +39,7 @@ TEST(OutputPipelinePath, WetProcessingAlwaysUsesTheCurrentKernelWithinItsRateDom
         reference->setParams(settings.delay,settings.chorus,120);
         eq.setParams(settings.eq);
         synth2::dsp::OutputProcessContext context;context.sampleRate=rate;
-        synth2::audio::AudioBuffer<float> actual(channels,528),expected(channels,528);
+        synth2::audio::AudioBuffer<double> actual(channels,528),expected(channels,528);
         for(int c=0;c<channels;++c)for(int i=0;i<528;++i)
         {
             const float sample=i<8 || i>=520 ? 7.f : i==8 ? .25f : 0.f;
@@ -68,9 +68,9 @@ TEST(OutputPipelinePath, UnsupportedWetRatesBypassWithoutSelectingAnotherAlgorit
         settings.delay.enable=true;settings.delay.time=0;settings.delay.level=1;
         settings.chorus.enabled=true;settings.chorus.level=1;
         synth2::dsp::OutputProcessContext context;context.sampleRate=rate;
-        synth2::audio::AudioBuffer<float> audio(2,80);
+        synth2::audio::AudioBuffer<double> audio(2,80);
         for(int c=0;c<2;++c)for(int i=0;i<80;++i)audio.setSample(c,i,static_cast<float>(i-40)/80);
-        synth2::audio::AudioBuffer<float> expected(audio);
+        synth2::audio::AudioBuffer<double> expected(audio);
         synth2::dsp::Equalizer eq;eq.prepare(rate);eq.setParams(settings.eq);
         for(int c=0;c<2;++c)for(int i=8;i<72;++i)expected.setSample(c,i,eq.processSample(expected.getSample(c,i),c));
         for(int i=8;i<72;++i)for(int c=0;c<2;++c)
@@ -89,7 +89,7 @@ TEST(OutputPipelinePath, ReleaseRetainsOrClearsTheCurrentEqualizerHistory)
     synth2::dsp::OutputPipelineSettings settings;
     settings.eq.tone=32.f/127;settings.eq.level=64.f/127;
     synth2::dsp::OutputProcessContext context;context.sampleRate=44100;
-    synth2::audio::AudioBuffer<float> first(2,64),second(2,64);
+    synth2::audio::AudioBuffer<double> first(2,64),second(2,64);
     first.clear();second.clear();first.setSample(0,0,.25f);second.setSample(0,0,.25f);
     used->process(first,0,64,settings,context,{});held->process(second,0,64,settings,context,{});
     used->release(true);first.clear();second.clear();
@@ -111,7 +111,7 @@ TEST(PanInputs, CubicPanRunsAfterNonlinearEffectsForEverySourceHistory)
     settings.nativeMultiEffectDials={100,64,64};settings.chorus.enabled=false;settings.delay.enable=false;
     OutputPipelineSettings withoutPan=settings;withoutPan.panLfo=false;withoutPan.pan=0;
     OutputProcessContext context;context.sampleRate=44100;
-    synth2::audio::AudioBuffer<float> got(2,64),expected(2,64),wrong(2,64);
+    synth2::audio::AudioBuffer<double> got(2,64),expected(2,64),wrong(2,64);
     for(int channel=0;channel<2;++channel)for(int i=0;i<64;++i)
     {const float sample=static_cast<float>((i*17+channel*7)%31-15)/16;got.setSample(channel,i,sample);expected.setSample(channel,i,sample);wrong.setSample(channel,i,sample);}
     VoiceControlBuffer control{};control.fill(32);
@@ -120,7 +120,7 @@ TEST(PanInputs, CubicPanRunsAfterNonlinearEffectsForEverySourceHistory)
     PanLfo post,pre;post.prepare(44100);pre.prepare(44100);
     for(int i=0;i<64;++i)
     {
-        float l=expected.getSample(0,i),r=expected.getSample(1,i);post.process(l,r,32,.25f);expected.setSample(0,i,l);expected.setSample(1,i,r);
+        double l=expected.getSample(0,i),r=expected.getSample(1,i);post.process(l,r,32,.25f);expected.setSample(0,i,l);expected.setSample(1,i,r);
         l=wrong.getSample(0,i);r=wrong.getSample(1,i);pre.process(l,r,32,.25f);wrong.setSample(0,i,l);wrong.setSample(1,i,r);
     }
     wrongOrder->process(wrong,0,64,withoutPan,context,{});
@@ -143,7 +143,7 @@ TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoAndStereo)
         const auto settings=synth2::render::outputSettings(p);
         auto withoutPan=settings;withoutPan.pan=0;
         OutputProcessContext context;context.sampleRate=44100;
-        synth2::audio::AudioBuffer<float> got(channels,80),expected(channels,80),wrong(channels,80);
+        synth2::audio::AudioBuffer<double> got(channels,80),expected(channels,80),wrong(channels,80);
         for(int channel=0;channel<channels;++channel)for(int i=0;i<80;++i)
         {
             const float sample=i<8 || i>=72 ? 7.f : static_cast<float>((i*17+channel*7)%31-15)/16;

@@ -22,15 +22,15 @@ namespace synth2::dsp
         void prepareProcessors(double rate,bool preserve);
         void prepareEffects(const ::synth2::audio::ProcessSpec&,bool preserveVoices,bool rateChanged);
         void release(bool retainTone);
-        std::array<float,7> multiEffectState() const noexcept { return nativeMultiEffect.snapshot(); }
-        void process(::synth2::audio::AudioBuffer<float>&,int start,int frames,const OutputPipelineSettings&,
+        std::array<double,7> multiEffectState() const noexcept { return nativeMultiEffect.snapshot(); }
+        void process(::synth2::audio::AudioBuffer<double>&,int start,int frames,const OutputPipelineSettings&,
             const OutputProcessContext&,const ReceiverLfoView& panControls);
     private:
-        bool processToneAndEffects(::synth2::audio::AudioBuffer<float>&,int,int,const OutputPipelineSettings&,
+        bool processToneAndEffects(::synth2::audio::AudioBuffer<double>&,int,int,const OutputPipelineSettings&,
             bool inputSilent,bool graphSilent);
-        void processBalance(::synth2::audio::AudioBuffer<float>&,int,int,const OutputPipelineSettings&,bool graphSilent,const ReceiverLfoView&);
-        void processWetEffects(::synth2::audio::AudioBuffer<float>&,int,int,const OutputPipelineSettings&,bool graphSilent);
-        void processGain(::synth2::audio::AudioBuffer<float>&,int,int,int capacity);
+        void processBalance(::synth2::audio::AudioBuffer<double>&,int,int,const OutputPipelineSettings&,bool graphSilent,const ReceiverLfoView&);
+        void processWetEffects(::synth2::audio::AudioBuffer<double>&,int,int,const OutputPipelineSettings&,bool graphSilent);
+        void processGain(::synth2::audio::AudioBuffer<double>&,int,int,int capacity);
         StereoOversampler audioOversampler;
         Equalizer equalizer;
         EffectPair wetEffects;

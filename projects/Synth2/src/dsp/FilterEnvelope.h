@@ -13,14 +13,14 @@ namespace synth2::dsp
     {
     public:
         enum class Phase { Idle, Attack, Decay, Sustain, Release };
-        static float boundedAmount (int baseIndex,float amount) noexcept
+        static double boundedAmount (int baseIndex,double amount) noexcept
         {
-            const float headroom=static_cast<float>(1024-baseIndex)*(1.0f/1024.0f);
-            return std::clamp(amount,headroom-1.0f,headroom);
+            const double headroom=static_cast<double>(1024-baseIndex)*(1.0/1024.0);
+            return std::clamp(amount,headroom-1.0,headroom);
         }
-        static float boundedAmount(double baseIndex,float amount) noexcept
+        static double boundedAmount(double baseIndex,double amount) noexcept
         {
-            return static_cast<float>(compatibleControlCurve(baseIndex,
+            return static_cast<double>(compatibleControlCurve(baseIndex,
                 [&](int index){return boundedAmount(index,amount);}));
         }
         void configure (int attackFrames,int decayFrames,double peakLevel,double sustainLevel,
@@ -96,23 +96,23 @@ namespace synth2::dsp
                 const int duration=releasing ? release : decay;
                 const double end=releasing ? 0 : sustain;
                 const double start=releasing ? initial : peak;
-                const float reciprocal=1.0f/static_cast<float>(duration);
+                const double reciprocal=1.0/static_cast<double>(duration);
                 while(frames>0 && counter<duration && level>end)
                 {
                     const int count=std::min({frames,step,duration-counter});
-                    const float remaining=static_cast<float>(duration-counter-count)*reciprocal;
+                    const double remaining=static_cast<double>(duration-counter-count)*reciprocal;
                     if(linearDecay && !releasing)
                     {
                         level=std::max(end,start-compatibleControlCurve(start-end,[&](int range) {
-                            const float slope=static_cast<float>(range)*reciprocal;
-                            return std::trunc(static_cast<float>(counter+count)*slope);
+                            const double slope=static_cast<double>(range)*reciprocal;
+                            return std::trunc(static_cast<double>(counter+count)*slope);
                         }));
                     }
                     else
                     {
-                        const float curve=std::exp((remaining-1.0f)*8.0f)*remaining;
+                        const double curve=std::exp((remaining-1.0)*8.0)*remaining;
                         level=compatibleControlCurve(start-end,[&](int range) {
-                            return std::trunc(curve*static_cast<float>(range));
+                            return std::trunc(curve*static_cast<double>(range));
                         })+end;
                     }
                     segment(inverted ? -level : level,count);

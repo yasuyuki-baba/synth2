@@ -25,7 +25,7 @@ namespace synth2::dsp
         void trackKey(const ::synth2::audio::MidiMessage&,const SharedModulationSettings&);
         void releaseKey(int channel,int note) noexcept;
         void releaseKeys(int channel) noexcept;
-        void applyHistory(const LfoHistoryEvent&,float bpm) noexcept;
+        void applyHistory(const LfoHistoryEvent&,double bpm) noexcept;
         void requestReload() noexcept { reload=true; }
         void touchRate(size_t index) noexcept { slots[index].rateTouched=true; }
         bool isInitial() const noexcept { return initial; }
@@ -42,15 +42,15 @@ namespace synth2::dsp
         {
             LfoClock clock;
             bool tempoSync {},rateTouched {};
-            float previousRate {};
+            double previousRate {};
         };
         std::array<Slot,2> slots{};
         LfoBlock sharedBlock;
         RandomLfoRuntime random;
         MidiRoutingHistory midiRouting;
         std::array<std::array<bool,128>,16> heldKeys {};
-        float previousBpm {120};
+        double previousBpm {120};
         bool initial {true},reload {},loadAlreadyApplied {};
-        void updateRate(size_t slot,float dial,float bpm) noexcept;
+        void updateRate(size_t slot,double dial,double bpm) noexcept;
     };
 }

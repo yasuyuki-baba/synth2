@@ -12,14 +12,14 @@ namespace
 struct Event { int frame; uint8_t status, first, second; };
 // Events are absolute and stably ordered. Each is enqueued once in the owning
 // half-open callback interval; this preserves simultaneous and boundary events.
-std::vector<float> render(const std::vector<Event>& events, const std::vector<int>& sizes,
+std::vector<double> render(const std::vector<Event>& events, const std::vector<int>& sizes,
                           const std::string& patch=hostvalidation::patch(), int total=16384)
 {
     synth2::host::ProcessorBridge processor;
     std::string error;
     if (!processor.loadPatch(patch, error)) throw std::runtime_error(error);
     processor.prepare(48000, *std::max_element(sizes.begin(), sizes.end()));
-    std::vector<float> result;
+    std::vector<double> result;
     size_t next=0, block=0;
     for (int start=0; start<total;)
     {
@@ -30,7 +30,7 @@ std::vector<float> render(const std::vector<Event>& events, const std::vector<in
             EXPECT_GE(event.frame, start);
             EXPECT_TRUE(processor.enqueueMidi(event.frame-start, event.status, event.first, event.second));
         }
-        std::vector<float> left(frames), right(frames);
+        std::vector<double> left(frames), right(frames);
         EXPECT_TRUE(processor.process(left.data(), right.data(), frames, 120));
         for (int i=0; i<frames; ++i)
         {
@@ -42,7 +42,7 @@ std::vector<float> render(const std::vector<Event>& events, const std::vector<in
     EXPECT_EQ(next, events.size());
     return result;
 }
-double energy(const std::vector<float>& audio, int begin, int end)
+double energy(const std::vector<double>& audio, int begin, int end)
 {
     double result=0;
     for (int i=begin*2; i<end*2; ++i) result+=double(audio[i])*audio[i];
@@ -78,28 +78,28 @@ class MarkerVoice final : public synth2::audio::Voice
 {
 public:
     bool canPlaySound(synth2::audio::Sound*) override { return true; }
-    void startNote(int note,float,synth2::audio::Sound*,int) override { value=note; }
-    void stopNote(float,bool) override { value=0; clearCurrentNote(); }
+    void startNote(int note,double,synth2::audio::Sound*,int) override { value=note; }
+    void stopNote(double,bool) override { value=0; clearCurrentNote(); }
     void pitchWheelMoved(int) override {}
     void controllerMoved(int,int) override {}
-    void renderNextBlock(synth2::audio::AudioBuffer<float>& output,int start,int frames) override
+    void renderNextBlock(synth2::audio::AudioBuffer<double>& output,int start,int frames) override
     { for(int i=start;i<start+frames;++i) output.setSample(0,i,static_cast<float>(value)); }
 private:
     int value=0;
 };
-std::vector<float> dispatch(const std::vector<Event>& events,const std::vector<int>& sizes)
+std::vector<double> dispatch(const std::vector<Event>& events,const std::vector<int>& sizes)
 {
     synth2::dsp::CrtRandom arpRandom;synth2::VoiceDispatcher dispatcher(arpRandom);
     dispatcher.addVoice(new MarkerVoice);
     dispatcher.addSound(new synth2::SynthSound);
     dispatcher.arpeggiator.prepare(48000);
-    std::vector<float> output;
+    std::vector<double> output;
     size_t block=0,next=0;
     for(int start=0;start<1024;)
     {
         const int frames=std::min(sizes[block++ % sizes.size()],1024-start);
         constexpr int prefix=7;
-        synth2::audio::AudioBuffer<float> audio(2,frames+2*prefix);
+        synth2::audio::AudioBuffer<double> audio(2,frames+2*prefix);
         audio.clear();
         synth2::audio::MidiBuffer midi;
         while(next<events.size() && events[next].frame<start+frames)
@@ -123,7 +123,7 @@ TEST(PerformanceBehavior, DispatcherPreservesSamplePositionsAndSameTimeOrderAcro
     const std::vector<Event> events{{13,0x90,60,100},{63,0x80,60,0},
         {64,0x90,67,90},{64,0x80,67,0},{257,0x80,67,0},{257,0x90,72,100},
         {513,0xb0,64,127},{777,0x80,72,0},{900,0xb0,64,0}};
-    std::vector<float> expected(1024);
+    std::vector<double> expected(1024);
     std::fill(expected.begin()+13,expected.begin()+63,60);
     std::fill(expected.begin()+257,expected.begin()+900,72);
     for(const auto& sizes : {std::vector<int>{256},std::vector<int>{64},
@@ -164,7 +164,7 @@ TEST(PerformanceBehavior, PerformanceMessagesNeverModifySavedPatchOrSourceGetter
     std::array<double,129> values{};
     for (int i=0;i<129;++i) values[i]=processor.normalizedValue(i);
     processor.prepare(48000,64);
-    std::array<float,64> left{},right{};
+    std::array<double,64> left{},right{};
     // Mapping is lazy; establish the baseline at a callback boundary.
     ASSERT_TRUE(processor.process(left.data(),right.data(),64,120));
     std::array<int,99> controls{};
@@ -218,7 +218,7 @@ TEST(PerformanceBehavior, BendUsesOneReceiverWithChannelIsolationAndNativeOmniIn
         auto history=engine.getRenderHistory();history.nativeMidiRoutingLoadHistory=omni;
         engine.setRenderHistory(history);engine.getParams().pitchBendRange=12;
         engine.prepareToPlay(44100,64);
-        synth2::audio::AudioBuffer<float> output(2,64);
+        synth2::audio::AudioBuffer<double> output(2,64);
         synth2::audio::MidiBuffer midi;
         midi.addEvent(synth2::audio::MidiMessage::pitchWheel(2,16383),0);
         engine.render(output,midi,0,64);
@@ -240,8 +240,8 @@ TEST(ControllerBehavior, WheelUsesConfiguredFmAndFilterRoutesWithoutChangingStor
         const auto patch=hostvalidation::patch()+"19,40\n50,127\n86,45057\n87,"+std::to_string(destination)+"\n";
         const auto steady=render(notes,{64},patch);
         const auto changed=render(moved,{64},patch);
-        EXPECT_EQ(std::vector<float>(steady.begin(),steady.begin()+2048),
-                  std::vector<float>(changed.begin(),changed.begin()+2048));
+        EXPECT_EQ(std::vector<double>(steady.begin(),steady.begin()+2048),
+                  std::vector<double>(changed.begin(),changed.begin()+2048));
         EXPECT_NE(steady,changed)<<destination;
     }
 }
@@ -253,7 +253,7 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
     dispatcher.setCurrentPlaybackSampleRate(44100);
     dispatcher.addSound(new synth2::SynthSound);
     auto* voice=new synth2::test::PooledTestVoice(controls);voice->prepare(44100);dispatcher.addVoice(voice);
-    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();
+    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();
     synth2::audio::MidiBuffer midi;
     midi.addEvent(synth2::audio::MidiMessage::pitchWheel(2,16383),0);
     midi.addEvent(synth2::audio::MidiMessage::noteOn(2,69,1.f),0);
@@ -261,4 +261,34 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
     EXPECT_NEAR(voice->getCurrentFrequency(),440*std::pow(2.,4./128),.001);
     EXPECT_EQ(dispatcher.pitchBendWords(2),(std::array<int,4>{2,63,1,4}));
     EXPECT_EQ(dispatcher.pitchBendWords(1),(std::array<int,4>{0,0,0,0}));
+}
+
+TEST(PerformanceBehavior, DoubleOutputKeepsPrecisionUntilTheHostConversion)
+{
+    for(int factor:{1,2,4})
+    {
+        auto first=hostvalidation::processor(),second=hostvalidation::processor();
+        for(auto* processor:{first.get(),second.get()})
+        {
+            hostvalidation::load(*processor,hostvalidation::patch(2,1));
+            processor->setOversamplingFactor(factor);processor->prepare(48000,64);
+        }
+        synth2::audio::AudioBuffer<double> precise(2,64);
+        synth2::audio::AudioBuffer<float> narrow(2,64);
+        synth2::audio::MidiBuffer midi;hostvalidation::notes(midi,1);
+        bool beyondFloat=false;
+        for(int block=0;block<20;++block)
+        {
+            hostvalidation::process(*first,precise,midi);hostvalidation::process(*second,narrow,midi);
+            midi.clear();
+            for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
+            {
+                const double value=precise.getSample(channel,frame);
+                ASSERT_TRUE(std::isfinite(value));
+                EXPECT_EQ(narrow.getSample(channel,frame),static_cast<float>(value));
+                beyondFloat|=value!=static_cast<double>(static_cast<float>(value));
+            }
+        }
+        EXPECT_TRUE(beyondFloat)<<"factor="<<factor;
+    }
 }

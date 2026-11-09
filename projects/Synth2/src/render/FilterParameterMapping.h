@@ -8,10 +8,10 @@ namespace synth2::render
 {
     inline bool filterParameter(int index) noexcept
     {return index==17 || index==19 || index==21 || index==22;}
-    inline void applyFilterParameter(RenderControls& target,int index,float normalized,bool compatibleCutoff) noexcept
+    inline void applyFilterParameter(RenderControls& target,int index,double normalized,bool compatibleCutoff) noexcept
     {
-        const float dial=std::clamp(normalized*127.0f,0.0f,127.0f);
-        const float unit=dial/127.0f;
+        const double dial=std::clamp(dsp::fractionalDial(normalized),0.0,127.0);
+        const double unit=dial/127.0;
         switch(index)
         {
             case 17:target.filterEnv.sustain=unit;break;
@@ -19,7 +19,7 @@ namespace synth2::render
             {
                 target.cutoffIndex=unit*1023.0f;target.filterCutoffAdjustment=0;
                 const double position=dsp::fractionalDial(normalized);
-                if(compatibleCutoff && position!=std::trunc(position))
+                if(compatibleCutoff)
                     target.filterCutoffAdjustment=dsp::compatibleControlCurve(position,[](int value) {
                         return std::trunc((static_cast<float>(value)/127.0f)*1023.0f);
                     })-std::trunc(target.cutoffIndex);

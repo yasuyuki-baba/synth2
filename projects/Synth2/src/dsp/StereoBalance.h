@@ -7,8 +7,8 @@ namespace synth2::dsp
     // placement and multiplication order; this does not move gain across DSP.
     struct StereoBalance
     {
-        float left {},right {};
-        static StereoBalance gains(float pan) noexcept
-        { return {std::clamp(1.0f-pan,0.0f,1.0f),std::clamp(1.0f+pan,0.0f,1.0f)}; }
+        double left {},right {};
+        static StereoBalance gains(double pan) noexcept
+        { return {std::clamp(1.0-pan,0.0,1.0),std::clamp(1.0+pan,0.0,1.0)}; }
     };
 }

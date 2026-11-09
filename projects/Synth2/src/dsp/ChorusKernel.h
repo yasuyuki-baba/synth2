@@ -29,11 +29,11 @@ namespace synth2::dsp
         {
             return dial==0 ? .01f : static_cast<float>(std::pow(20000.0,static_cast<double>(std::clamp(dial,0,127)*(1.0f/127.0f)))*.02);
         }
-        static float timeSeconds(float dial) noexcept
+        static double timeSeconds(double dial) noexcept
         {return interpolateDial(dial,[](int value){return timeSeconds(value);});}
-        static float depthRatio(float dial) noexcept
+        static double depthRatio(double dial) noexcept
         {return interpolateDial(dial,[](int value){return depthRatio(value);});}
-        static float rateHz(float dial) noexcept
+        static double rateHz(double dial) noexcept
         {return interpolateDial(dial,[](int value){return rateHz(value);});}
         bool configure(int rate,int voices,int time,int depth,int speed,int feedback,int level) noexcept
         {
@@ -42,42 +42,42 @@ namespace synth2::dsp
             delayFrames=static_cast<int>(timeSeconds(time)*static_cast<float>(rate));
             depthFrames=static_cast<int>(static_cast<float>(delayFrames)*depthRatio(depth));
             period=static_cast<int>(static_cast<float>(rate)/rateHz(speed));
-            coefficient=static_cast<float>(std::sin(static_cast<double>(rateHz(speed))*pi/static_cast<double>(rate))*2.0);
-            amplitudeScale=period>=2.0*depthFrames*pi ? 1.0f : static_cast<float>(period/(2.0*depthFrames*pi));
-            depthExtent=static_cast<float>(depthFrames);
+            coefficient=static_cast<double>(std::sin(static_cast<double>(rateHz(speed))*pi/static_cast<double>(rate))*2.0);
+            amplitudeScale=period>=2.0*depthFrames*pi ? 1.0 : static_cast<double>(period/(2.0*depthFrames*pi));
+            depthExtent=static_cast<double>(depthFrames);
             updateContinuousCoordinates();
             setFeedbackDial(feedback);
-            wet=static_cast<float>(level)*(1.0f/127.0f);
+            wet=static_cast<double>(level)*(1.0/127.0);
             write=static_cast<int>((read+delayFrames)&mask);
             return true;
         }
         void reset() noexcept
         {
-            ring.fill(0);read=0;write=delayFrames&mask;phaseSin=0;phaseCos=.9999f;silentFrames=tailFrames+1;
+            ring.fill(0);read=0;write=delayFrames&mask;phaseSin=0;phaseCos=.9999;silentFrames=tailFrames+1;
         }
-        void setTimeDial(float dial) noexcept
+        void setTimeDial(double dial) noexcept
         {
-            timeDial=std::clamp(dial,0.0f,127.0f);
+            timeDial=std::clamp(dial,0.0,127.0);
             delayExtent=interpolateFrames(timeDial,[&](int value){return static_cast<int>(timeSeconds(value)*static_cast<float>(sampleRate));});
             delayFrames=static_cast<int>(delayExtent);
             setDepthDial(depthDial);write=(read+delayFrames)&mask;setFeedbackDial(feedbackDial);
         }
-        void setDepthDial(float dial) noexcept
+        void setDepthDial(double dial) noexcept
         {
-            depthDial=std::clamp(dial,0.0f,127.0f);
-            depthExtent=interpolateDial(depthDial,[&](int value){return static_cast<float>(static_cast<int>(static_cast<float>(delayFrames)*depthRatio(value)));});
+            depthDial=std::clamp(dial,0.0,127.0);
+            depthExtent=interpolateDial(depthDial,[&](int value){return static_cast<double>(static_cast<int>(static_cast<float>(delayFrames)*depthRatio(value)));});
             depthFrames=static_cast<int>(depthExtent);
             updateScale();updateContinuousCoordinates();
         }
-        void setRateDial(float dial) noexcept
+        void setRateDial(double dial) noexcept
         {
-            rateDial=std::clamp(dial,0.0f,127.0f);
+            rateDial=std::clamp(dial,0.0,127.0);
             periodExtent=interpolateFrames(rateDial,[&](int value){return static_cast<int>(static_cast<float>(sampleRate)/rateHz(value));});
             period=static_cast<int>(periodExtent);
-            coefficient=interpolateDial(rateDial,[&](int value){return static_cast<float>(std::sin(static_cast<double>(rateHz(value))*pi/static_cast<double>(sampleRate))*2.0);});
+            coefficient=interpolateDial(rateDial,[&](int value){return static_cast<double>(std::sin(static_cast<double>(rateHz(value))*pi/static_cast<double>(sampleRate))*2.0);});
             updateScale();updateContinuousCoordinates();
         }
-        void setLevelDial(float dial) noexcept {wet=std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f);}
+        void setLevelDial(double dial) noexcept {wet=std::clamp(dial,0.0,127.0)*(1.0/127.0);}
         void setEnabled(bool value) noexcept
         {
             if(value && !enabled)ring.fill(0);
@@ -88,10 +88,10 @@ namespace synth2::dsp
             if(voices!=1 && voices!=2 && voices!=4)return false;
             type=voices;return true;
         }
-        void setFeedbackDial(float dial) noexcept
+        void setFeedbackDial(double dial) noexcept
         {
-            feedbackDial=std::clamp(dial,0.0f,127.0f);
-            feedbackGain=static_cast<float>(feedbackDial-64)*(1.0f/64.0f)*.99f;
+            feedbackDial=std::clamp(dial,0.0,127.0);
+            feedbackGain=static_cast<double>(feedbackDial-64)*(1.0/64.0)*.99;
             const int old=tailFrames;
             const int repeats=feedbackGain==0 ? 0
                 : static_cast<int>(std::log(1.0/32768.0)/std::log(std::abs(static_cast<double>(feedbackGain))));
@@ -100,7 +100,7 @@ namespace synth2::dsp
         }
         // Dry is the accumulated upstream stereo output. Optional send is the
         // separate delay contribution: ring input = send + dry * chorus level.
-        void process(float* dry,const float* send,int frames,int* silent=nullptr) noexcept
+        void process(double* dry,const double* send,int frames,int* silent=nullptr) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -122,7 +122,7 @@ namespace synth2::dsp
                 silentFrames+=frames;
             }
             else silentFrames=0;
-            if(upstreamSilent)std::fill_n(dry,frames*2,1.0e-9f);
+            if(upstreamSilent)std::fill_n(dry,frames*2,1.0e-9);
             if(silent)*silent=0;
             for(int i=0;i<frames;++i)
             {
@@ -130,7 +130,7 @@ namespace synth2::dsp
                 ring[2*at]=send ? dry[2*i]*wet+send[2*i] : dry[2*i]*wet;
                 ring[2*at+1]=send ? dry[2*i+1]*wet+send[2*i+1] : dry[2*i+1]*wet;
             }
-            if(phaseCos>.9999f){phaseSin=0;phaseCos=.9999f;}
+            if(phaseCos>.9999){phaseSin=0;phaseCos=.9999;}
             for(int i=0;i<frames;++i)
             {
                 phaseSin-=coefficient*phaseCos;
@@ -138,16 +138,16 @@ namespace synth2::dsp
                 const double base=read-(delayExtent-delayFrames);
                 const double leftPosition=base+phaseExtent*phaseSin;
                 const double rightPosition=type==1 ? leftPosition : base+phaseExtent*phaseCos;
-                const float left=continuousTap(leftPosition,0);
-                const float right=continuousTap(rightPosition,1);
+                const double left=continuousTap(leftPosition,0);
+                const double right=continuousTap(rightPosition,1);
                 if(type==4)
                 {
-                    const float mirrorLeft=continuousTap(2.0*base-leftPosition,0);
-                    const float mirrorRight=continuousTap(2.0*base-rightPosition,1);
-                    const float leftCross=left*.1f+mirrorLeft*.9f;
-                    float leftMix=left*.9f+mirrorLeft*.1f;leftMix+=right*.7f;
-                    leftMix=mirrorRight*.3f+leftMix;
-                    float rightMix=right*.3f+leftCross;rightMix+=mirrorRight*.7f;
+                    const double mirrorLeft=continuousTap(2.0*base-leftPosition,0);
+                    const double mirrorRight=continuousTap(2.0*base-rightPosition,1);
+                    const double leftCross=left*.1+mirrorLeft*.9;
+                    double leftMix=left*.9+mirrorLeft*.1;leftMix+=right*.7;
+                    leftMix=mirrorRight*.3+leftMix;
+                    double rightMix=right*.3+leftCross;rightMix+=mirrorRight*.7;
                     dry[2*i]=leftMix+dry[2*i];dry[2*i+1]=rightMix+dry[2*i+1];
                 }
                 else {dry[2*i]+=left;dry[2*i+1]+=right;}
@@ -160,18 +160,18 @@ namespace synth2::dsp
         int getDelayFrames() const noexcept {return delayFrames;}
         int getDepthFrames() const noexcept {return depthFrames;}
         int getPeriod() const noexcept {return period;}
-        float getCoefficient() const noexcept {return coefficient;}
-        float getScale() const noexcept {return amplitudeScale;}
+        double getCoefficient() const noexcept {return coefficient;}
+        double getScale() const noexcept {return amplitudeScale;}
         int getTailFrames() const noexcept {return tailFrames;}
         int getSilentFrames() const noexcept {return silentFrames;}
         int getReadPosition() const noexcept {return read;}
         int getWritePosition() const noexcept {return write;}
         int getVoices() const noexcept {return type;}
         bool isEnabled() const noexcept {return enabled;}
-        float getPhaseSin() const noexcept {return phaseSin;}
-        float getPhaseCos() const noexcept {return phaseCos;}
+        double getPhaseSin() const noexcept {return phaseSin;}
+        double getPhaseCos() const noexcept {return phaseCos;}
     private:
-        template<class Mapping> static double interpolateFrames(float dial,Mapping mapping) noexcept
+        template<class Mapping> static double interpolateFrames(double dial,Mapping mapping) noexcept
         {
             const int low=static_cast<int>(dial);const double first=mapping(low);
             if(dial==low || low==127)return first;
@@ -187,36 +187,36 @@ namespace synth2::dsp
             for(int t=0;t<2;++t)for(int d=0;d<2;++d)for(int r=0;r<2;++r)
             {
                 const int time=std::min(127,t0+t),depth=std::min(127,d0+d),speed=std::min(127,r0+r);
-                const int delay=static_cast<int>(timeSeconds(time)*static_cast<float>(sampleRate));
-                const int extent=static_cast<int>(static_cast<float>(delay)*depthRatio(depth));
-                const int cycle=static_cast<int>(static_cast<float>(sampleRate)/rateHz(speed));
-                const float scale=cycle>=2.0*extent*pi ? 1.0f : static_cast<float>(cycle/(2.0*extent*pi));
-                const int amplitude=static_cast<int>(static_cast<float>(extent)*scale);
+                const int delay=static_cast<int>(timeSeconds(time)*static_cast<double>(sampleRate));
+                const int extent=static_cast<int>(static_cast<double>(delay)*depthRatio(depth));
+                const int cycle=static_cast<int>(static_cast<double>(sampleRate)/rateHz(speed));
+                const double scale=cycle>=2.0*extent*pi ? 1.0 : static_cast<double>(cycle/(2.0*extent*pi));
+                const int amplitude=static_cast<int>(static_cast<double>(extent)*scale);
                 const double weight=(t ? fractions[0] : 1.0-fractions[0])*(d ? fractions[1] : 1.0-fractions[1])*(r ? fractions[2] : 1.0-fractions[2]);
                 phaseExtent+=amplitude*weight;
             }
         }
-        float continuousTap(double position,int channel) const noexcept
+        double continuousTap(double position,int channel) const noexcept
         {
             position=std::fmod(position,8192.0);if(position<0)position+=8192.0;
             const int index=static_cast<int>(position),next=(index+1)&mask;
-            const float fraction=static_cast<float>(position-index);
-            const float a=ring[2*index+channel],b=ring[2*next+channel];
+            const double fraction=static_cast<double>(position-index);
+            const double a=ring[2*index+channel],b=ring[2*next+channel];
             return a+(b-a)*fraction;
         }
         void updateScale() noexcept
         {
-            const float extent=depthExtent;
-            amplitudeScale=period>=2.0*extent*pi ? 1.0f : static_cast<float>(period/(2.0*extent*pi));
+            const double extent=depthExtent;
+            amplitudeScale=period>=2.0*extent*pi ? 1.0 : static_cast<double>(period/(2.0*extent*pi));
         }
         static constexpr int mask=8191;
         static constexpr double pi=3.14159265358979323846;
-        std::array<float,16384> ring {};
+        std::array<double,16384> ring {};
         int sampleRate{44100},type{1},delayFrames{},depthFrames{},period{},read{},write{};
-        float depthDial{},feedbackDial{64},depthExtent{},timeDial{},rateDial{};
+        double depthDial{},feedbackDial{64},depthExtent{},timeDial{},rateDial{};
         double delayExtent{},periodExtent{},phaseExtent{};
         int tailFrames{1},silentFrames{99999999};
         bool enabled{true};
-        float coefficient{},amplitudeScale{1},feedbackGain{},wet{},phaseSin{},phaseCos{.9999f};
+        double coefficient{},amplitudeScale{1},feedbackGain{},wet{},phaseSin{},phaseCos{.9999};
     };
 }

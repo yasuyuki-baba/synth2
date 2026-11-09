@@ -15,35 +15,35 @@ namespace synth2::dsp
         static void prepare() noexcept { (void)sine(); }
         static int amplitudeDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
-            return static_cast<int>(unit*2048.0f);
+            const double unit=static_cast<double>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            return static_cast<int>(unit*2048.0);
         }
         static int amplitude(int depth,int phaseIndex) noexcept
         {
-            const float sample=sine()[static_cast<size_t>(phaseIndex)&2047u];
-            float value=static_cast<float>(depth)*sample;
-            value+=static_cast<float>(depth);
+            const double sample=sine()[static_cast<size_t>(phaseIndex)&2047u];
+            double value=static_cast<double>(depth)*sample;
+            value+=static_cast<double>(depth);
             return depth-static_cast<int>(value)/2;
         }
         static int panDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
-            return static_cast<int>(unit*64.0f);
+            const double unit=static_cast<double>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            return static_cast<int>(unit*64.0);
         }
         static int pulseWidthDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
-            return static_cast<int>(unit*128.0f);
+            const double unit=static_cast<double>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            return static_cast<int>(unit*128.0);
         }
         static int filterDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
-            return static_cast<int>(unit*1024.0f);
+            const double unit=static_cast<double>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            return static_cast<int>(unit*1024.0);
         }
-        static int unipolarControl(int depth,float sample) noexcept
+        static int unipolarControl(int depth,double sample) noexcept
         {
-            float value=static_cast<float>(depth)*sample;
-            value+=static_cast<float>(depth);
+            double value=static_cast<double>(depth)*sample;
+            value+=static_cast<double>(depth);
             return static_cast<int>(value)/2;
         }
         static int filter(int depth,int phaseIndex) noexcept
@@ -121,13 +121,13 @@ namespace synth2::dsp
         }
         static int pitchDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
-            const float curve=static_cast<float>((std::pow(10.0,static_cast<double>(unit))-1.0)*(1.0/9.0));
-            return static_cast<int>((curve*5.0f)*128.0f);
+            const double unit=static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0);
+            const double curve=static_cast<double>((std::pow(10.0,static_cast<double>(unit))-1.0)*(1.0/9.0));
+            return static_cast<int>((curve*5.0)*128.0);
         }
-        static int bipolarControl(int depth,float sample) noexcept
+        static int bipolarControl(int depth,double sample) noexcept
         {
-            const float value=static_cast<float>(depth*2)*sample;
+            const double value=static_cast<double>(depth*2)*sample;
             return static_cast<int>(value)/2;
         }
         static int pan(int depth,int phaseIndex) noexcept
@@ -163,9 +163,9 @@ namespace synth2::dsp
         }
         static int step(int rateDial) noexcept
         {
-            const float unit=static_cast<float>(std::clamp(rateDial,0,127))*(1.0f/127.0f);
-            const float frequency=static_cast<float>(std::pow(1500.0,static_cast<double>(unit))*(1.0/12.0));
-            return frequency>10.0f ? 32 : 64;
+            const double unit=static_cast<double>(std::clamp(rateDial,0,127))*(1.0/127.0);
+            const double frequency=static_cast<double>(std::pow(1500.0,static_cast<double>(unit))*(1.0/12.0));
+            return frequency>10.0 ? 32 : 64;
         }
 
         // Depth knots retain the compatible scalar response. The two queries
@@ -228,11 +228,11 @@ namespace synth2::dsp
             }
         };
     private:
-        static const std::array<float,2048>& sine() noexcept
+        static const std::array<double,2048>& sine() noexcept
         {
             static const auto values=[] {
-                std::array<float,2048> result {};
-                for(int i=0;i<2048;++i)result[static_cast<size_t>(i)]=static_cast<float>(std::sin(6.283185307179586*i/2048));
+                std::array<double,2048> result {};
+                for(int i=0;i<2048;++i)result[static_cast<size_t>(i)]=static_cast<double>(std::sin(6.283185307179586*i/2048));
                 return result;
             }();
             return values;
