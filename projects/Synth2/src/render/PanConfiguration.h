@@ -6,7 +6,7 @@ namespace synth2::render
 {
     inline bool outputPanLfo(const RenderControls& p) noexcept
     {
-        return p.hasLfo(6) || (p.lfo1.on && p.lfo1.dest==6) || (p.lfo2.on && p.lfo2.dest==6);
+        return p.hasLfo(6);
     }
     inline dsp::ReceiverLfoView outputPanControls(const RenderControls& p,const dsp::LfoBlock* block,int start)
     {

@@ -130,10 +130,10 @@ TEST(PanInputs, CubicPanRunsAfterNonlinearEffectsForEverySourceHistory)
     EXPECT_GT(difference,.001);
 }
 #include "render/OutputConfiguration.h"
-TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoStereoAndBothHistoryStates)
+TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoAndStereo)
 {
     using namespace synth2::dsp;
-    for(int channels:{1,2})for(bool admitted:{false,true})
+    for(int channels:{1,2})
     {
         auto actual=std::make_unique<OutputPipeline>(),reference=std::make_unique<OutputPipeline>(),wrongOrder=std::make_unique<OutputPipeline>();
         for(auto* pipeline:{actual.get(),reference.get(),wrongOrder.get()})

@@ -177,7 +177,7 @@ TEST(FmPhaseCorrection, ResetExternalPhaseAndDisableDiscardStaleCorrection)
     EXPECT_EQ(result.referenceBefore,enabledPhase);EXPECT_EQ(result.audibleOffset,0u);
 }
 
-TEST(FmPhaseCorrection, FmPolicyIsIndependentOfWaveformEnvelopeAndHistoryAdmission)
+TEST(FmPhaseCorrection, PhaseCorrectionIsEnabledAcrossWaveformsAndEnvelopeDestinations)
 {
     synth2::RenderControls settings;
     settings.lfo1.on=settings.lfo2.on=true;

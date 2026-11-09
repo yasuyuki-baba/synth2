@@ -379,7 +379,7 @@ TEST(AmplitudeInputs, GainHorizonRetainsProgressAndCanBeInterruptedByANewTarget)
     }
 }
 
-TEST(AmplitudeInputs, CompleteVoiceDispatchDoesNotBorrowAProjectedSignalHorizon)
+TEST(AmplitudeInputs, CompleteVoiceDispatchUsesItsDeclaredGainHorizon)
 {
     for(int mode:{0,1,2})
     {

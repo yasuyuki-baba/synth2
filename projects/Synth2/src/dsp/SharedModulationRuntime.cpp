@@ -163,6 +163,17 @@ namespace synth2::dsp
             // Receiver queries use the clock's actual synchronized step,
             // not the free-rate dial's threshold.
             const int step=clock->step;
+            // Native graph 0xca70 nests LFO2 queries inside each
+            // held LFO1 span. Re-query the second control at the
+            // outer boundary, even when its own span is longer.
+            const bool dualPitch=settings.pitchReceiver && controls[0]->on
+                && (controls[0]->dest == 0 || controls[0]->dest == 1)
+                && (controls[1]->dest == 0 || controls[1]->dest == 1);
+            const bool dualFilter=settings.filterReceiver && controls[0]->on
+                && controls[0]->dest == 2 && controls[1]->dest == 2;
+            const bool dualPulse=controls[0]->on && controls[0]->dest == 4 && controls[1]->dest == 4;
+            const bool nestedPulse=settings.pulseWidthReceiver && (settings.pitchReceiver || dualPulse);
+            const bool followFirstSpan=lfo == 1 && (dualPitch || dualFilter || nestedPulse);
             int remaining=0;double target=0;
             for (int i = 0; i < count; ++i)
             {
@@ -182,17 +193,7 @@ namespace synth2::dsp
                         target=query.first;remaining=query.second<0 ? count-i : query.second;
                     }
                 }
-                // Native graph 0xca70 nests LFO2 queries inside each
-                // held LFO1 span. Re-query the second control at the
-                // outer boundary, even when its own span is longer.
-                const bool dualPitch=settings.pitchReceiver && controls[0]->on
-                    && (controls[0]->dest == 0 || controls[0]->dest == 1)
-                    && (controls[1]->dest == 0 || controls[1]->dest == 1);
-                const bool dualFilter=settings.filterReceiver && controls[0]->on
-                    && controls[0]->dest == 2 && controls[1]->dest == 2;
-                if(lfo == 1 && (dualPitch || dualFilter || (settings.pulseWidthReceiver
-                    && (settings.pitchReceiver || (controls[0]->on
-                        && controls[0]->dest == 4 && controls[1]->dest == 4)))))
+                if(followFirstSpan)
                     remaining=std::min(remaining,sharedBlock.controlRemaining[0][offset+i]);
                 sharedBlock.controls[lfo][offset+i]=target;
                 sharedBlock.controlRemaining[lfo][offset+i]=std::min(remaining,count-i);
