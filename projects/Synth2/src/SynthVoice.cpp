@@ -97,7 +97,7 @@ namespace synth2
         auto startCore = [&](int i)
         {
             auto& core = *cores[i];
-            core.filterMidiNote=midiNoteNumber;
+            core.filterMidiNote=midiNoteNumber;core.noteHeld=true;
             const bool wasActive=core.amplitude.isActive();
             const auto reuse=dsp::CoreReusePolicy::select(wasActive);
             core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
@@ -132,14 +132,15 @@ namespace synth2
             // Mono binds the first physical group. A larger group retains the
             // continuing cores and admits its additional cores as new notes.
             const auto previous=cores;
+            std::array<bool,8> started {};
             startingNote=true;
             releaseCores();
             assignedCount=activeCores;
             for(int i=0;i<activeCores;++i)
             {
                 cores[i]=pool.claim(*this,32,i);
-                const bool continuing=std::find(previous.begin(),previous.end(),cores[i])!=previous.end();
-                if(!continuing)startCore(i);
+                const bool continuing=cores[i]->noteHeld && std::find(previous.begin(),previous.end(),cores[i])!=previous.end();
+                if(!continuing){startCore(i);started[i]=true;}
                 else
                 {
                     auto& core=*cores[i];
@@ -152,7 +153,7 @@ namespace synth2
             startingNote=false;
             updateEnvelopeConfiguration();
             for(int i=0;i<activeCores;++i)
-                if(std::find(previous.begin(),previous.end(),cores[i])==previous.end())
+                if(started[i])
                 {cores[i]->filterEnvelope.noteOn();cores[i]->cutoff.settle();}
             lifecycle.consumeTransition();
             return;
@@ -179,8 +180,7 @@ namespace synth2
         if(action==dsp::VoiceLifecycle::StopAction::Preserve)return;
         if(action==dsp::VoiceLifecycle::StopAction::Release)
         {
-            for (auto* core : cores) { if (core != nullptr) core->amplitude.noteOff(); }
-            for (auto* core : cores) if (core != nullptr) core->filterEnvelope.noteOff();
+            for(auto* core:cores)if(core!=nullptr)core->releaseKey();
         }
         else
         {
@@ -188,7 +188,7 @@ namespace synth2
             // a legato reassignment startVoice replaces its note bookkeeping.
             // Native mono retriggers from the sounding envelope/filter state;
             // Logical bookkeeping replacement must not reset that physical core.
-            for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.reset(); core->amplitude.reset(); core->modulationEnvelope.reset(); }
+            for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.reset(); core->amplitude.reset(); core->modulationEnvelope.reset(); core->noteHeld=false; }
             retireNote();
         }
     }

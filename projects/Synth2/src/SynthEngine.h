@@ -110,6 +110,7 @@ namespace synth2
         float currentSampleRate { 44100.0f };
         uint64_t globalSampleCount { 0 };
         int previousPlayMode { 0 };
+        int previousUnisonVoices {1};
         
 
     };
