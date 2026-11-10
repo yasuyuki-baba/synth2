@@ -31,17 +31,22 @@ namespace synth2::dsp
             result.first=OscillatorTuning::oscillator1(midiNote,
                 static_cast<int>(config.octave*12+config.keyShift),fine,config.fine);
             result.second=config.secondTracksKeyboard
-                ? static_cast<float>(result.first*secondRatio)
+                ? OscillatorTuning::applyTrackedRatio(result.first,secondRatio)
                 : OscillatorTuning::fixedOsc2(config.secondPitch,config.secondFine,config.fine,fine);
             return result;
         }
         double coarseSecond(const Core& value,double exponent,double unisonFine) const
         {
-            float fine=static_cast<float>(config.secondFine);
-            double base=static_cast<double>(value.first);
-            if(!config.secondTracksKeyboard){fine=static_cast<float>(config.fine)+fine;fine+=static_cast<float>(unisonFine);base=220.0;}
-            const float octave=fine*(1.0f/1200.0f)+static_cast<float>(exponent);
-            return static_cast<float>(std::pow(2.0,static_cast<double>(octave))*base);
+            return compatibleFloatCurve(config.secondFine,[&](float second) {
+                if(config.secondTracksKeyboard)
+                    return OscillatorTuning::coarseFrequency(value.first,second,exponent);
+                return compatibleFloatCurve(config.fine,[&](float master) {
+                    return compatibleFloatCurve(unisonFine,[&](float local) {
+                        float fine=master+second;fine+=local;
+                        return OscillatorTuning::coarseFrequency(220.0,fine,exponent);
+                    });
+                });
+            });
         }
         Unison unison;
     private:

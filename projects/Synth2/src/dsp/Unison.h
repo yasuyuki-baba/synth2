@@ -39,9 +39,11 @@ namespace synth2::dsp
             const float inverseLogStep = 1.0f/(std::log(1066.6666259765625f)*(1.0f/1024.0f));
             for (int i = 0; i < count; ++i)
             {
-                result.pitchCents[i] = (static_cast<float>(i)*pitchStep)*span-span*0.5f;
+                float pitch = (static_cast<float>(i)*pitchStep)*span-span*0.5f;
                 // RVA0x371a0/0x36778: raw 24 is neutral; odd group slots only.
-                if ((i & 1) != 0) result.pitchCents[i] += static_cast<float>((std::clamp(pitchDial,0,127)-24)*100);
+                // Resolve the source word before promoting/interpolating it.
+                if ((i & 1) != 0) pitch += static_cast<float>((std::clamp(pitchDial,0,127)-24)*100);
+                result.pitchCents[i] = pitch;
                 const float cents = (static_cast<float>(i)*filterStep-0.5f)*span;
                 const double ratio = std::pow(2.0, static_cast<double>(cents*(1.0f/1200.0f)));
                 result.filterIndex[i] = static_cast<int>(inverseLogStep*static_cast<float>(std::log(ratio)));
