@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include "FractionalDial.h"
+#include "ControlTables.h"
 
 namespace synth2::dsp
 {
@@ -15,20 +16,11 @@ namespace synth2::dsp
     {
     public:
         static float timeSeconds(int dial) noexcept
-        {
-            const float normalized=std::clamp(dial,0,127)*(1.0f/127.0f);
-            const float milliseconds=normalized>=.5f ? static_cast<float>(normalized*30.0f)
-                : std::pow(300.0f,std::pow(static_cast<float>(normalized)*2.0f,.6f))*.05f;
-            return static_cast<float>(milliseconds*.001f);
-        }
+        {return chorusTimeWords[static_cast<size_t>(std::clamp(dial,0,127))];}
         static float depthRatio(int dial) noexcept
-        {
-            return static_cast<float>((std::pow(100.0f,static_cast<float>(std::clamp(dial,0,127)*(1.0f/127.0f)))-1.0f)*(1.0f/99.0f));
-        }
+        {return chorusDepthWords[static_cast<size_t>(std::clamp(dial,0,127))];}
         static float rateHz(int dial) noexcept
-        {
-            return dial==0 ? .01f : static_cast<float>(std::pow(20000.0f,static_cast<float>(std::clamp(dial,0,127)*(1.0f/127.0f)))*.02f);
-        }
+        {return chorusRateWords[static_cast<size_t>(std::clamp(dial,0,127))];}
         static float timeSeconds(float dial) noexcept
         {return interpolateDial(dial,[](int value){return timeSeconds(value);});}
         static float depthRatio(float dial) noexcept

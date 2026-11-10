@@ -291,7 +291,10 @@ boundaries; they cannot select another processing precision.
 
 Use float constants and float math overloads in runtime DSP. Prepared waveform
 constants keep their calibrated Float32 definitions; offline generation of those
-constants does not introduce a runtime double path. FM source/control integer
+constants does not introduce a runtime double path. Prepared time/rate/spread
+words preserve integer event/tap boundaries. Tuning uses Float32 table words and
+FMA compensation to avoid prematurely rounding the exponential ratio before its
+frequency product; control inputs and returned frequencies remain Float32. FM source/control integer
 knots resolve through calibrated integer phase words on the exact 1/512 source
 grid before Float32 control interpolation. Audio and FM/Sync use the same
 Float32 oscillator read. Control interpolation retains representable fractions
