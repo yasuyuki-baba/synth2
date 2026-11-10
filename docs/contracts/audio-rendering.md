@@ -308,6 +308,10 @@ until compatible frequency-word interpolation. Adjacent compatible output words
 can coincide; these extensions do not promise a nonzero response to every edit
 or change the final phase-word resolution. Tracked ratio controls and discrete
 note/coarse selection retain their existing word definitions.
+Within one voice render span, unchanged coarse receiver exponents may reuse the
+same mapped frequency for each physical core. Base/fine inputs are fixed within
+that span; initialize the result on its first use and discard it at the span
+boundary. Reuse must not advance or reset receivers, phase, envelopes or RNG.
 
 Legacy loading resolves the compatible integer parameters before promoting those
 exact values to floating-point dials. Fractional edits follow promotion; source
