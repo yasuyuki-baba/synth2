@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include "FractionalDial.h"
+#include "ControlTables.h"
 
 namespace synth2::dsp
 {
@@ -94,7 +95,7 @@ namespace synth2::dsp
         static float minimumForDial(int dial) noexcept
         {return std::pow(10.0f,(127-dial)*(1.0f/127.0f))*100.0f;}
         static float speedForDial(int dial) noexcept
-        {return dial==0 ? .01f : static_cast<float>(std::pow(1000.0f,static_cast<float>(dial*(1.0f/127.0f)))*.02f);}
+        {return phaserSpeedWords[static_cast<size_t>(std::clamp(dial,0,127))];}
         float factorWord(float low,float high,float rate,bool rising) const noexcept
         {
             const float logarithm=std::log(static_cast<float>(high)/static_cast<float>(low));

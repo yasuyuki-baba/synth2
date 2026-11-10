@@ -1,3 +1,7 @@
 # Preserve upstream vendored sources and licenses verbatim.
 third_party/** -whitespace
 projects/Synth2/resources/IPLUG2-LICENSE.txt -whitespace
+projects/Synth2/src/dsp/OscillatorConstants.h linguist-generated=true
+projects/Synth2/src/dsp/FmTables.h linguist-generated=true
+projects/Synth2/src/dsp/FloatMathTables.h linguist-generated=true
+projects/Synth2/src/dsp/ControlTables.h linguist-generated=true

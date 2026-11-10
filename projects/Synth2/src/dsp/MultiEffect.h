@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include "OverdriveKernel.h"
+#include "ControlTables.h"
 namespace synth2::dsp
 {
     // Native MultiFX children: overdrive1/2, decimator, Ring and compressor.
@@ -24,7 +25,7 @@ namespace synth2::dsp
             first=std::clamp(first,0.0f,127.0f);second=std::clamp(second,0.0f,127.0f);third=std::clamp(third,0.0f,127.0f);
             if(previous==std::array<float,3>{first,second,third})return;
             overdrive.setDials(first,second,third);
-            if(first!=previous[0]){downsample=first;updateFrequency(interpolateDial(first,[](int value){return static_cast<float>(std::pow(8000.0f,static_cast<float>(value*(1.0f/127.0f))));}));}
+            if(first!=previous[0]){downsample=first;updateFrequency(interpolateDial(first,[](int value){return ringFrequencyWords[static_cast<size_t>(value)];}));}
             bits=static_cast<int>(second/8);mix=third*(1.0f/127.0f);
             const float thresholdDb=-20.0f-(first*(1.0f/127.0f))*40.0f;
             threshold=std::exp(thresholdDb*0.115129254758358f);

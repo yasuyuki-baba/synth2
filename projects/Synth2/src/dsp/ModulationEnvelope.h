@@ -3,6 +3,7 @@
 #include "FilterEnvelope.h"
 #include "CompatibleControlCurve.h"
 #include "FractionalDial.h"
+#include "OscillatorConstants.h"
 #include <array>
 
 namespace synth2::dsp
@@ -67,15 +68,7 @@ namespace synth2::dsp
     private:
         static const std::array<float,257>& fineTable() noexcept
         {
-            static const auto table=[]
-            {
-                std::array<float,257> values {};
-                for(int i=-128;i<=128;++i)
-                    values[static_cast<std::size_t>(i+128)]=static_cast<float>(
-                        std::exp(std::log(2.0f)*static_cast<float>(i*(1.0f/128.0f))));
-                return values;
-            }();
-            return table;
+            return pitchRatioWords;
         }
     };
 }

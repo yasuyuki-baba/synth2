@@ -1,5 +1,6 @@
 #pragma once
 #include "CompatibleControlCurve.h"
+#include "ControlTables.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -16,7 +17,7 @@ namespace synth2::dsp
             rateDial=std::clamp(dial,0.0f,127.0f);
             rate=static_cast<int>(std::lround(rateDial));
             targetHz=compatibleControlCurve(rateDial,[](int value) {
-                return std::pow(1500.0f,value/127.0f)/12.0f;
+                return lfoRateWords[static_cast<size_t>(value)];
             });
             slew(1);
             step=targetHz>10.0f ? 32 : 64;

@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include "ControlTables.h"
 
 namespace synth2::dsp
 {
@@ -13,11 +14,7 @@ namespace synth2::dsp
         }
         static float spreadSeconds(int dial) noexcept
         {
-            dial=std::clamp(dial,0,127);
-            if(dial==64)return 0;
-            const float norm=std::min(1.0f,static_cast<float>(std::abs((dial-64)*(1.0f/63.0f))));
-            const float seconds=static_cast<float>(std::pow(1000.0f,static_cast<float>(norm))*.0001f);
-            return dial<64 ? -seconds : seconds;
+            return delaySpreadWords[static_cast<size_t>(std::clamp(dial,0,127))];
         }
     };
 }

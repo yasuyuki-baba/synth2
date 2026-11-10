@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstring>
 #include <tuple>
-#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -15,7 +14,7 @@ namespace synth2::audio
 using uint32=uint32_t;
 template<class T> struct MathConstants
 {
-    static constexpr T pi=std::numbers::pi_v<T>;
+    static constexpr T pi=static_cast<T>(3.141592653589793238462643383279502884L);
     static constexpr T twoPi=static_cast<T>(2)*pi;
 };
 template<class T> T jlimit(T low,T high,T value) { return std::clamp(value,low,high); }

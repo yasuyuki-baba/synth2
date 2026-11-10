@@ -81,3 +81,13 @@ callback: end frame; bend current, target, moving and offset; cutoff index; FM
 amount; amplitude gain; LFO1 depth; LFO2 depth. Rows have ten columns. The retired
 receiver-admission flag is omitted; the first five pitch-history columns retain
 their order. Historical eleven-column captures contain that old flag at index5.
+
+## Float32 calibration constants
+
+Run `python3 tools/generate_oscillator_constants.py` to regenerate the tracked
+waveform, MIDI/pitch, scaled-exponential and control/phase-word headers under
+`projects/Synth2/src/dsp`. The generator evaluates the source-defined calibration
+formulas offline; the renderer uses Float32 words and integer phase/frame metadata.
+No runtime double renderer or precision-mode selection is involved. Review formula
+changes independently from generated data, and validate audio/timing compatibility
+with the existing error policy.

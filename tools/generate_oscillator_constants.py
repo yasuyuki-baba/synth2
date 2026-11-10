@@ -21,6 +21,11 @@ def main():
         out.append(f'    inline constexpr std::array<float,{len(values)}> {name} {{')
         for at in range(0,len(values),4):out.append('        '+','.join(map(literal,values[at:at+4]))+',')
         out.append('    };')
+    for name,values in [('midiFrequencyWords',[f32(440*2**((note-69)/12)) for note in range(128)]+[.5]),
+                        ('pitchRatioWords',[f32(math.exp(math.log(2)*f32(i*f32(1/128)))) for i in range(-128,129)])]:
+        out.append(f'    inline constexpr std::array<float,{len(values)}> {name} {{')
+        for at in range(0,len(values),4):out.append('        '+','.join(map(literal,values[at:at+4]))+',')
+        out.append('    };')
     for name,value in [('inversePi',1/math.pi),('inversePiSquared',(1/math.pi)**2)]:
         high=f32(value);low=f32(value-high)
         out.append(f'    inline constexpr float {name}High={literal(high)},{name}Low={literal(low)};')
@@ -32,4 +37,32 @@ def main():
     for at in range(0,len(words),8):fm.append('        '+','.join(map(str,words[at:at+8]))+',')
     fm+=['    };','}']
     (Path(__file__).resolve().parents[1]/'projects/Synth2/src/dsp/FmTables.h').write_text('\n'.join(fm)+'\n')
+    exp2=['#pragma once','#include <array>','','// Generated Float32 high/residual words for 2^(k/4096), k=-2048..2048.',
+          'namespace synth2::dsp','{','    inline constexpr std::array<std::array<float,2>,4097> exp2Words {{']
+    for i in range(-2048,2049):
+        value=2**(i/4096);high=f32(value);low=f32(value-high)
+        exp2.append('        {'+literal(high)+','+literal(low)+'},')
+    exp2+=['    }};','}']
+    (Path(__file__).resolve().parents[1]/'projects/Synth2/src/dsp/FloatMathTables.h').write_text('\n'.join(exp2)+'\n')
+    controls={'chorusTimeWords':[],'chorusDepthWords':[],'chorusRateWords':[],
+              'delaySpreadWords':[],'phaserSpeedWords':[],'ringFrequencyWords':[],'lfoRateWords':[]}
+    for i in range(128):
+        normalized=f32(i*f32(1/127))
+        milliseconds=f32(normalized*30) if normalized>=.5 else 300**((normalized*2)**.6)*.05
+        controls['chorusTimeWords'].append(f32(milliseconds*.001))
+        controls['chorusDepthWords'].append(f32((100**normalized-1)*(1/99)))
+        controls['chorusRateWords'].append(f32(.01 if i==0 else 20000**normalized*.02))
+        norm=min(1,f32(abs((i-64)*(1/63))))
+        controls['delaySpreadWords'].append(f32(0 if i==64 else (-1 if i<64 else 1)*1000**norm*.0001))
+        controls['phaserSpeedWords'].append(f32(.01 if i==0 else 1000**normalized*.02))
+        controls['ringFrequencyWords'].append(f32(8000**normalized))
+        controls['lfoRateWords'].append(f32(1500**(i/127)/12))
+    lines=['#pragma once','#include <array>','','// Generated compatible Float32 control words; no runtime double arithmetic.',
+           'namespace synth2::dsp','{']
+    for name,values in controls.items():
+        lines.append(f'    inline constexpr std::array<float,128> {name} {{')
+        for at in range(0,128,4):lines.append('        '+','.join(map(literal,values[at:at+4]))+',')
+        lines.append('    };')
+    lines.append('}')
+    (Path(__file__).resolve().parents[1]/'projects/Synth2/src/dsp/ControlTables.h').write_text('\n'.join(lines)+'\n')
 if __name__=='__main__':main()

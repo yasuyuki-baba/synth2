@@ -754,7 +754,7 @@ TEST(BoundedPrecision, FineTuningUsesCompatibleFloatFrequencyWords)
     const float edited=low+(high-low)*.25f;
     ASSERT_EQ(static_cast<float>(edited),static_cast<float>(low));
     EXPECT_EQ(OscillatorTuning::oscillator1(69,0,low,0),first);
-    EXPECT_NEAR(OscillatorTuning::oscillator1(69,0,high,0),last,std::nextafter(last,1000.f)-last);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,high,0),last);
     EXPECT_EQ(OscillatorTuning::oscillator1(69,0,edited,0),first);
     EXPECT_EQ(OscillatorTuning::oscillator1(69,0,0,edited),first);
     synth2::dsp::VoiceTuningSettings settings;settings.fine=edited;
