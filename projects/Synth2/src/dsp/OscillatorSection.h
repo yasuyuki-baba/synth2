@@ -33,11 +33,23 @@ namespace synth2::dsp {
                      osc1.getPhaseIncFixed27(),osc2.getPhaseIncFixed27()}};
         }
 
+        double resolvePulseWidth(double width,double control) noexcept
+        {
+            // Only value conversion is cached. Phase, receivers and random state
+            // still advance on their original sample/segment boundaries.
+            if(!pulseWidthReady || width!=pulseWidthSource || control!=pulseWidthControl)
+            {
+                pulseWidthBins=ModulationEnvelope::pulseWidthForDial(fractionalDial(width),control);
+                pulseWidthSource=width;pulseWidthControl=control;pulseWidthReady=true;
+            }
+            return pulseWidthBins;
+        }
+
         double processSample(double f1, double f2, double pw, double mix, double fmAmt, bool sync, bool ring,
                             double subGain, int subShape, int subOctaveMode, const WaveTableBank* bank, double nativePulseWidthBins = -1, double pitch1Control = 0, double pitch2Control = 0, bool nativePitchLfo = false, bool correctFmPhase = false, OscillatorFrameAdvance* frameAdvance = nullptr) {
             const double base1=f1;
             const double pulseBins=nativePulseWidthBins>=0 ? nativePulseWidthBins
-                : ModulationEnvelope::pulseWidthForDial(fractionalDial(pw),0.0);
+                : resolvePulseWidth(pw,0.0);
             if(nativePitchLfo)
             {
                 f1=ModulationEnvelope::pitchFrequency(f1,pitch1Control);
@@ -212,5 +224,8 @@ namespace synth2::dsp {
         double sampleRate{44100.0};
         Oscillator osc1, osc2;
         FmPhaseCorrection fmPhase;
+    private:
+        double pulseWidthSource{},pulseWidthControl{},pulseWidthBins{};
+        bool pulseWidthReady{};
     };
 }
