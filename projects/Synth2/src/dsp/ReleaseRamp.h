@@ -2,6 +2,7 @@
 
 #include "CompatibleControlCurve.h"
 #include "EnvelopeCurve.h"
+#include "FloatControlCurve.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -17,8 +18,11 @@ namespace synth2::dsp
     public:
         static int durationFrames (double seconds,double sampleRate) noexcept
         {
-            // Frame counts retain their compatible source-word rounding.
-            const double frames = static_cast<float>(static_cast<float>(seconds)*static_cast<float>(sampleRate));
+            // Resolve compatible sample-count words before interpolating real
+            // time/rate coordinates. Quantize to a frame only at the end.
+            const double frames=compatibleFloatCurve(seconds,[&](float time) {
+                return compatibleFloatCurve(sampleRate,[&](float rate) {return time*rate;});
+            });
             if (!std::isfinite (frames) || frames <= 0) return 0;
             if (frames >= static_cast<double> (std::numeric_limits<int>::max()))
                 return std::numeric_limits<int>::max();

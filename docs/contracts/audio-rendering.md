@@ -286,6 +286,12 @@ they must not become intermediate audio buffers.
 Oscillator phase increments are cached by effective frequency and invalidated by
 sample-rate changes. Their rate calculation uses double precision, retaining the
 compatible final float rounding before conversion to the discrete phase word.
+Pitch modulation retains a real base frequency between compatible FP32 input
+words before evaluating fractional receiver controls. Envelope time/rate products
+retain their compatible word values at FP32 inputs and interpolate real coordinates
+between them; converting those coordinates to float before multiplication loses
+fractional timing. Only the final frame count is quantized to an integer. These
+extensions do not change the definition of the compatible control knots.
 
 Legacy loading resolves the compatible integer parameters before promoting those
 exact values to floating-point dials. Fractional edits follow promotion; source

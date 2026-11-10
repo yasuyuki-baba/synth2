@@ -3,6 +3,7 @@
 #include "FilterEnvelope.h"
 #include "CompatibleControlCurve.h"
 #include "FractionalDial.h"
+#include "FloatControlCurve.h"
 #include <array>
 
 namespace synth2::dsp
@@ -49,7 +50,9 @@ namespace synth2::dsp
             return compatibleControlCurve(control,[&](int value) {
                 const int quotient=value/128,remainder=value%128;
                 const float ratio=fineTable()[static_cast<std::size_t>(remainder+128)]*std::ldexp(1.0f,quotient);
-                return std::min(static_cast<float>(frequency)*ratio,22000.0f);
+                return compatibleFloatCurve(frequency,[&](float base) {
+                    return std::min(base*ratio,22000.0f);
+                });
             });
         }
         static double pulseWidthBins(float base,double control) noexcept
