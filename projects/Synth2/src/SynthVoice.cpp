@@ -260,6 +260,7 @@ namespace synth2
 
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
+        std::array<double,8> coarseFrequencies;
         for(int v=0;v<activeCoreCount();++v)if(cores[v]!=nullptr)
             coreTuning[v]=tuning.prepareCore(unison.pitchCents[layoutSlot(v)]);
 
@@ -302,7 +303,14 @@ namespace synth2
 
                 auto coreFrequency=coreTuning[v];
                 if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)
-                    coreFrequency.second=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
+                {
+                    // Base/fine inputs are fixed for this render span. Only a
+                    // changed receiver exponent needs another frequency map.
+                    // First use always assigns; no cache crosses span boundaries.
+                    if(i==0 || nativeCoarsePitch[v][i]!=nativeCoarsePitch[v][i-1])
+                        coarseFrequencies[v]=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
+                    coreFrequency.second=coarseFrequencies[v];
+                }
                 const dsp::OscillatorAudioInput oscillatorInput {
                     coreFrequency.first,coreFrequency.second,params.pulseWidth,params.oscMix,params.subOscGain,syncEnabled,ringEnabled,
                     firstPitch+bend,
