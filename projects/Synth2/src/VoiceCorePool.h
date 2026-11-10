@@ -19,6 +19,8 @@ namespace synth2
         void setPhaseDial (int) noexcept;
         void setGroupCount (int) noexcept;
         void limitCapacity (int) noexcept;
+        void releaseKeysAbove(int count) noexcept
+        {for(size_t i=static_cast<size_t>(std::clamp(count,0,32));i<slots.size();++i)slots[i].releaseKey();}
         SynthVoice* primaryOwner() const noexcept {return owners[0];}
         void setOsc2Coarse(float exponent,bool refreshFrequency) noexcept
         {for(auto& core:slots){core.coarse.set(exponent,core.modulationEnvelope.isActive());if(refreshFrequency)core.coarse.refresh();}}

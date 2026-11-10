@@ -38,6 +38,12 @@ namespace synth2
         dsp::OscillatorCoarsePitch coarse;
         float amplitudeReferenceVelocity {1.0f};
         float keyboardOffset {},unisonOffset {};
+        bool noteHeld {false};
+        void releaseKey() noexcept
+        {
+            if(!noteHeld)return;
+            noteHeld=false;amplitude.noteOff();filterEnvelope.noteOff();
+        }
         int filterMidiNote {60};
         int physicalSlot {-1};
         std::array<uint32_t,22> readFloatWords() const noexcept
@@ -57,7 +63,7 @@ namespace synth2
             cutoff.prepare (static_cast<int>(spec.sampleRate));
             coarse.elapsed=static_cast<int>(spec.sampleRate)/20;
             if(!preservePhase) phase.pending = true;
-            amplitude.reset();
+            amplitude.reset();noteHeld=false;
             modulationEnvelope.reset();
             if(!preservePhase) portamento = {};
         }

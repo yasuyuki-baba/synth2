@@ -225,3 +225,12 @@ program/state-transition audio equivalence.
 `PerformanceBehavior.ReturningFromMonoDoesNotResumeRelinquishedPolyphonicNotes`
 checks retained paused core words through mono/poly program loads and verifies
 that subsequent poly admission reuses the relinquished group.
+
+`PerformanceBehavior.StateRestoreRetainsTheReleaseFromThePrecedingMonoGroupBoundary`
+recalls a generated mono state after a smaller poly group. It checks the partial
+physical release and subsequent legato admission/filter-note retention through
+the actual bridge; it does not establish unrestricted state-recall equivalence.
+
+`PerformanceBehavior.PedalUpReselectsTheNewestHeldKeyAfterPolyToMonoRecall`
+checks the physical pitch after pedal-up when a newer held key was admitted
+during a polyphonic interval and a mono state was recalled.

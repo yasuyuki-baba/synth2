@@ -81,6 +81,21 @@ namespace synth2
         monoVoices[channel] = voice;
     }
 
+    bool VoiceDispatcher::resumeHeldMonoKey(int channel,SynthVoice& voice)
+    {
+        const size_t c=static_cast<size_t>(channel-1);
+        int previous=-1;uint64_t newest=0;
+        for(int key=0;key<128;++key)
+            if(heldOrder[c][key]>newest){newest=heldOrder[c][key];previous=key;}
+        if(previous<0 || previous==voice.getCurrentlyPlayingNote())return false;
+        const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
+            : dsp::NoteTransitionKind::RetainedRetrigger;
+        voice.setNextTransition({transition,params->sourcePortamentoDial>0.0f});
+        startVoice(&voice,getSound(0),channel,previous,heldVelocity[c][previous]);
+        monoVoices[c]=&voice;
+        return true;
+    }
+
     void VoiceDispatcher::noteOff (int channel, int note, float velocity, bool tail)
     {
         if (!dispatchingArpeggiator && channel >= 1 && channel <= 16 && note >= 0 && note < 128)
@@ -106,18 +121,7 @@ namespace synth2
         if (voice != nullptr && voice->isVoiceActive() && voice->isPlayingChannel (channel)
             && voice->getCurrentlyPlayingNote() == note)
         {
-            int previous = -1;
-            uint64_t newest = 0;
-            for (int key = 0; key < 128; ++key)
-                if (heldOrder[c][key] > newest) { newest = heldOrder[c][key]; previous = key; }
-            if (previous >= 0)
-            {
-                const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
-                    : dsp::NoteTransitionKind::RetainedRetrigger;
-                voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f});
-                startVoice (voice, getSound(0), channel, previous, heldVelocity[c][previous]);
-                return;
-            }
+            if(resumeHeldMonoKey(channel,*voice))return;
         }
         ::synth2::audio::VoiceBank::noteOff (channel, note, velocity, tail);
     }
@@ -134,6 +138,7 @@ namespace synth2
                 for(int key=0;key<128;++key)if(!physicalKeys[c][key])heldOrder[c][key]=0;
                 auto* voice=monoVoices[c];
                 if(voice!=nullptr && voice->isVoiceActive() && voice->getCurrentlyPlayingNote()>=0
+                    && !resumeHeldMonoKey(channel,*voice)
                     && !physicalKeys[c][voice->getCurrentlyPlayingNote()])
                     noteOff(channel,voice->getCurrentlyPlayingNote(),0,true);
             }

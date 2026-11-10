@@ -44,6 +44,13 @@ cores retain their envelopes and filter note; newly admitted cores receive an
 ordinary note start and their own filter note. A smaller group relinquishes its
 extra cores without erasing their retained physical histories.
 
+On entry to mono, release held physical keys outside the preceding Unison
+group before the new group size takes effect. Increasing that size does not
+cancel those releases. Later legato notes start the released lanes while
+continuing the still-held lanes, including their separate filter notes.
+Pedal-up reevaluates the most recently held mono key even when the current
+sounding key remains physically down after a mode/state change.
+
 Logical note retirement is separate from VCA/filter/FM history. Reuse decisions
 inspect actual physical VCA activity. Consume pending Retrigger/Legato/Retained-
 Retrigger and glide transitions at their defined start/prepare boundaries;

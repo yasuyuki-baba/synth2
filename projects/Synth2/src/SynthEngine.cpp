@@ -115,6 +115,7 @@ namespace synth2
         globalSampleCount = 0;
         params.globalSampleCount = 0;
         previousPlayMode = params.playMode;
+        previousUnisonVoices=params.unisonVoices;
         outputPipeline.prepareProcessors(sampleRate,!sharedModulation.isInitial());
         sharedModulation.prepareBlock(samplesPerBlock);
 
@@ -237,8 +238,12 @@ namespace synth2
         if (previousPlayMode != params.playMode)
         {
             if(!renderHistory.nativeMidiRoutingLoadHistory)synth.allNotesOff (0, false);
+            // Mode admission precedes a group-size update. Growing the group
+            // afterward must not resurrect keys released at that boundary.
+            else if(params.playMode!=0)corePool.releaseKeysAbove(previousUnisonVoices);
             previousPlayMode = params.playMode;
         }
+        previousUnisonVoices=params.unisonVoices;
         assert (capacity > 0);
         if (capacity <= 0) return;
         const auto outputSink=[](void* context,int start,int count,bool silent) {

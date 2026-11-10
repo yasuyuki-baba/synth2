@@ -534,3 +534,63 @@ TEST(PerformanceBehavior, ReturningFromMonoDoesNotResumeRelinquishedPolyphonicNo
     ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,12,actual));
     EXPECT_EQ(actual[0],0u);
 }
+
+TEST(PerformanceBehavior, StateRestoreRetainsTheReleaseFromThePrecedingMonoGroupBoundary)
+{
+    auto processor=hostvalidation::processor();
+    const auto controls=std::string("19,64\n22,127\n28,90\n");
+    hostvalidation::load(*processor,hostvalidation::patch(4,2)+controls);
+    processor->prepare(48000,64);
+    ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+    std::array<float,64> left{},right{};
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    const auto saved=processor->saveState();
+    std::string error;
+    ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(2)+controls,1,error))<<error;
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(processor->tryRestoreState(saved.data(),static_cast<int>(saved.size())));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    for(int slot=0;slot<4;++slot)
+    {
+        std::array<int,13> envelope{};
+        ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,slot,envelope));
+        const auto expected=slot<2 ? synth2::dsp::AmplitudeEnvelope::Phase::Sustain
+                                  : synth2::dsp::AmplitudeEnvelope::Phase::Release;
+        EXPECT_EQ(envelope[10],static_cast<int>(expected))<<slot;
+    }
+    // A later legato key continues held cores and starts the released lanes.
+    ASSERT_TRUE(processor->enqueueMidi(0,144,67,110));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    std::array<int,13> held{},restarted{};
+    ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,0,held));
+    ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,2,restarted));
+    EXPECT_GT(restarted[8],held[8]);
+    EXPECT_EQ(restarted[10],static_cast<int>(synth2::dsp::AmplitudeEnvelope::Phase::Sustain));
+}
+
+TEST(PerformanceBehavior, PedalUpReselectsTheNewestHeldKeyAfterPolyToMonoRecall)
+{
+    auto processor=hostvalidation::processor();
+    hostvalidation::load(*processor,hostvalidation::patch(4,2));processor->prepare(48000,64);
+    ASSERT_TRUE(processor->enqueueMidi(0,144,72,100));
+    ASSERT_TRUE(processor->enqueueMidi(0,176,64,127));
+    std::array<float,64> left{},right{};
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    const auto saved=processor->saveState();
+    std::string error;
+    ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(2),1,error))<<error;
+    ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(processor->tryRestoreState(saved.data(),static_cast<int>(saved.size())));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(processor->enqueueMidi(0,176,64,0));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    auto reference=hostvalidation::processor();
+    hostvalidation::load(*reference,hostvalidation::patch(4,2));reference->prepare(48000,64);
+    ASSERT_TRUE(reference->enqueueMidi(0,144,60,100));
+    ASSERT_TRUE(reference->process(left.data(),right.data(),64,120));
+    std::array<uint32_t,9> actual{},expected{};
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,0,actual));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*reference,0,expected));
+    EXPECT_EQ(actual[2],expected[2]);EXPECT_EQ(actual[3],expected[3]);
+}

@@ -118,7 +118,10 @@
 - A changed effective voice count resets the physical pool allocation cursor;
   it does not erase retained receiver state. Equal-count loads preserve the cursor.
 - Legato group changes retain continuing physical cores and start only newly
-  admitted cores. Store the retained filter note with each physical core.
+  admitted or released cores. Store held-key status and retained filter note
+  with each physical core. Mono entry releases keys outside the preceding
+  Unison group before applying the new size; resizing does not undo releases.
+  Pedal-up reselects the newest held mono key after mode/state changes.
 - Native ARP stop messages clear held keys/pedal but restart an empty clock and
   consume its shared draw. Absent-key Note Off can also restart that clock; keep
   upstream LFO key/pedal tracking consistent with the ARP keyboard. Deterministic

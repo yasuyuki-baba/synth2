@@ -45,6 +45,7 @@ namespace synth2
     protected:
         ::synth2::audio::Voice* findFreeVoice (::synth2::audio::Sound*, int, int, bool) const override;
     private:
+        bool resumeHeldMonoKey(int channel,SynthVoice&);
         bool preservingNotesForRateChange {};
         bool dispatchingArpeggiator {};
         void* activeOutputContext=nullptr;
