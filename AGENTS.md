@@ -194,6 +194,9 @@
   balance factor. Do not restore
   per-voice global pan offsets or re-project using a later host-block depth.
 - Keep logical Voice lifecycle separate from physical VCA/filter/FM history.
+  Snapshot physical VCA activity before each span: render its final release span
+  completely, then freeze idle core clocks/filter history and detach freed lanes
+  from surviving logical notes. Preserve global setter updates and Unison layout.
   Reuse strategies inspect physical VCA activity; logical state alone must not
   reset or skip receiver histories. Preserve pending-transition consumption points.
   Same-timestamp legato Off/On replacements, including ARP gate and keyboard

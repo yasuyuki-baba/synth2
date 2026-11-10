@@ -208,11 +208,19 @@ namespace synth2
                 renderNextBlock (outputBuffer,startSample+offset,std::min (256,numSamples-offset));
             return;
         }
-        // Envelope retirement and logical note state keep separate lifetimes.
+        // Snapshot physical activity before VCA advancement. A core finishing
+        // its release still renders this complete span; an already idle core
+        // keeps its oscillator, filter and receiver history until reuse.
+        // Logical note activity and requested Unison layout remain separate.
         const bool bypassEnv = offline::bypassEnvelopes();
         bool amplitudeActive = false;
-        for (int v = 0; v < activeCoreCount(); ++v)
-            if (cores[v] != nullptr) amplitudeActive = amplitudeActive || cores[v]->amplitude.isActive();
+        std::array<bool,8> renderCore {};
+        for(int v=0;v<activeCoreCount();++v)if(cores[v]!=nullptr)
+        {
+            const bool active=cores[v]->amplitude.isActive();
+            amplitudeActive=amplitudeActive || active;
+            renderCore[v]=bypassEnv || active;
+        }
         if (!bypassEnv && !amplitudeActive)
         {
             retireNote();
@@ -234,17 +242,17 @@ namespace synth2
         std::array<dsp::VoiceSpanBuffer,8> nativeModRemaining;
         // Preserve the native stage order across all cores. Child controllers
         // retain separate oscillator-envelope/glide/FM and filter partitions.
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::envelope(oscillatorControl,lfoView,cores[v]->modulationEnvelope,
                 numSamples,nativeModPitch[v],nativeModRemaining[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::glide(oscillatorControl,lfoView,cores[v]->portamento,
                 numSamples,nativeModRemaining[v],nativeGlidePitch[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::fm(oscillatorControl,lfoView,cores[v]->fm,
                 numSamples,nativeModPitch[v],nativeModRemaining[v],nativeFmDepth[v],
                 &cores[v]->coarse,&nativeCoarsePitch[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::FilterControlRenderer::render(filterControl,lfoView,cores[v]->filterEnvelope,cores[v]->cutoff,
                 cores[v]->keyboardOffset,cores[v]->unisonOffset,numSamples,nativeCutoffIndices[v]);
 
@@ -255,7 +263,7 @@ namespace synth2
         const int gainOffset=!bypassEnv ? (((startSample-nativeWorkspaceOrigin)*2)&3) : 0;
         alignas(16) std::array<std::array<float,260>,8> amplitudeGains;
         if (!bypassEnv)
-            for (int v = 0; v < activeCoreCount(); ++v) if (cores[v] != nullptr)
+            for (int v = 0; v < activeCoreCount(); ++v) if (renderCore[v])
             {
                 // Projected signals and generated ARP events retain gain progress.
                 // Ordinary receiver spans keep their actual dispatch length.
@@ -276,7 +284,7 @@ namespace synth2
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
         std::array<float,8> coarseFrequencies;
-        for(int v=0;v<activeCoreCount();++v)if(cores[v]!=nullptr)
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             coreTuning[v]=tuning.prepareCore(unison.pitchCents[layoutSlot(v)]);
 
         for (int v = 0; v < activeCoreCount(); ++v) {
@@ -313,7 +321,7 @@ namespace synth2
 
             for (int v = 0; v < activeCoreCount(); ++v)
             {
-                if (cores[v] == nullptr) continue;
+                if (!renderCore[v]) continue;
                 const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
 
                 auto coreFrequency=coreTuning[v];
@@ -402,11 +410,13 @@ namespace synth2
         }
 
     }
-        for (auto* core : cores) if (core != nullptr) core->filter.finishNativeBlock();
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])cores[v]->filter.finishNativeBlock();
         if (!bypassEnv)
         {
             const int count = activeCoreCount();
-            for (int v = 0; v < count; ++v) if (cores[v] != nullptr && !cores[v]->amplitude.isActive())
+            const bool finished=std::all_of(cores.begin(),cores.begin()+count,
+                [](auto* core) {return core==nullptr || !core->amplitude.isActive();});
+            for(int v=0;v<count;++v)if(renderCore[v] && !cores[v]->amplitude.isActive())
             {
                 // Native VCO envelope history survives stealing while sounding,
                 // but the VCA's completed tail resets it before idle reuse.
@@ -418,8 +428,12 @@ namespace synth2
                     cores[v]->cutoff.settle();
                 }
                 pool.release(*this,*cores[v]);
+                // A surviving logical note must not keep a writable view of a
+                // freed lane that another note can claim. Retired whole notes
+                // retain their read-only inspection views as before.
+                if(!finished)cores[v]=nullptr;
             }
-            if (std::all_of(cores.begin(),cores.begin()+count,[](auto* core) { return core == nullptr || !core->amplitude.isActive(); })) retireNote();
+            if(finished)retireNote();
         }
 
     }

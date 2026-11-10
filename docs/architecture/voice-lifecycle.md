@@ -55,3 +55,12 @@ Fine republishes only when its resolved fine value changes; edits within its
 zero band remain neutral. The FM base setter invalidates its target and starts
 the full sample-rate/10 slew horizon. Do not replace these notifications with
 comparisons of the final mapped controls alone.
+
+Physical VCA activity at span entry determines which cores advance. A final
+release span completes oscillator/filter/receiver work before retiring its core;
+subsequent idle spans preserve those histories. A surviving logical note drops
+its writable view of each freed lane so another note can claim that lane once.
+Whole-note retirement retains its read-only inspection views. Global parameter
+notifications remain effective on idle cores, and the requested Unison layout
+does not shrink when individual lanes finish. Explicit offline envelope bypass
+keeps its declared rendering behavior.
