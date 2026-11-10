@@ -19,8 +19,10 @@ Random order consumes its shared draw; ordered modes do not draw random values.
 An absent-key Note Off can also restart that clock. Ordered and admitted random
 ARP retain empty-keyboard render boundaries at partial and full gate. Full gate
 has one boundary per period, including while existing voices are releasing.
-Preserve upstream LFO key/pedal tracking. Connected full-gate assignments retain
-the observed note-off/on ordering without releasing the core between assignments.
+Preserve upstream LFO key/pedal tracking. Same-timestamp legato Off/On replacements retain
+the sounding core through assignment, including partial/full ARP gates, bypass
+binding changes and intervening same-time ordinary controllers. An unmatched
+Note Off is flushed before audio advances; panic messages still take effect.
 Deterministic LFO waveforms do not by themselves invalidate the running ARP clock.
 
 Mono and poly modes share the 32-core physical pool. Unison consumes physical
@@ -50,7 +52,13 @@ ARP absolute sample positions use integer frame counters, independently of the
 Float32 sample-rate and tempo inputs. Very slow tempos saturate period/gate frame
 counts before conversion, and long-running clocks must retain sub-block offsets.
 
-Tempo and beat edits preserve the remaining phase of pending ARP notes and gates.
-Keep fractional pending-frame offsets as integer scheduling metadata through repeated interval changes; round
-only the emitted event position. These offsets must not narrow absolute clocks
-or permit events before the current input/render region.
+Tempo and beat edits rescale the elapsed integer cycle counter using Float32
+multiply/divide followed by integer truncation at each setter. Recompute gate
+boundaries from that counter and the current period/gate, including live gate
+edits that cross a previously queried boundary. Keep absolute clocks integer.
+Do not substitute fractional pending deadlines or a Double scheduling path.
+
+Ordered ARP selection retains the last keyboard key, octave and direction across
+held-key membership edits. All generated notes retain the first-key trigger
+velocity until the keyboard is reset. Bypass restores held keys in physical
+press order; enabling releases bypassed keys through ordinary note events.
