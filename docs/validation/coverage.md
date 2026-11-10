@@ -215,3 +215,13 @@ partition invariance, reset history and impulse endpoint properties.
 large callbacks and varied MIDI offsets, including positions around 256 frames.
 An explicit MIDI-region pair checks audio equality only when internal spans
 match; arbitrary callback partitions retain their documented DSP sensitivity.
+
+`PerformanceBehavior.LargerLegatoGroupAdmitsCoresWithoutRetriggeringContinuingCores`
+loads a generated larger Unison program through the actual bridge. It checks
+retained amplitude counters and filter tracking in continuing cores, new starts
+in added cores and advancing physical phases. It does not establish arbitrary
+program/state-transition audio equivalence.
+
+`PerformanceBehavior.ReturningFromMonoDoesNotResumeRelinquishedPolyphonicNotes`
+checks retained paused core words through mono/poly program loads and verifies
+that subsequent poly admission reuses the relinquished group.

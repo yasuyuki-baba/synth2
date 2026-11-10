@@ -120,7 +120,6 @@ namespace synth2
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
         int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
         bool renderedSignal {};
-        int filterMidiNote {60};
         int pitchBendOffset {};
         dsp::VoiceLifecycle lifecycle;
         float  level  { 0.0f };

@@ -302,7 +302,7 @@ namespace synth2
         const ::synth2::audio::ScopedValueSetter<void*> context(activeOutputContext,outputContext);
         const ::synth2::audio::ScopedValueSetter<OutputSink> sink(activeOutputSink,outputSink);
         renderedVoicesInRegion=false;
-        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->playMode!=0 ? std::max(params->polyphony,params->unisonVoices) : params->polyphony);
+        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->playMode!=0 ? params->unisonVoices : params->polyphony);
         const int voiceLimit = corePool != nullptr && params != nullptr && params->playMode == 0
             ? getNumVoices() : logicalVoiceLimit (params, getNumVoices());
         for (int i = voiceLimit; i < getNumVoices(); ++i)
