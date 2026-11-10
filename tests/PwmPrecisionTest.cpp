@@ -125,3 +125,28 @@ TEST(PwmPrecision, CommonReadPreservesIntegralOffsetsAndWrapsWithoutAdvancingPha
         EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
     }
 }
+
+TEST(PwmPrecision, WidthConversionIsIndependentOfPriorControlAndLifecycleEdits)
+{
+    using namespace synth2::dsp;
+    OscillatorSection oscillator;
+    oscillator.prepare({44100,64,2});
+    oscillator.resetPhase(.375);
+    // Repeated controls, base-only edits, modulation-only edits and reversions
+    // must all resolve the same fractional coordinates as a fresh conversion.
+    const std::array<std::array<double,2>,9> edits{{
+        {64.0/127.0,0},{64.0/127.0,0},{64.125/127.0,0},
+        {64.125/127.0,28.875},{64.125/127.0,-17.25},{65.5/127.0,-17.25},
+        {64.0/127.0,0},{0,-128},{1,128}}};
+    const auto phase=oscillator.readPhaseWords();
+    for(const auto& edit:edits)
+    {
+        const double expected=ModulationEnvelope::pulseWidthForDial(fractionalDial(edit[0]),edit[1]);
+        EXPECT_DOUBLE_EQ(oscillator.resolvePulseWidth(edit[0],edit[1]),expected);
+        EXPECT_EQ(oscillator.readPhaseWords(),phase);
+    }
+    oscillator.reset();oscillator.prepare({96000,128,2});
+    for(const auto& edit:edits)
+        EXPECT_DOUBLE_EQ(oscillator.resolvePulseWidth(edit[0],edit[1]),
+            ModulationEnvelope::pulseWidthForDial(fractionalDial(edit[0]),edit[1]));
+}

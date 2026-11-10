@@ -55,6 +55,11 @@ width edits use the same mapping as modulated width edits, preserving fractional
 base values instead of quantizing them back to a whole table bin. Ordinary and
 stack oscillators share PulseWidthRead interpolation for every offset; retain
 their existing phase lookup, gain normalization and lane summation rules.
+Repeated identical base-width/modulation coordinates may reuse their converted
+pulse offset; a change to either coordinate must refresh it without changing
+phase, receiver clocks or RNG state. Audio stays double. At 1x, do not initialize
+unused fine-frame accumulation buffers; higher factors clear their active lanes
+before summing the same per-core signals in the existing order.
 
 Preserve all-core envelope → glide → FM → filter control ordering. Within a sample,
 preserve oscillator → noise RNG → filter → VCA/pan ordering. Keep OSC2 coarse

@@ -288,7 +288,12 @@ namespace synth2
 
             double combinedL = 0.0;
             double combinedR = 0.0;
-            std::array<double,16> highLeft{},highRight{};
+            std::array<double,16> highLeft,highRight;
+            if(audioFactor>1)
+            {
+                std::fill_n(highLeft.data(),audioFactor,0.0);
+                std::fill_n(highRight.data(),audioFactor,0.0);
+            }
 
             for (int v = 0; v < activeCoreCount(); ++v)
             {

@@ -48,7 +48,7 @@ namespace synth2::dsp
             if(config.pulseEnvelope)pulse+=input.envelope;
             const double width=config.pulseReceiver || config.pulseEnvelope
                 ? config.pulseWidth : input.pulseWidth;
-            const double bins=ModulationEnvelope::pulseWidthForDial(fractionalDial(width),pulse);
+            const double bins=oscillator.resolvePulseWidth(width,pulse);
             if(frame) {
                 oscillator.processFrame(frame,factor,firstFrequency,secondFrequency,input.pulseWidth,input.mix,
                     fm,input.sync,input.ring,input.subGain,config.subWave,config.subOctave,bank,
