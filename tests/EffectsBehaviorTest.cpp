@@ -230,3 +230,32 @@ TEST(EffectsBehavior, LiveSubIntegerWetEditsAreNotSuppressedByTheParameterCache)
     held->process(b[0].data(),b[1].data(),2048);
     finite(a);finite(b);EXPECT_NE(a,b);
 }
+
+TEST(EffectsBehavior, PhaserSweepFactorsKeepTheirWordsWhenDirectionChanges)
+{
+    synth2::dsp::Phaser phaser;
+    phaser.prepare(44100);phaser.setDials(96,127,64,2);
+    std::array<double,64> left{},right{};
+    int changes=0;bool rising=phaser.snapshot()[6]>1;
+    for(int block=0;block<500;++block)
+    {
+        phaser.process(left.data(),right.data(),64);
+        const double factor=phaser.snapshot()[6];
+        EXPECT_EQ(factor,static_cast<double>(static_cast<float>(factor)));
+        const bool next=factor>1;
+        changes+=next!=rising;rising=next;
+    }
+    EXPECT_GT(changes,2);
+}
+
+TEST(EffectsBehavior, RingFrequencyKnotsRetainTheirPhaseStepWords)
+{
+    synth2::dsp::MultiEffect effect;
+    effect.prepare(44100);
+    for(int dial:{0,32,64,96,120,127})
+    {
+        effect.setDials(dial,64,127);
+        const double step=effect.snapshot()[5];
+        EXPECT_EQ(step,static_cast<double>(static_cast<float>(step)));
+    }
+}

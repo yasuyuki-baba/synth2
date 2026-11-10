@@ -156,8 +156,13 @@ anchors. All Chorus time/depth/rate settings use common real tap coordinates and
 modulation extent, including mirrored taps. Integer control knots retain their
 compatible modulation amplitudes; sample processing does not quantize tap positions
 to 16 fractional bits. Integer settings retain the native oscillator recurrence,
-phase update and retirement timing;
-buffer indices and sampled event positions remain discrete.
+phase update and retirement timing. The Chorus recursive modulation clock retains
+its FP32 phase/coefficient words: its block reset comparison depends on those words.
+Audio delay lines, tap interpolation and feedback signal histories remain double.
+Ring frequency/phase-step knots and Phaser sweep-factor knots retain compatible
+word definitions before fractional interpolation. Phaser direction changes select
+the opposite compatible factor rather than inverting a widened factor.
+Buffer indices and sampled event positions remain discrete.
 
 Changing fractional controls intentionally changes audio. Native integer-point
 preservation and useful fractional resolution are separate checks. Do not infer
@@ -270,8 +275,8 @@ boundary. The internal audio graph uses double sample/state storage through wave
 physical filters, VCA/pan, voice accumulation, oversampling and output effects.
 The bridge retains double scratch storage and applies transition gains before its
 single conversion to the requested host sample type. Float source parameters,
-calibrated lookup values, compatible tuning/event knots and 32-bit diagnostic words
-are explicit boundaries;
+calibrated lookup values, compatible tuning/event knots, modulation clock words
+and 32-bit diagnostic words are explicit boundaries;
 they must not become intermediate audio buffers.
 Oscillator phase increments are cached by effective frequency and invalidated by
 sample-rate changes. Their rate calculation uses double precision, retaining the

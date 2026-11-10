@@ -42,7 +42,7 @@ namespace synth2::dsp
             delayFrames=static_cast<int>(timeSeconds(time)*static_cast<float>(rate));
             depthFrames=static_cast<int>(static_cast<float>(delayFrames)*depthRatio(depth));
             period=static_cast<int>(static_cast<float>(rate)/rateHz(speed));
-            coefficient=static_cast<double>(std::sin(static_cast<double>(rateHz(speed))*pi/static_cast<double>(rate))*2.0);
+            coefficient=static_cast<float>(std::sin(static_cast<double>(rateHz(speed))*pi/static_cast<double>(rate))*2.0);
             amplitudeScale=period>=2.0*depthFrames*pi ? 1.0 : static_cast<double>(period/(2.0*depthFrames*pi));
             depthExtent=static_cast<double>(depthFrames);
             updateContinuousCoordinates();
@@ -53,7 +53,7 @@ namespace synth2::dsp
         }
         void reset() noexcept
         {
-            ring.fill(0);read=0;write=delayFrames&mask;phaseSin=0;phaseCos=.9999;silentFrames=tailFrames+1;
+            ring.fill(0);read=0;write=delayFrames&mask;phaseSin=0;phaseCos=initialCosine;silentFrames=tailFrames+1;
         }
         void setTimeDial(double dial) noexcept
         {
@@ -74,7 +74,7 @@ namespace synth2::dsp
             rateDial=std::clamp(dial,0.0,127.0);
             periodExtent=interpolateFrames(rateDial,[&](int value){return static_cast<int>(static_cast<float>(sampleRate)/rateHz(value));});
             period=static_cast<int>(periodExtent);
-            coefficient=interpolateDial(rateDial,[&](int value){return static_cast<double>(std::sin(static_cast<double>(rateHz(value))*pi/static_cast<double>(sampleRate))*2.0);});
+            coefficient=interpolateDial(rateDial,[&](int value){return static_cast<float>(std::sin(static_cast<double>(rateHz(value))*pi/static_cast<double>(sampleRate))*2.0);});
             updateScale();updateContinuousCoordinates();
         }
         void setLevelDial(double dial) noexcept {wet=std::clamp(dial,0.0,127.0)*(1.0/127.0);}
@@ -130,11 +130,12 @@ namespace synth2::dsp
                 ring[2*at]=send ? dry[2*i]*wet+send[2*i] : dry[2*i]*wet;
                 ring[2*at+1]=send ? dry[2*i+1]*wet+send[2*i+1] : dry[2*i+1]*wet;
             }
-            if(phaseCos>.9999){phaseSin=0;phaseCos=.9999;}
+            if(phaseCos>initialCosine){phaseSin=0;phaseCos=initialCosine;}
             for(int i=0;i<frames;++i)
             {
-                phaseSin-=coefficient*phaseCos;
-                phaseCos+=phaseSin*coefficient;
+                const float clockCoefficient=static_cast<float>(coefficient);
+                phaseSin-=clockCoefficient*phaseCos;
+                phaseCos+=phaseSin*clockCoefficient;
                 const double base=read-(delayExtent-delayFrames);
                 const double leftPosition=base+phaseExtent*phaseSin;
                 const double rightPosition=type==1 ? leftPosition : base+phaseExtent*phaseCos;
@@ -187,11 +188,11 @@ namespace synth2::dsp
             for(int t=0;t<2;++t)for(int d=0;d<2;++d)for(int r=0;r<2;++r)
             {
                 const int time=std::min(127,t0+t),depth=std::min(127,d0+d),speed=std::min(127,r0+r);
-                const int delay=static_cast<int>(timeSeconds(time)*static_cast<double>(sampleRate));
-                const int extent=static_cast<int>(static_cast<double>(delay)*depthRatio(depth));
-                const int cycle=static_cast<int>(static_cast<double>(sampleRate)/rateHz(speed));
-                const double scale=cycle>=2.0*extent*pi ? 1.0 : static_cast<double>(cycle/(2.0*extent*pi));
-                const int amplitude=static_cast<int>(static_cast<double>(extent)*scale);
+                const int delay=static_cast<int>(timeSeconds(time)*static_cast<float>(sampleRate));
+                const int extent=static_cast<int>(static_cast<float>(delay)*depthRatio(depth));
+                const int cycle=static_cast<int>(static_cast<float>(sampleRate)/rateHz(speed));
+                const float scale=cycle>=2.0*extent*pi ? 1.0f : static_cast<float>(cycle/(2.0*extent*pi));
+                const int amplitude=static_cast<int>(static_cast<float>(extent)*scale);
                 const double weight=(t ? fractions[0] : 1.0-fractions[0])*(d ? fractions[1] : 1.0-fractions[1])*(r ? fractions[2] : 1.0-fractions[2]);
                 phaseExtent+=amplitude*weight;
             }
@@ -209,6 +210,7 @@ namespace synth2::dsp
             const double extent=depthExtent;
             amplitudeScale=period>=2.0*extent*pi ? 1.0 : static_cast<double>(period/(2.0*extent*pi));
         }
+        static constexpr float initialCosine=.9999f;
         static constexpr int mask=8191;
         static constexpr double pi=3.14159265358979323846;
         std::array<double,16384> ring {};
@@ -217,6 +219,9 @@ namespace synth2::dsp
         double delayExtent{},periodExtent{},phaseExtent{};
         int tailFrames{1},silentFrames{99999999};
         bool enabled{true};
-        double coefficient{},amplitudeScale{1},feedbackGain{},wet{},phaseSin{},phaseCos{.9999};
+        double coefficient{},amplitudeScale{1},feedbackGain{},wet{};
+        // The recursive modulation clock and its block reset compare native
+        // phase words. They are not audio samples or delay-line storage.
+        float phaseSin{},phaseCos{initialCosine};
     };
 }

@@ -67,3 +67,24 @@ TEST(ChorusPath, ZeroDepthKeepsExactIntegralAndFractionalImpulseDelays)
         }
     }
 }
+
+TEST(ChorusPath, ModulationPhaseWordsDoNotNarrowTheAudioRing)
+{
+    auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
+    ASSERT_TRUE(chorus->configure(44100,2,64,0,50,64,127));
+    chorus->setRateDial(50.125);
+    chorus->reset();
+    const double input=1.0+std::ldexp(1.0,-40);
+    std::array<double,128> audio{};
+    audio[0]=input;
+    chorus->process(audio.data(),nullptr,64);
+    EXPECT_EQ(audio[0],input);
+    EXPECT_NE(audio[0],static_cast<double>(static_cast<float>(audio[0])));
+    EXPECT_EQ(chorus->getPhaseSin(),static_cast<double>(static_cast<float>(chorus->getPhaseSin())));
+    EXPECT_EQ(chorus->getPhaseCos(),static_cast<double>(static_cast<float>(chorus->getPhaseCos())));
+    for(int block=1;block<=10;++block)
+    {
+        audio.fill(0);chorus->process(audio.data(),nullptr,64);
+        if(block==10)EXPECT_EQ(audio[2*(666-640)],input);
+    }
+}
