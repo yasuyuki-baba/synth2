@@ -49,3 +49,8 @@ controller behavior. See [voice lifecycle](../architecture/voice-lifecycle.md) f
 ARP absolute sample positions use integer frame counters, independently of the
 Float32 sample-rate and tempo inputs. Very slow tempos saturate period/gate frame
 counts before conversion, and long-running clocks must retain sub-block offsets.
+
+Tempo and beat edits preserve the remaining phase of pending ARP notes and gates.
+Keep fractional pending-frame offsets as integer scheduling metadata through repeated interval changes; round
+only the emitted event position. These offsets must not narrow absolute clocks
+or permit events before the current input/render region.

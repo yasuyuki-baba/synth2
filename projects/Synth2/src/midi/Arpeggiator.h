@@ -7,6 +7,7 @@
 #include <array>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <utility>
 
@@ -73,8 +74,8 @@ namespace synth2::midi
             if (interval > 0 && interval != nextInterval)
                 for (auto& ch : channels)
                 {
-                    if(ch.next!=infinity)ch.next=begin+rescaledFrames(ch.next-begin,nextInterval,interval);
-                    if(ch.off!=infinity)ch.off=begin+rescaledFrames(ch.off-begin,nextInterval,interval);
+                    if(ch.next!=infinity)rescale(ch.next,ch.nextFraction,begin,nextInterval,interval);
+                    if(ch.off!=infinity)rescale(ch.off,ch.offFraction,begin,nextInterval,interval);
                 }
             if(interval != nextInterval || idleGate != params.gate)
                 for(auto& ch:channels)ch.idleNext=infinity;
@@ -90,7 +91,7 @@ namespace synth2::midi
                 {
                     auto& ch = channels[c];
                     stop (ch, c, begin, emit);
-                    ch.next = infinity;
+                    ch.next = infinity; ch.nextFraction=0;
                     ch.idleNext = infinity;
                     ch.step = 0;
                     if (params.enabled)
@@ -101,7 +102,7 @@ namespace synth2::midi
                         if (hasNotes (ch))
                         {
                             emit (::synth2::audio::MidiMessage::allSoundOff (c + 1), begin);
-                            ch.next = begin;
+                            ch.next = begin; ch.nextFraction=0;
                         }
                         else if(randomTiming && c==0)
                         {
@@ -196,14 +197,33 @@ namespace synth2::midi
 
     private:
         static constexpr int64_t infinity=std::numeric_limits<int64_t>::max();
-        static int64_t rescaledFrames(int64_t remaining,int next,int previous) noexcept
-        {return (std::max<int64_t>(0,remaining)*next+previous-1)/previous;}
+        // Deadlines retain 32 subframe bits as integer scheduling metadata.
+        // `fraction` is the offset below the ceiling frame, not a DSP signal.
+        // Keeping it through period edits avoids rounding the remaining phase
+        // to whole samples or converting a long-running clock to Float32.
+        static void rescale(int64_t& frame,uint32_t& fraction,int64_t begin,int next,int previous) noexcept
+        {
+            if(frame<=begin){frame=begin;fraction=0;return;}
+            constexpr int64_t subframes=int64_t{1}<<32;
+            const int64_t numerator=(frame-begin)*next;
+            const int64_t whole=numerator/previous;
+            const int64_t remainder=numerator%previous;
+            const int64_t tail=remainder*subframes-static_cast<int64_t>(fraction)*next;
+            // Floor at subframe resolution so quantization cannot move an
+            // exactly integral deadline into the following sample.
+            int64_t units=tail/previous;
+            if(tail%previous<0)--units;
+            const int64_t carry=units/subframes+(units%subframes>0);
+            frame=begin+whole+carry;
+            fraction=static_cast<uint32_t>(carry*subframes-units);
+        }
         struct Channel
         {
             std::array<float, 128> velocity {};
             std::array<bool, 128> down {};
             bool sustain = false;
             int64_t next = infinity, off = infinity, idleNext = infinity;
+            uint32_t nextFraction=0,offFraction=0;
             bool idleGateEnd = true;
             uint64_t step = 0;
             int sounding = -1;
@@ -219,7 +239,7 @@ namespace synth2::midi
         {
             if (ch.sounding >= 0) emit (::synth2::audio::MidiMessage::noteOff (c + 1, ch.sounding), time);
             ch.sounding = -1;
-            ch.off = infinity;
+            ch.off = infinity; ch.offFraction=0;
         }
         template <typename Emit>
         void handle (const ::synth2::audio::MidiMessage& msg, int64_t time, Emit& emit)
@@ -233,7 +253,7 @@ namespace synth2::midi
                 const bool empty = ! hasNotes (ch);
                 ch.down[msg.getNoteNumber()] = true;
                 ch.velocity[msg.getNoteNumber()] = msg.getFloatVelocity();
-                if (enabled && empty) { ch.next = time; ch.idleNext=infinity; ch.step = 0; ch.triggerVelocity=msg.getFloatVelocity(); }
+                if (enabled && empty) { ch.next = time; ch.nextFraction=0; ch.idleNext=infinity; ch.step = 0; ch.triggerVelocity=msg.getFloatVelocity(); }
             }
             else if (msg.isNoteOff())
             {
@@ -261,7 +281,7 @@ namespace synth2::midi
             if (enabled && ! hasNotes (ch))
             {
                 stop (ch, c, time, emit);
-                ch.next = infinity;
+                ch.next = infinity; ch.nextFraction=0;
                 // Native last-key release resets the arp counter but leaves
                 // the enabled clock running while voice/effect tails decay.
                 if((heldBefore || msg.isNoteOff() || msg.isSustainPedalOff()) && idleTiming)
@@ -285,7 +305,7 @@ namespace synth2::midi
             for (int octave = 0; octave <= std::clamp (p.range, 0, 3); ++octave)
                 for (int key = 0; key + octave * 12 < 128; ++key)
                     if (ch.velocity[key] > 0) candidates[count++] = {key + octave * 12, ch.velocity[key]};
-            if (count == 0) { ch.next = infinity; stop (ch, c, time, emit); return; }
+            if (count == 0) { ch.next = infinity; ch.nextFraction=0; stop (ch, c, time, emit); return; }
             if (p.gate <= 0)
             {
                 stop (ch, c, time, emit);
@@ -324,7 +344,7 @@ namespace synth2::midi
             if(note>127)
             {
                 stop(ch,c,time,emit);
-                ch.off=ch.next+std::max(1,gateSamples);
+                ch.off=ch.next+std::max(1,gateSamples);ch.offFraction=ch.nextFraction;
                 ch.next+=interval;++ch.step;return;
             }
             // At full gate overlap different notes so mono/legato can glide.
@@ -337,6 +357,7 @@ namespace synth2::midi
             if (previous >= 0 && previous != note && !randomTiming) emit (::synth2::audio::MidiMessage::noteOff (c + 1, previous), time);
             ch.sounding = note;
             ch.off = p.gate >= 127 ? infinity : ch.next + std::max (1, gateSamples);
+            ch.offFraction=p.gate>=127 ? 0 : ch.nextFraction;
             ch.next += interval;
             ++ch.step;
         }
