@@ -332,7 +332,8 @@ namespace synth2::midi
                 ch.heldOrder[static_cast<size_t>(ch.heldCount++)]=static_cast<uint8_t>(msg.getNoteNumber());
                 ch.down[msg.getNoteNumber()] = true;
                 ch.velocity[msg.getNoteNumber()] = msg.getFloatVelocity();
-                if (enabled && empty) { ch.next = time; ch.idleNext=infinity; resetCursor(ch);ch.descending=arpType==3; ch.triggerVelocity=msg.getFloatVelocity(); }
+                if(empty)ch.triggerVelocity=msg.getFloatVelocity();
+                if (enabled && empty) { ch.next = time; ch.idleNext=infinity; resetCursor(ch);ch.descending=arpType==3; }
             }
             else if (msg.isNoteOff())
             {
