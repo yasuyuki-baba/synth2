@@ -7,6 +7,7 @@
 #include "host/ProcessorBridge.h"
 #include "editor/ParameterPresentation.h"
 #include <array>
+#include <utility>
 
 using namespace synth2::editor;
 
@@ -173,4 +174,24 @@ TEST(EditorResize, ParentDimensionsScaleTheWholeCanvasWithoutResettingForDpiOrKe
     EXPECT_FALSE(editorResizeScale(0,840,1,1,false,false));
     EXPECT_FALSE(editorResizeScale(1280,0,1,1,false,false));
     EXPECT_FALSE(editorResizeScale(1280,840,0,1,false,false));
+}
+
+TEST(EditorResize, ParentOwnedBoundsKeepTheEffectsAndFooterVisible)
+{
+    // A wide tiled window must fit its height, rather than request a taller
+    // parent that the window manager can refuse (issue #21).
+    for (const bool keyboard : {false,true}) {
+        const float logicalHeight=keyboard ? 936.f : 840.f;
+        for (const float dpi : {1.f,1.5f,2.f}) {
+            for (const auto bounds : {std::pair{1890,990},std::pair{900,1000}}) {
+                const int width=static_cast<int>(bounds.first*dpi);
+                const int height=static_cast<int>(bounds.second*dpi);
+                const float scale=*editorResizeScale(width,height,dpi,1.f,keyboard,false);
+                EXPECT_LE(1280.f*scale*dpi,width+.001f);
+                EXPECT_LE(logicalHeight*scale*dpi,height+.001f);
+                // Repeated WM notifications must not grow the requested canvas.
+                EXPECT_FLOAT_EQ(*editorResizeScale(width,height,dpi,scale,keyboard,false),scale);
+            }
+        }
+    }
 }

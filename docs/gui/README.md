@@ -31,9 +31,11 @@ Native drawing and review tools consume the shared typography policy.
 
 Window-frame resizing scales the complete logical canvas, including text and
 input hit areas, rather than enlarging an unscaled drawing area. The standalone
-window follows the dragged dimension and adjusts the other axis to retain the
-canvas aspect ratio. Plugin views fit uniformly within the host's supplied bounds
-without requesting a parent-window resize from that notification. The corner
+window on Windows/macOS follows the dragged dimension and adjusts the other axis
+to retain the canvas aspect ratio. Linux standalone windows and plugin views fit
+uniformly within the parent's supplied bounds without requesting a parent-window
+resize from that notification. This keeps the full canvas visible when a tiling
+window manager controls the Linux window size. The corner
 handle also scales the UI. Both paths use the same 0.5–4 scale limits and retain
 the scale when the software keyboard changes the logical height. Platform pixel
 scaling is accounted for separately; there is no zoom selector.
