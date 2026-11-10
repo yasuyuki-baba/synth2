@@ -666,3 +666,31 @@ TEST(BoundedPrecision, TempoKnotsKeepDiscretePeriodsAndFractionalBpm)
     EXPECT_DOUBLE_EQ(fractional.targetHz,first.targetHz+(last.targetHz-first.targetHz)*.125);
     EXPECT_NE(fractional.targetHz,static_cast<double>(static_cast<float>(fractional.targetHz)));
 }
+
+TEST(BoundedPrecision, PitchModulationPreservesSubFloatBaseFrequency)
+{
+    using synth2::dsp::ModulationEnvelope;
+    constexpr double delta=0x1p-20;
+    const double frequency=440.0+delta;
+    ASSERT_EQ(static_cast<float>(frequency),440.0f);
+    EXPECT_DOUBLE_EQ(ModulationEnvelope::pitchFrequency(frequency,128),880.0+delta*2);
+    EXPECT_DOUBLE_EQ(ModulationEnvelope::pitchFrequency(frequency,-128),220.0+delta*.5);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(440.0,128),880.0);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(440.0,-128),220.0);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(22000.0+delta,128),22000.0);
+}
+
+TEST(BoundedPrecision, FractionalDurationsDoNotSnapToTheNextFrameEarly)
+{
+    using synth2::dsp::ReleaseRamp;
+    constexpr float anchor=.01f;
+    const double lower=std::nextafter(anchor,0.0f);
+    const double edited=lower+(static_cast<double>(anchor)-lower)*.75;
+    ASSERT_EQ(static_cast<float>(edited),anchor);
+    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100),441);
+    EXPECT_EQ(ReleaseRamp::durationFrames(edited,44100),440);
+    const double rate=44100.0-0x1p-10;
+    ASSERT_EQ(static_cast<float>(rate),44100.f);
+    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,rate),440);
+    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100),441);
+}
