@@ -101,13 +101,19 @@ namespace synth2::dsp
             const int t0=static_cast<int>(time),t1=std::min(127,t0+1);
             const int s0=static_cast<int>(spread),s1=std::min(127,s0+1);
             auto anchor=[&](int t,int s){
-                const int nominal=static_cast<int>(static_cast<float>(sampleRate)*EffectControls::delaySeconds(t,static_cast<float>(bpm)));
-                const int aligned=nominal-nominal%4;
                 const float offset=EffectControls::spreadSeconds(s);
-                const int l=aligned+(offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0);
-                const int r=aligned+(offset<0 ? static_cast<int>(static_cast<float>(sampleRate)*-offset) : 0);
+                const int left=offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0;
+                const int right=offset<0 ? static_cast<int>(static_cast<float>(sampleRate)*-offset) : 0;
                 const int minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
-                return std::array<double,2>{static_cast<double>(std::clamp(l,minimum,131072-256)),static_cast<double>(std::clamp(r,minimum,131072-256))};
+                const auto frames=[&](int extra) {
+                    return compatibleFloatCurve(bpm,[&](float word) {
+                        const float seconds=static_cast<float>(EffectControls::delaySeconds(t,word));
+                        const int nominal=static_cast<int>(static_cast<float>(sampleRate)*seconds);
+                        const int aligned=nominal-nominal%4;
+                        return std::clamp(aligned+extra,minimum,131072-256);
+                    });
+                };
+                return std::array<double,2>{frames(left),frames(right)};
             };
             const auto a=anchor(t0,s0),b=anchor(t0,s1),c=anchor(t1,s0),d=anchor(t1,s1);
             std::array<double,2> result{};

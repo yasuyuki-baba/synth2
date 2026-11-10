@@ -153,7 +153,10 @@ error policy; it is not assumed to preserve PCM bytes.
 Delay/Chorus continuous controls interpolate native control knots or extend their
 linear gains. Chorus depth retains sub-sample modulation extent between integer
 knots. Type/voice selections remain discrete. Tempo-delay time interpolates the
-existing timing knots; it does not introduce a new sync mode or beat table.
+existing timing knots; real BPM values retain sub-float coordinates through
+compatible tempo words. Interpolate aligned/clamped native frame anchors before
+tap processing, preserving their four-frame alignment at exact tempo words.
+This does not introduce a new sync mode or beat table.
 Delay time/spread interpolate the compatible frame targets after native alignment
 and clamping. Fractional targets retain double sample coordinates and use causal
 linear taps. Chorus base delay and period interpolate compatible sample-count
@@ -205,6 +208,10 @@ unison offsets. Voice count and semitone group transposition remain discrete.
 Fixed-phase unison Spread retains fractional dials until phase-accumulator
 conversion and uses the same deterministic local table, without shared draws.
 The fixed oscillator phase amount retains fractions for OSC2 and stack lanes.
+Keep its base/spread coordinates in double between compatible integer-dial phase
+words, then convert the interpolated phase coordinate to the accumulator word.
+Draw each local random value once before interpolation; evaluating neighboring
+control knots must not consume extra draws.
 Random/fixed selection retains its rounded native boundary; edits inside random
 mode do not request new draws. Stack Detune retains fractions through settings,
 spacing, lane-frequency calculation and cache keys. Rounded-zero stack selection
