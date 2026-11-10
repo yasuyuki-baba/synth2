@@ -188,10 +188,14 @@ cadence; do not infer block-size-independent LFO audio from gain-horizon tests.
 Physical ARP gain-fragment checks, receiver-knot/phase tests, history/draw-order
 checks, and end-to-end public playback coverage remain in the suite.
 
-`Arpeggiator.RepeatedTempoChangesPreservePendingNoteAndGatePhase` checks an
-analytic two-edit period sequence for ordered/random modes, partial/full gates,
-callback partitions and long-running absolute clocks.
+`Arpeggiator.RepeatedTempoChangesRescaleWholeSampleCounters` checks integer
+counter truncation across repeated edits, modes, gates, callback partitions and
+long-running absolute clocks. `Arpeggiator.PeriodEditsRecomputeGateFromRescaledCounter`
+checks gate reconstruction; `Arpeggiator.PeriodRescalingHandlesSaturatedSlowTempo`
+checks saturated slow-tempo transitions. Membership cursor, first-key velocity,
+held-key press order, non-panic bypass and live gate edits have dedicated
+`ArpeggiatorBehaviorTest.cpp` properties.
 
-`Arpeggiator.PeriodEditsKeepExactIntegerDeadlinesOnTheirSample` checks rational
-phase arithmetic at integral deadlines. `Arpeggiator.PeriodRescalingHandlesSaturatedSlowTempo`
-checks transitions to and from saturated slow-tempo periods.
+`PerformanceBehavior.SameTimeLegatoReplacementRetainsPhysicalAmplitudePhase`
+checks the actual bridge's physical VCA phase/level/counter through a same-time
+Off/controller/On replacement against the same partition without replacement.

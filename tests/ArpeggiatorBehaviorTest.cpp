@@ -232,7 +232,7 @@ TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
     for(const auto& event:on)EXPECT_EQ(std::get<3>(event),31);
 }
 
-TEST(Arpeggiator, RepeatedTempoChangesPreservePendingNoteAndGatePhase)
+TEST(Arpeggiator, RepeatedTempoChangesRescaleWholeSampleCounters)
 {
     for(int type:{1,2,3,4})for(int gate:{83,127})for(int block:{1,17,64,127})
         for(int warmup:{0,1<<25})
@@ -257,31 +257,30 @@ TEST(Arpeggiator, RepeatedTempoChangesPreservePendingNoteAndGatePhase)
                 position+=count;remaining-=count;
             }
         };
-        // Period250 becomes166 at100, then250 at120. The unrounded
-        // deadlines after the second edit are152.879518... and239.879518....
-        // Rounding only for emission gives Off153 and On240, not154/241.
+        // Integer age100/period250 rescales to66/166, then age86/166
+        // rescales to129/250. Gate163 is34 frames away; the next period
+        // is121 frames away. Keep these counter truncations at each edit.
         segment(100,120);segment(20,180);segment(200,120);
         const auto on=notes(events),off=notes(events,false);
         ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
-        EXPECT_EQ(std::get<0>(on[0]),0);EXPECT_EQ(std::get<0>(on[1]),240);
-        EXPECT_EQ(std::get<0>(off[0]),gate==83 ? 153 : 240);
+        EXPECT_EQ(std::get<0>(on[0]),0);EXPECT_EQ(std::get<0>(on[1]),241);
+        EXPECT_EQ(std::get<0>(off[0]),gate==83 ? 154 : 241);
     }
 }
 
-TEST(Arpeggiator, PeriodEditsKeepExactIntegerDeadlinesOnTheirSample)
+TEST(Arpeggiator, PeriodEditsRecomputeGateFromRescaledCounter)
 {
-    for(int firstEdit:{1,16,100})for(int wait:{1,20})
+    for(int firstEdit:{16,100})for(int wait:{1,20})
         for(int firstTempo:{150,180,300})for(int secondTempo:{120,240})
     {
         SCOPED_TRACE(::testing::Message()<<firstEdit<<" "<<wait<<" "<<firstTempo<<" "<<secondTempo);
         const int secondEdit=firstEdit+wait;
         // At 1 kHz/beat11, the native integer period is floor(30000/BPM).
         const int firstPeriod=30000/firstTempo,secondPeriod=30000/secondTempo;
-        auto deadline=[&](int original){
-            const int64_t denominator=250LL*firstPeriod;
-            const int64_t numerator=((original-firstEdit)*static_cast<int64_t>(firstPeriod)-wait*250LL)*secondPeriod;
-            return secondEdit+static_cast<int>((numerator+denominator-1)/denominator);
-        };
+        const int firstCounter=firstEdit*firstPeriod/250;
+        const int secondCounter=(firstCounter+wait)*secondPeriod/firstPeriod;
+        const int nextNote=secondEdit+secondPeriod-secondCounter;
+        const int nextGate=secondEdit+(secondPeriod*83/127)-secondCounter;
         synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
         auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=83;
         synth2::audio::MidiBuffer empty;auto input=held({60});
@@ -289,11 +288,11 @@ TEST(Arpeggiator, PeriodEditsKeepExactIntegerDeadlinesOnTheirSample)
         auto sink=[&](const auto& message,int frame){capture(events,message,base+frame);};
         arp.process(input,0,firstEdit,settings,120,sink);
         base=firstEdit;arp.process(empty,0,wait,settings,static_cast<float>(firstTempo),sink);
-        base=secondEdit;arp.process(empty,0,deadline(250)-base+1,settings,static_cast<float>(secondTempo),sink);
+        base=secondEdit;arp.process(empty,0,nextNote-base+1,settings,static_cast<float>(secondTempo),sink);
         const auto on=notes(events),off=notes(events,false);
         ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
-        EXPECT_EQ(std::get<0>(on[1]),deadline(250));
-        EXPECT_EQ(std::get<0>(off[0]),deadline(163));
+        EXPECT_EQ(std::get<0>(on[1]),nextNote);
+        EXPECT_EQ(std::get<0>(off[0]),nextGate);
     }
 }
 
@@ -310,4 +309,47 @@ TEST(Arpeggiator, PeriodRescalingHandlesSaturatedSlowTempo)
         arp.process(empty,0,64,settings,1e-40f,sink);
         arp.process(empty,0,64,settings,120,sink);
     }
+}
+
+TEST(Arpeggiator, OrderedCursorFollowsKeysAcrossMembershipEdits)
+{
+    using synth2::audio::MidiMessage;
+    auto settings=defaults();settings.type=2;settings.range=1;settings.beat=14;settings.gate=83;
+    auto input=held({60,64,67});
+    input.addEvent(MidiMessage::noteOff(1,64),400);
+    input.addEvent(MidiMessage::noteOn(1,65,static_cast<uint8_t>(31)),550);
+    const std::vector<int> expected{60,64,67,72,79,60};
+    for(int block:{1,17,64,127}){
+        const auto on=notes(render(settings,input,block,700));ASSERT_EQ(on.size(),expected.size());
+        for(size_t i=0;i<on.size();++i){EXPECT_EQ(std::get<2>(on[i]),expected[i]);EXPECT_EQ(std::get<3>(on[i]),100);}
+    }
+}
+
+TEST(Arpeggiator, BypassRestoresHeldKeysInPressOrderWithoutPanic)
+{
+    using synth2::audio::MidiMessage;
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+    auto settings=defaults();settings.beat=11;settings.gate=83;
+    auto input=held({60,64});input.addEvent(MidiMessage::noteOn(1,60,static_cast<uint8_t>(91)),10);
+    arp.process(input,0,50,settings,120,[](const auto&,int){});
+    settings.enabled=false;synth2::audio::MidiBuffer empty;Events events;
+    arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+    const auto on=notes(events);ASSERT_EQ(on.size(),2u);
+    EXPECT_EQ(std::get<2>(on[0]),64);EXPECT_EQ(std::get<2>(on[1]),60);
+    settings.enabled=true;events.clear();
+    arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+    for(const auto& event:events)EXPECT_FALSE(std::get<1>(event)==0xb0 && std::get<2>(event)==120);
+}
+
+TEST(Arpeggiator, GateEditsQueryTheCurrentCycleEvenAfterAMissedGate)
+{
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+    auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=83;
+    auto input=held({60});synth2::audio::MidiBuffer empty;Events events;int base=0;
+    auto sink=[&](const auto& msg,int frame){capture(events,msg,base+frame);};
+    arp.process(input,0,100,settings,120,sink);
+    settings.gate=40;base=100;arp.process(empty,0,100,settings,120,sink);
+    settings.gate=110;base=200;arp.process(empty,0,100,settings,120,sink);
+    const auto off=notes(events,false);ASSERT_EQ(off.size(),1u);EXPECT_EQ(std::get<0>(off[0]),216);
+    const auto on=notes(events);ASSERT_EQ(on.size(),2u);EXPECT_EQ(std::get<0>(on[1]),250);
 }

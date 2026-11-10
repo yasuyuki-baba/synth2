@@ -311,18 +311,18 @@ namespace synth2
         int cursor = startSample;
         nativeWorkspaceOrigin=startSample;
         auto inputBoundary=midi.findNextSamplePosition(startSample);
-        std::optional<::synth2::audio::MidiMessage> pendingArpOff;
-        int pendingArpPosition=0;
-        const auto flushArpOff=[&] {
-            if(!pendingArpOff)return;
+        std::optional<::synth2::audio::MidiMessage> pendingLegatoOff;
+        int pendingLegatoPosition=0;
+        const auto flushLegatoOff=[&] {
+            if(!pendingLegatoOff)return;
             const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
-            handleMidiEvent(*pendingArpOff);pendingArpOff.reset();
+            handleMidiEvent(*pendingLegatoOff);pendingLegatoOff.reset();
         };
         // Silent arp boundaries use the same render partition as MIDI events.
         const auto renderUntil=[&](int position) {
             if(position>cursor)
             {
-                flushArpOff();renderVoicesWithLfos(output,cursor,position-cursor,true);
+                flushLegatoOff();renderVoicesWithLfos(output,cursor,position-cursor,true);
             }
             cursor=position;
             // The native VST bridge reuses its aligned workspace for each
@@ -337,29 +337,26 @@ namespace synth2
         {
             renderUntil(position);
             const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
-            if(pendingArpOff)
+            if(pendingLegatoOff)
             {
-                if(message.isNoteOn() && position==pendingArpPosition
-                    && message.getChannel()==pendingArpOff->getChannel())
+                if(message.isNoteOn() && position==pendingLegatoPosition
+                    && message.getChannel()==pendingLegatoOff->getChannel())
                 {
-                    // A connected full-gate native legato step retains the
+                    // A same-time native legato replacement retains the
                     // sounding envelope even for a repeated pitch. Keep the
                     // held-note overlap until its new assignment is installed.
                     handleMidiEvent(message);
-                    if(message.getNoteNumber()!=pendingArpOff->getNoteNumber())handleMidiEvent(*pendingArpOff);
-                    pendingArpOff.reset();return;
+                    if(message.getNoteNumber()!=pendingLegatoOff->getNoteNumber())handleMidiEvent(*pendingLegatoOff);
+                    pendingLegatoOff.reset();return;
                 }
-                flushArpOff();
+                if(message.isNoteOnOrOff() || message.isAllNotesOff() || message.isAllSoundOff())flushLegatoOff();
             }
-            if(message.isNoteOff() && params!=nullptr
-                && params->playMode==2 && params->arpeggiator.enabled
-                // Random order uses the same connected full-gate assignment
-                // as ordered ARP; do not release its core between same-time events.
-                && ((params->arpeggiator.type>=1 && params->arpeggiator.type<=3)
-                    || params->arpeggiator.type==4)
-                && params->arpeggiator.gate==127)
+            // Native legato sees the final keyboard state at this timestamp.
+            // Keep same-time Off/On replacements connected across ordinary
+            // controller messages and ARP gate/keyboard binding changes.
+            if(message.isNoteOff() && params!=nullptr && params->playMode==2)
             {
-                pendingArpOff=message;pendingArpPosition=position;return;
+                pendingLegatoOff=message;pendingLegatoPosition=position;return;
             }
             handleMidiEvent (message);
         },renderUntil,[&](const ::synth2::audio::MidiMessage& message,int position) {
@@ -372,7 +369,7 @@ namespace synth2
                 renderUntil(position);trackLfoKey(message);
             }
         },nativeOmniInput);
-        flushArpOff();
+        flushLegatoOff();
         if (cursor < endSample) renderVoicesWithLfos (output, cursor, endSample - cursor);
     }
 

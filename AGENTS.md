@@ -180,8 +180,9 @@
 - Keep logical Voice lifecycle separate from physical VCA/filter/FM history.
   Reuse strategies inspect physical VCA activity; logical state alone must not
   reset or skip receiver histories. Preserve pending-transition consumption points.
-  Connected full-gate ARP assignments include observed random order: same-time
-  note-off/on pairs must not release the core between assignments.
+  Same-timestamp legato Off/On replacements, including ARP gate and keyboard
+  binding changes, retain the sounding core across assignment. Flush unmatched
+  releases before rendering and retain panic semantics.
 - OutputPipeline uses only MultiEffect/Phaser, Equalizer and EffectPair; keep
   removed experimental effect and alternate Delay/Chorus implementations out of
   the product. Unsupported wet rates bypass without an alternate algorithm.

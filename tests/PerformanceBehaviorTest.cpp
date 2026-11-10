@@ -290,3 +290,29 @@ TEST(PerformanceBehavior, DoubleHostOutputIsAnExactWideningOfFloatDsp)
         }
     }
 }
+
+TEST(PerformanceBehavior, SameTimeLegatoReplacementRetainsPhysicalAmplitudePhase)
+{
+    auto reference=hostvalidation::processor(),replacement=hostvalidation::processor();
+    for(auto* processor:{reference.get(),replacement.get()}){
+        hostvalidation::load(*processor,hostvalidation::patch(1,2)+"25,90\n26,100\n27,100\n");
+        processor->prepare(48000,64);
+        ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+        std::array<float,64> left{},right{};
+        for(int i=0;i<8;++i)ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    }
+    std::array<int,13> before{};
+    ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*reference,0,before));
+    ASSERT_GT(before[12],0);
+    ASSERT_TRUE(reference->enqueueMidi(31,176,64,0));
+    ASSERT_TRUE(replacement->enqueueMidi(31,128,60,0));
+    ASSERT_TRUE(replacement->enqueueMidi(31,176,64,0));
+    ASSERT_TRUE(replacement->enqueueMidi(31,144,60,100));
+    std::array<float,64> left{},right{};
+    ASSERT_TRUE(reference->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(replacement->process(left.data(),right.data(),64,120));
+    std::array<int,13> expected{},actual{};
+    ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*reference,0,expected));
+    ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*replacement,0,actual));
+    EXPECT_EQ(actual[10],expected[10]);EXPECT_EQ(actual[11],expected[11]);EXPECT_EQ(actual[12],expected[12]);
+}
