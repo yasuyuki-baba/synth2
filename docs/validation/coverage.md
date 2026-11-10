@@ -234,3 +234,8 @@ the actual bridge; it does not establish unrestricted state-recall equivalence.
 `PerformanceBehavior.PedalUpReselectsTheNewestHeldKeyAfterPolyToMonoRecall`
 checks the physical pitch after pedal-up when a newer held key was admitted
 during a polyphonic interval and a mono state was recalled.
+
+`PerformanceBehavior.IdleLanesFreezeAndLeaveTheSurvivingVoiceBeforeReuse` checks
+physical phase/controller/filter-memory retention with a partially idle Unison
+group at 1x/4x, continued held-core progress, legato reactivation and unique
+physical-core views when a new polyphonic note claims the freed lanes.

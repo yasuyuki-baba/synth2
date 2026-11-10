@@ -594,3 +594,62 @@ TEST(PerformanceBehavior, PedalUpReselectsTheNewestHeldKeyAfterPolyToMonoRecall)
     ASSERT_TRUE(synth2::readPhysicalCoreWords(*reference,0,expected));
     EXPECT_EQ(actual[2],expected[2]);EXPECT_EQ(actual[3],expected[3]);
 }
+
+TEST(PerformanceBehavior, IdleLanesFreezeAndLeaveTheSurvivingVoiceBeforeReuse)
+{
+    for(int factor:{1,4})for(bool polyReuse:{false,true})
+    {
+        auto processor=hostvalidation::processor();
+        const auto controls=std::string("19,64\n22,127\n28,5\n91,0\n");
+        hostvalidation::load(*processor,hostvalidation::patch(4,2)+controls);
+        ASSERT_TRUE(processor->setOversamplingFactor(factor));processor->prepare(48000,64);
+        ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+        std::array<float,64> left{},right{};
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        const auto saved=processor->saveState();std::string error;
+        ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(2)+controls,1,error))<<error;
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        ASSERT_TRUE(processor->tryRestoreState(saved.data(),static_cast<int>(saved.size())));
+        std::array<int,13> envelope{};
+        for(int block=0;block<512;++block)
+        {
+            ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+            ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,2,envelope));
+            if(envelope[10]==static_cast<int>(synth2::dsp::AmplitudeEnvelope::Phase::Idle))break;
+        }
+        ASSERT_EQ(envelope[10],static_cast<int>(synth2::dsp::AmplitudeEnvelope::Phase::Idle));
+        std::array<uint32_t,9> idle{},held{},actual{};
+        std::array<uint32_t,22> memory{},actualMemory{};
+        ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,2,idle));
+        ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,0,held));
+        ASSERT_TRUE(synth2::readPhysicalCoreFloatWords(*processor,2,memory));
+        for(int block=0;block<16;++block)ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,2,actual));EXPECT_EQ(actual,idle);
+        ASSERT_TRUE(synth2::readPhysicalCoreFloatWords(*processor,2,actualMemory));EXPECT_EQ(actualMemory,memory);
+        ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,0,actual));EXPECT_NE(actual[0],held[0]);
+        if(polyReuse)
+        {
+            ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(4)+controls,0,error))<<error;
+            ASSERT_TRUE(processor->enqueueMidi(0,144,67,110));
+            ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+            std::array<int,32> owners{};
+            for(size_t voice=0;voice<32;++voice)for(size_t lane=0;lane<8;++lane)
+            {
+                std::array<uint32_t,16> words{};
+                if(synth2::readRenderingCoreWords(*processor,voice,lane,words) && words[0])
+                {ASSERT_LT(words[15],owners.size());++owners[words[15]];}
+            }
+            for(int slot=0;slot<6;++slot)EXPECT_EQ(owners[slot],1)<<slot;
+        }
+        else
+        {
+            ASSERT_TRUE(processor->enqueueMidi(0,144,67,110));
+            ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+            ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,2,actual));EXPECT_NE(actual[0],idle[0]);
+            std::array<int,13> continuing{},restarted{};
+            ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,0,continuing));
+            ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,2,restarted));
+            EXPECT_GT(restarted[8],continuing[8]);
+        }
+    }
+}
