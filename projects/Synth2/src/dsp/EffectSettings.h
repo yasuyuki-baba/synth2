@@ -9,12 +9,12 @@ namespace synth2
     struct DelaySettings
     {
         bool  enable   { false }; // p55
-        double time     { 0.0 };  // p56
-        double feedback { 0.0 };  // p57
-        double level    { 0.0 };  // p58
+        float time     { 0.0f };  // p56
+        float feedback { 0.0f };  // p57
+        float level    { 0.0f };  // p58
         int   type     { 0 };     // p82
-        double spread   { 0.5 };  // p83
-        double tone     { 0.5 };  // p98
+        float spread   { 0.5f };  // p83
+        float tone     { 0.5f };  // p98
     };
 
     /**
@@ -24,11 +24,11 @@ namespace synth2
     {
         bool  enabled { false };
         int   type { 0 };
-        double time { 0.5 };
-        double depth { 0.5 };
-        double rate { 0.5 };
-        double feedback { 0.2 };
-        double level { 0.5 };
+        float time { 0.5f };
+        float depth { 0.5f };
+        float rate { 0.5f };
+        float feedback { 0.2f };
+        float level { 0.5f };
     };
 
     /**
@@ -36,10 +36,10 @@ namespace synth2
     */
     struct EqualizerSettings
     {
-        double level { 0.5 };
-        double q { 0.5 };
-        double tone { 0.5 };
-        double freq { 0.5 };
+        float level { 0.5f };
+        float q { 0.5f };
+        float tone { 0.5f };
+        float freq { 0.5f };
     };
 
 }

@@ -62,7 +62,7 @@ policy; component reset tests do not establish every whole-pipeline history.
 Delay frame targets use compatible source-dial anchors, but all integral and
 fractional coordinates share one sample-processing path. A prior fractional edit
 must not select a different path after reset or a subsequent integral time edit.
-Tap coordinates retain double precision; the common slew settles within 0.1 frame
+Tap coordinates use Float32; the common slew settles within 0.1 frame
 using the native endpoint rule, then reaches the exact target. Delay Tone maps
 integer coefficient knots and fractional interpolation to one three-coefficient
 recurrence, with a neutral bypass that retains filter history. Algebraic

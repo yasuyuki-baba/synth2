@@ -14,18 +14,18 @@ namespace synth2::dsp
     class DelayKernel
     {
     public:
-        bool configure(int rate,int type,double seconds,double spread,int feedback,int mix,int toneDial=64) noexcept
+        bool configure(int rate,int type,float seconds,float spread,int feedback,int mix,int toneDial=64) noexcept
         {
             if(rate<10000 || rate>384000 || (type<0 || type>2) || !std::isfinite(seconds)
                 || !std::isfinite(spread) || seconds<0 || seconds>100 || std::abs(spread)>1)return false;
             kind=type;
             sampleRate=rate;timeSeconds=seconds;spreadSeconds=spread;
-            slewCoefficient=static_cast<double>(1.0-std::pow(.5,1.0/static_cast<double>(static_cast<double>(rate)*.15)));
+            slewCoefficient=static_cast<float>(1.0f-std::pow(.5f,1.0f/static_cast<float>(static_cast<float>(rate)*.15f)));
             updateTargets();
-            feedbackGain=std::min(.999,std::max(0.0,feedback*(1.0/127.0)));
+            feedbackGain=std::min(.999f,std::max(0.0f,feedback*(1.0f/127.0f)));
             mix=std::clamp(mix,0,127);
-            dryGain=mix<=64 ? 1.0 : (127-mix)*(1.0/63.0);
-            wetGain=mix>64 ? 1.0 : (std::max(mix,1)-1)*(1.0/63.0);
+            dryGain=mix<=64 ? 1.0f : (127-mix)*(1.0f/63.0f);
+            wetGain=mix>64 ? 1.0f : (std::max(mix,1)-1)*(1.0f/63.0f);
             updateTail();
             configureTone(rate,toneDial);
             return true;
@@ -35,58 +35,58 @@ namespace synth2::dsp
             ring.fill(0);write=0;previousInput.fill(0);previousOutput.fill(0);
             currentLeft=targetLeft;currentRight=targetRight;slewing=false;silentFrames=wrap32(static_cast<uint32_t>(tailFrames)+1u);
         }
-        bool setTimeSeconds(double seconds) noexcept
+        bool setTimeSeconds(float seconds) noexcept
         {
             if(!std::isfinite(seconds) || seconds<0 || seconds>100)return false;
             timeSeconds=seconds;updateTargets();updateTail();return true;
         }
-        bool setSpreadSeconds(double seconds) noexcept
+        bool setSpreadSeconds(float seconds) noexcept
         {
             if(!std::isfinite(seconds) || std::abs(seconds)>1)return false;
             spreadSeconds=seconds;updateTargets();updateTail();return true;
         }
         // Control adapters interpolate compatible integer-setting frame targets
         // before entering this kernel. Keep their fractional coordinates intact.
-        bool setFrameTargets(double leftFrames,double rightFrames) noexcept
+        bool setFrameTargets(float leftFrames,float rightFrames) noexcept
         {
             if(!std::isfinite(leftFrames) || !std::isfinite(rightFrames))return false;
-            const double minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
-            targetLeft=std::clamp(leftFrames,minimum,131072.0-256.0);
-            targetRight=std::clamp(rightFrames,minimum,131072.0-256.0);
+            const float minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
+            targetLeft=std::clamp(leftFrames,minimum,131072.0f-256.0f);
+            targetRight=std::clamp(rightFrames,minimum,131072.0f-256.0f);
             left=static_cast<int>(targetLeft);right=static_cast<int>(targetRight);
             if(silentFrames<=tailFrames && enabled)slewing=true;
             else {currentLeft=targetLeft;currentRight=targetRight;}
             updateTail();return true;
         }
-        double getLeftFramesContinuous() const noexcept {return targetLeft;}
-        double getRightFramesContinuous() const noexcept {return targetRight;}
-        void setFeedbackDial(double dial) noexcept
+        float getLeftFramesContinuous() const noexcept {return targetLeft;}
+        float getRightFramesContinuous() const noexcept {return targetRight;}
+        void setFeedbackDial(float dial) noexcept
         {
-            feedbackGain=std::min(.999,std::clamp(dial,0.0,127.0)*(1.0/127.0));updateTail();
+            feedbackGain=std::min(.999f,std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f));updateTail();
         }
         bool setType(int value) noexcept
         {
             if(value<0 || value>2)return false;kind=value;updateTail();return true;
         }
-        void setMixDial(double dial) noexcept
+        void setMixDial(float dial) noexcept
         {
-            dial=std::clamp(dial,0.0,127.0);
-            dryGain=dial<=64 ? 1.0 : (127-dial)*(1.0/63.0);
-            wetGain=dial>64 ? 1.0 : (std::max(dial,1.0)-1)*(1.0/63.0);
+            dial=std::clamp(dial,0.0f,127.0f);
+            dryGain=dial<=64 ? 1.0f : (127-dial)*(1.0f/63.0f);
+            wetGain=dial>64 ? 1.0f : (std::max(dial,1.0f)-1)*(1.0f/63.0f);
         }
-        void setToneDial(double dial) noexcept
+        void setToneDial(float dial) noexcept
         {
-            dial=std::clamp(dial,0.0,127.0);
+            dial=std::clamp(dial,0.0f,127.0f);
             const int low=static_cast<int>(dial);
             configureTone(sampleRate,low);
             if(dial==low)return;
-            const std::array<double,3> first{toneB0,toneB1,toneFeedback};
+            const std::array<float,3> first{toneB0,toneB1,toneFeedback};
             configureTone(sampleRate,low+1);
-            const double fraction=dial-low;
+            const float fraction=dial-low;
             toneB0=first[0]+(toneB0-first[0])*fraction;
             toneB1=first[1]+(toneB1-first[1])*fraction;
             toneFeedback=first[2]+(toneFeedback-first[2])*fraction;
-            toneBypassed=toneB0==1.0 && toneB1==0.0 && toneFeedback==0.0;
+            toneBypassed=toneB0==1.0f && toneB1==0.0f && toneFeedback==0.0f;
         }
         void setEnabled(bool value) noexcept
         {
@@ -101,7 +101,7 @@ namespace synth2::dsp
         // distinct send for the downstream Chorus to modulate or add on bypass.
         // Optional silent mirrors the upstream flag: active tails clear it; an
         // expired tail leaves it set and preserves both buffers and the ring.
-        bool process(double* dry,double* send,int frames,int* silent=nullptr) noexcept
+        bool process(float* dry,float* send,int frames,int* silent=nullptr) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -114,7 +114,7 @@ namespace synth2::dsp
                     if(silentFrames>tailFrames)return false;
                     silentFrames=wrap32(static_cast<uint32_t>(silentFrames)+static_cast<uint32_t>(frames));
                 }
-                *silent=0;std::fill_n(dry,frames*2,0.0);
+                *silent=0;std::fill_n(dry,frames*2,0.0f);
             }
             else silentFrames=0;
             processFrames(dry,send,frames);
@@ -122,8 +122,8 @@ namespace synth2::dsp
         }
         int getLeftFrames() const noexcept {return left;}
         int getRightFrames() const noexcept {return right;}
-        double getCurrentLeft() const noexcept {return currentLeft;}
-        double getCurrentRight() const noexcept {return currentRight;}
+        float getCurrentLeft() const noexcept {return currentLeft;}
+        float getCurrentRight() const noexcept {return currentRight;}
         bool isSlewing() const noexcept {return slewing;}
         int getTailFrames() const noexcept {return tailFrames;}
         int getSilentFrames() const noexcept {return silentFrames;}
@@ -131,49 +131,49 @@ namespace synth2::dsp
     private:
         void updateTargets() noexcept
         {
-            const int nominal=static_cast<int>(static_cast<double>(sampleRate)*timeSeconds);
+            const int nominal=static_cast<int>(static_cast<float>(sampleRate)*timeSeconds);
             const int aligned=nominal-nominal%4;
-            left=aligned+(spreadSeconds>=0 ? static_cast<int>(static_cast<double>(sampleRate)*spreadSeconds) : 0);
-            right=aligned+(spreadSeconds<0 ? static_cast<int>(static_cast<double>(sampleRate)*-spreadSeconds) : 0);
-            const int minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
+            left=aligned+(spreadSeconds>=0 ? static_cast<int>(static_cast<float>(sampleRate)*spreadSeconds) : 0);
+            right=aligned+(spreadSeconds<0 ? static_cast<int>(static_cast<float>(sampleRate)*-spreadSeconds) : 0);
+            const int minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
             left=std::clamp(left,minimum,131072-256);right=std::clamp(right,minimum,131072-256);
             targetLeft=left;targetRight=right;
             if(silentFrames<=tailFrames && enabled)slewing=true;
             else {currentLeft=left;currentRight=right;}
         }
-        double continuousTap(double position,int channel) const noexcept
+        float continuousTap(float position,int channel) const noexcept
         {
-            position=std::fmod(position,131072.0);if(position<0)position+=131072.0;
+            position=std::fmod(position,131072.0f);if(position<0)position+=131072.0f;
             const int at=static_cast<int>(position),next=(at+1)&mask;
-            const double fraction=static_cast<double>(position-at);
-            const double a=kind==2 ? ring[(channel==0 ? 0 : second)+at] : ring[2*at+channel];
+            const float fraction=static_cast<float>(position-at);
+            const float a=kind==2 ? ring[(channel==0 ? 0 : second)+at] : ring[2*at+channel];
             if(fraction==0)return a;
-            const double b=kind==2 ? ring[(channel==0 ? 0 : second)+next] : ring[2*next+channel];
+            const float b=kind==2 ? ring[(channel==0 ? 0 : second)+next] : ring[2*next+channel];
             return a+(b-a)*fraction;
         }
-        void processFrames(double* dry,double* send,int frames) noexcept
+        void processFrames(float* dry,float* send,int frames) noexcept
         {
             for(int i=0;i<frames;++i)
             {
                 if(slewing)
                 {
-                    currentLeft+=(targetLeft-currentLeft)*static_cast<double>(slewCoefficient);
-                    currentRight+=(targetRight-currentRight)*static_cast<double>(slewCoefficient);
-                    if(std::abs(currentLeft-targetLeft)<.1)currentLeft=targetLeft;
-                    if(std::abs(currentRight-targetRight)<.1)currentRight=targetRight;
+                    currentLeft+=(targetLeft-currentLeft)*static_cast<float>(slewCoefficient);
+                    currentRight+=(targetRight-currentRight)*static_cast<float>(slewCoefficient);
+                    if(std::abs(currentLeft-targetLeft)<.1f)currentLeft=targetLeft;
+                    if(std::abs(currentRight-targetRight)<.1f)currentRight=targetRight;
                     if(currentLeft==targetLeft && currentRight==targetRight)slewing=false;
                 }
-                double taps[]{continuousTap(write-currentLeft,0),continuousTap(write-currentRight,1)};
+                float taps[]{continuousTap(write-currentLeft,0),continuousTap(write-currentRight,1)};
                 if(!toneBypassed)for(int channel=0;channel<2;++channel)
                 {
-                    const double input=taps[channel];
-                    const double output=input*toneB0+previousInput[channel]*toneB1+previousOutput[channel]*toneFeedback;
+                    const float input=taps[channel];
+                    const float output=input*toneB0+previousInput[channel]*toneB1+previousOutput[channel]*toneFeedback;
                     previousInput[channel]=input;previousOutput[channel]=output;taps[channel]=output;
                 }
                 const int at=2*i;
                 if(kind==2)
                 {
-                    const double input=(dry[at+1]+dry[at])*.5;
+                    const float input=(dry[at+1]+dry[at])*.5f;
                     ring[write]=input+taps[1]*feedbackGain;ring[second+write]=taps[0];
                 }
                 else
@@ -194,7 +194,7 @@ namespace synth2::dsp
         {
             const int old=tailFrames;
             const int repeats=feedbackGain==0 ? 0
-                : static_cast<int>(std::log(1.0/32768.0)/std::log(static_cast<double>(feedbackGain)));
+                : static_cast<int>(std::log(1.0f/32768.0f)/std::log(static_cast<float>(feedbackGain)));
             // Native imul keeps the low 32 bits, including overflow for a long
             // type-2 delay with high feedback. Avoid signed-overflow UB here.
             const uint32_t bits=static_cast<uint32_t>(repeats+2)*static_cast<uint32_t>(std::max(left,right))
@@ -212,29 +212,29 @@ namespace synth2::dsp
             const int tone=std::clamp(dial,0,127);
             toneBypassed=tone==64;
             if(toneBypassed){toneB0=1; toneB1=toneFeedback=0;return;}
-            const double normalized=tone<64 ? tone*(1.0/63.0) : (tone-65)*(1.0/62.0);
-            const double cutoff=static_cast<double>(tone<64 ? std::pow(110.0,normalized)*200.0
-                : std::pow(800.0,normalized)*10.0);
-            const double frequency=static_cast<double>(static_cast<double>(cutoff*2.0)*3.14159265358979323846);
-            const double twiceRate=static_cast<double>(static_cast<double>(rate)*2.0);
-            const double inverse=static_cast<double>(1.0/static_cast<double>(frequency+twiceRate));
+            const float normalized=tone<64 ? tone*(1.0f/63.0f) : (tone-65)*(1.0f/62.0f);
+            const float cutoff=static_cast<float>(tone<64 ? std::pow(110.0f,normalized)*200.0f
+                : std::pow(800.0f,normalized)*10.0f);
+            const float frequency=static_cast<float>(static_cast<float>(cutoff*2.0f)*3.14159265358979323846f);
+            const float twiceRate=static_cast<float>(static_cast<float>(rate)*2.0f);
+            const float inverse=static_cast<float>(1.0f/static_cast<float>(frequency+twiceRate));
             toneB0=(tone<64 ? frequency : twiceRate)*inverse;
             toneB1=tone<64 ? toneB0 : -toneB0;
             toneFeedback=(twiceRate-frequency)*inverse;
         }
         static constexpr int mask=131071;
         static constexpr int second=131076; // native second allocation view: +0x80010 bytes
-        std::array<double,262148> ring {};
-        std::array<double,2> previousInput {},previousOutput {};
+        std::array<float,262148> ring {};
+        std::array<float,2> previousInput {},previousOutput {};
         int sampleRate{44100};
-        double timeSeconds{},spreadSeconds{},slewCoefficient{};
-        double currentLeft{256},currentRight{256};
+        float timeSeconds{},spreadSeconds{},slewCoefficient{};
+        float currentLeft{256},currentRight{256};
         bool enabled{true},slewing{};
-        double targetLeft{256},targetRight{256};
+        float targetLeft{256},targetRight{256};
         int tailFrames{1},silentFrames{99999999};
-        double toneFeedback{},toneB0{1},toneB1{};
+        float toneFeedback{},toneB0{1},toneB1{};
         bool toneBypassed{true};
         int left{256},right{256},kind{},write{};
-        double feedbackGain{},wetGain{},dryGain{1};
+        float feedbackGain{},wetGain{},dryGain{1};
     };
 }

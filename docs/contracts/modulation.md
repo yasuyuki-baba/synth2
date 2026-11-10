@@ -8,7 +8,7 @@ scheduler. Phase/VCO randomness remains separate from the Engine-owned LFO pair.
 
 History setters, receiver queries and clock advances are distinct ordered actions.
 The shared LFO clock keeps free-rate mapping, fractional interpolation, frequency
-slew and phase rescaling in double precision, matching the real control buffers.
+slew and phase rescaling in Float32, matching the real control buffers.
 Musical divisions, sample periods, counters and query indices remain discrete.
 Preserve callback/receiver spans, slot order, random advancement, fractional-rate
 handling and state retention. Disabled shared sources may still advance their

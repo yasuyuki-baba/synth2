@@ -2,7 +2,6 @@
 
 #include "CompatibleControlCurve.h"
 #include "EnvelopeCurve.h"
-#include "FloatControlCurve.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -16,23 +15,19 @@ namespace synth2::dsp
     class ReleaseRamp
     {
     public:
-        static int durationFrames (double seconds,double sampleRate) noexcept
+        static int durationFrames (float seconds,float sampleRate) noexcept
         {
-            // Resolve compatible sample-count words before interpolating real
-            // time/rate coordinates. Quantize to a frame only at the end.
-            const double frames=compatibleFloatCurve(seconds,[&](float time) {
-                return compatibleFloatCurve(sampleRate,[&](float rate) {return time*rate;});
-            });
+            const float frames=seconds*sampleRate;
             if (!std::isfinite (frames) || frames <= 0) return 0;
-            if (frames >= static_cast<double> (std::numeric_limits<int>::max()))
+            if (frames >= static_cast<float> (std::numeric_limits<int>::max()))
                 return std::numeric_limits<int>::max();
             return static_cast<int> (frames);
         }
 
-        void start (int durationFrames, double initialLevel) noexcept
+        void start (int durationFrames, float initialLevel) noexcept
         {
             duration = std::max (0, durationFrames);
-            initial = level = std::clamp (initialLevel, 0.0, 2048.0);
+            initial = level = std::clamp (initialLevel, 0.0f, 2048.0f);
             counter = boundary = pending = 0;
             active = true;
             updateResolution();
@@ -53,11 +48,11 @@ namespace synth2::dsp
         int segmentHorizon() const noexcept { return pending; }
         bool isActive() const noexcept { return active; }
         int getCounter() const noexcept { return counter; }
-        double getLevel() const noexcept { return level; }
+        float getLevel() const noexcept { return level; }
 
         void advance (int frames) noexcept
         {
-            advance (frames, [] (double,int) {});
+            advance (frames, [] (float,int) {});
         }
 
         template <typename Segment>
@@ -105,7 +100,7 @@ namespace synth2::dsp
         }
 
         int duration {},counter {},boundary {},step {1},pending {};
-        double initial {},level {};
+        float initial {},level {};
         bool active {};
     };
 }

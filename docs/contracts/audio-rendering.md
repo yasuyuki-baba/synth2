@@ -57,7 +57,7 @@ stack oscillators share PulseWidthRead interpolation for every offset; retain
 their existing phase lookup, gain normalization and lane summation rules.
 Repeated identical base-width/modulation coordinates may reuse their converted
 pulse offset; a change to either coordinate must refresh it without changing
-phase, receiver clocks or RNG state. Audio stays double. At 1x, do not initialize
+phase, receiver clocks or RNG state. Audio stays Float32. At 1x, do not initialize
 unused fine-frame accumulation buffers; higher factors clear their active lanes
 before summing the same per-core signals in the existing order.
 
@@ -153,12 +153,12 @@ error policy; it is not assumed to preserve PCM bytes.
 Delay/Chorus continuous controls interpolate native control knots or extend their
 linear gains. Chorus depth retains sub-sample modulation extent between integer
 knots. Type/voice selections remain discrete. Tempo-delay time interpolates the
-existing timing knots; real BPM values retain sub-float coordinates through
-compatible tempo words. Interpolate aligned/clamped native frame anchors before
-tap processing, preserving their four-frame alignment at exact tempo words.
+existing timing knots with Float32 BPM coordinates. Resolve aligned/clamped
+native frame anchors before interpolating fractional time/spread controls and
+processing taps, preserving the native four-frame alignment at those anchors.
 This does not introduce a new sync mode or beat table.
 Delay time/spread interpolate the compatible frame targets after native alignment
-and clamping. Fractional targets retain double sample coordinates and use causal
+and clamping. Fractional targets retain Float32 sample coordinates and use causal
 linear taps. Chorus base delay and period interpolate compatible sample-count
 anchors. All Chorus time/depth/rate settings use common real tap coordinates and
 modulation extent, including mirrored taps. Integer control knots retain their
@@ -166,7 +166,7 @@ compatible modulation amplitudes; sample processing does not quantize tap positi
 to 16 fractional bits. Integer settings retain the native oscillator recurrence,
 phase update and retirement timing. The Chorus recursive modulation clock retains
 its FP32 phase/coefficient words: its block reset comparison depends on those words.
-Audio delay lines, tap interpolation and feedback signal histories remain double.
+Audio delay lines, tap interpolation and feedback signal histories remain Float32.
 Ring frequency/phase-step knots and Phaser sweep-factor knots retain compatible
 word definitions before fractional interpolation. Phaser direction changes select
 the opposite compatible factor rather than inverting a widened factor.
@@ -182,7 +182,7 @@ and saturation interpolate compatible integer anchors. Fine tuning retains
 fractional cents outside its native neutral band. Native LFO/FM/envelope control
 stepping remains where removing it violates the audio comparison bound.
 
-Receiver signal buffers and FM/cutoff running values use double precision;
+Receiver signal buffers and FM/cutoff running values use Float32;
 segment lengths and sample counters remain integers. This distinction preserves
 fractional modulation as well as exact whole 27-bit FM phase units. Pitch, pulse
 width, FM, filter and amplitude consumers accept fractional receiver values.
@@ -208,7 +208,7 @@ unison offsets. Voice count and semitone group transposition remain discrete.
 Fixed-phase unison Spread retains fractional dials until phase-accumulator
 conversion and uses the same deterministic local table, without shared draws.
 The fixed oscillator phase amount retains fractions for OSC2 and stack lanes.
-Keep its base/spread coordinates in double between compatible integer-dial phase
+Keep its base/spread coordinates in Float32 between compatible integer-dial phase
 words, then convert the interpolated phase coordinate to the accumulator word.
 Draw each local random value once before interpolation; evaluating neighboring
 control knots must not consume extra draws.
@@ -281,33 +281,32 @@ audio equivalence. See [validation](validation.md).
 
 ## Bounded precision improvements
 
-Continuous arithmetic should retain precision through its intermediate signal
-storage. A double expression followed by a float buffer is still a narrowing
-boundary. The internal audio graph uses double sample/state storage through waveform reads,
-physical filters, VCA/pan, voice accumulation, oversampling and output effects.
-The bridge retains double scratch storage and applies transition gains before its
-single conversion to the requested host sample type. Float source parameters,
-calibrated lookup values, compatible tuning/event knots, modulation clock words
-and 32-bit diagnostic words are explicit boundaries;
-they must not become intermediate audio buffers.
-Oscillator phase increments are cached by effective frequency and invalidated by
-sample-rate changes. Their rate calculation uses double precision, retaining the
-compatible final float rounding before conversion to the discrete phase word.
-Pitch modulation retains a real base frequency between compatible FP32 input
-words before evaluating fractional receiver controls. Envelope time/rate products
-retain their compatible word values at FP32 inputs and interpolate real coordinates
-between them; converting those coordinates to float before multiplication loses
-fractional timing. Only the final frame count is quantized to an integer. These
-extensions do not change the definition of the compatible control knots.
-Basic and fixed-OSC2 tuning retain real fine/unison coordinates between compatible
-FP32 input words, including their summed-control operation order at the knots.
-Tracked OSC2 retains the cached compatible ratio and interpolates its rounded
-frequency product over the real OSC1 base. Stack lane tuning likewise retains
-real base frequencies, and the moving coarse receiver retains real exponents
-until compatible frequency-word interpolation. Adjacent compatible output words
-can coincide; these extensions do not promise a nonzero response to every edit
-or change the final phase-word resolution. Tracked ratio controls and discrete
-note/coarse selection retain their existing word definitions.
+Internal audio, continuous controls, coefficients and signal histories use
+Float32 throughout waveform reads, physical filters, VCA/pan, voice accumulation,
+oversampling and output effects. The bridge uses Float32 scratch storage and
+applies transition gains before copying to float host outputs or widening to
+double host outputs. Both host formats execute the same DSP path. UI geometry,
+host parameter APIs and serialized state/diagnostic formats remain separate
+boundaries; they cannot select another processing precision.
+
+Use float constants and float math overloads in runtime DSP. Prepared waveform
+constants keep their calibrated Float32 definitions; offline generation of those
+constants does not introduce a runtime double path. FM source/control integer
+knots resolve through calibrated integer phase words on the exact 1/512 source
+grid before Float32 control interpolation. Audio and FM/Sync use the same
+Float32 oscillator read. Control interpolation retains representable fractions
+between compatible integer-dial knots; edits finer than Float32 resolution round
+at the input boundary. There is no sub-float input interpolation or promise that
+every real-valued edit changes a sample.
+
+Frequency increments remain cached by effective Float32 frequency and invalidated
+by sample-rate changes. Integer phase accumulators and frame/span counters retain
+their discrete representation. Convert durations to Float32 sample products before
+final integer frame conversion. Keep floating envelope levels; Float32 processing
+must not restore whole-level truncation during Attack. Tracked OSC2 ratios, native
+control knots and the distinction between moving and prepared target frequencies
+retain their control meanings and operation order.
+
 Within one voice render span, unchanged coarse receiver exponents may reuse the
 same mapped frequency for each physical core. Base/fine inputs are fixed within
 that span; initialize the result on its first use and discard it at the span
@@ -369,15 +368,14 @@ filter. Integer coefficient steps, turns and intentional jumps remain intact whe
 their products are integral. The physical FM receiver owns coefficient slewing independently of the
 downstream phase correction.
 
-OscillatorSection reads one double audio sample and its compatible reference word
-from the same phase and table entries. Table values keep their calibrated source
-word definition and are widened into prepared double storage. Double interpolation
-feeds the audio graph; the FP32 reference projection feeds only FM/Sync phase-word
-conversion. It never replaces an audio sample or an intermediate signal buffer.
-FmPhaseCorrection receives double depth and that decoded reference word without
-narrowing the depth in the audio adapter. Fractional depth interpolates compatible
-phase-product knots in double precision. The compatible Sync/noise reference offset
-remains `int32(float(depth) * referenceWord)`. Accumulated
+OscillatorSection reads one Float32 audio sample for audio and FM/Sync from the
+same phase and table entries. Prepared tables retain their calibrated Float32
+words. FmPhaseCorrection receives Float32 depth and source values. It interpolates
+differences from the compatible integer phase-product word, so large integer
+phase offsets are never added to fractional corrections in floating point.
+The reference offset remains `int32(depth * source)`. A Float32 residual and an
+integer whole offset compose the corrected signed phase word with truncation
+toward zero. Accumulated
 product error feeds back toward that compatible trajectory over the native
 32-frame coefficient interval; a fractional carry retains the remainder when
 converting the corrected audible offset to a phase word. This feedback deliberately
@@ -402,7 +400,7 @@ establish perceptual improvement or unrestricted equivalence.
 Ring uses the same product-mix expression for every caller, before FM dispatch.
 Selecting Ring suppresses FM phase offsets. Pulse/noise wrapper gains can still
 change when FM is selected; these are device semantics rather than alternate
-Ring algorithms. Preserve the multiplication/addition order in the double signal path.
+Ring algorithms. Preserve the multiplication/addition order in the Float32 signal path.
 
 Sub uses one level mapping (four times the normalized source dial) and the
 compatible carrier/sub/mix normalizer for every render route. Its full OSC1-linked

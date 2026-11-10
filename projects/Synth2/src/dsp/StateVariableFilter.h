@@ -10,52 +10,52 @@ namespace synth2::dsp
     {
     public:
         void reset() noexcept { low=band=0; }
-        void configure (double sampleRate,double index,double resonance) noexcept
+        void configure (float sampleRate,float index,float resonance) noexcept
         {
-            index=std::clamp(index,0.0,1023.0);
+            index=std::clamp(index,0.0f,1023.0f);
             if (sampleRate==lastRate && index==lastIndex && resonance==lastResonance) return;
             lastRate=sampleRate; lastIndex=index; lastResonance=resonance;
-            const double exponent=static_cast<double>(index)*(1.0/1024.0);
-            const double frequency=static_cast<double>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
-            const double boundedFrequency=std::min(static_cast<double>(frequency),sampleRate*.5);
-            f=static_cast<double>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
+            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
+            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667f)*static_cast<float>(exponent))*15.0f);
+            const float boundedFrequency=std::min(static_cast<float>(frequency),sampleRate*.5f);
+            f=static_cast<float>(2.0f*std::sin(boundedFrequency*3.141592653589793f/(static_cast<int>(sampleRate)*2)));
             configureCoefficients(f,resonance);
         }
-        void configureCoefficients (double coefficient,double resonance) noexcept
+        void configureCoefficients (float coefficient,float resonance) noexcept
         {
-            clipping=static_cast<double>(resonance)>0.9;
-            const double r=std::clamp(resonance,0.0,1.0);
-            damping=r-1.0;
+            clipping=static_cast<float>(resonance)>0.9f;
+            const float r=std::clamp(resonance,0.0f,1.0f);
+            damping=r-1.0f;
             // The Chamberlin step is stable when f^2-2*damping*f < 4.
             // Keep the existing coefficient whenever it is inside that domain;
             // low-rate/high-cutoff inputs must not cross the marginal pole.
-            const double d=damping;
-            const double limit=std::nextafter(static_cast<double>(d+std::sqrt(d*d+4.0)),0.0);
+            const float d=damping;
+            const float limit=std::nextafter(static_cast<float>(d+std::sqrt(d*d+4.0f)),0.0f);
             f=std::min(coefficient,limit);
-            gain=static_cast<double>(1.0-static_cast<double>(r)*.7);
+            gain=static_cast<float>(1.0f-static_cast<float>(r)*.7f);
         }
-        double process (double input,int mode=0) noexcept
+        float process (float input,int mode=0) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            const double scaled=input*gain;
+            const float scaled=input*gain;
             low+=f*band;
-            double high=(scaled-low)+damping*band;
+            float high=(scaled-low)+damping*band;
             band+=f*high;
             low+=f*band;
             high=(scaled-low)+damping*band;
             band+=f*high;
-            const double output=mode==2 ? high : mode==3 ? band : low;
-            return clipping ? std::clamp(output,-20.0,20.0) : output;
+            const float output=mode==2 ? high : mode==3 ? band : low;
+            return clipping ? std::clamp(output,-20.0f,20.0f) : output;
         }
-        double getCoefficient() const noexcept { return f; }
-        double getGain() const noexcept { return gain; }
-        double getLow() const noexcept { return low; }
-        double getBand() const noexcept { return band; }
+        float getCoefficient() const noexcept { return f; }
+        float getGain() const noexcept { return gain; }
+        float getLow() const noexcept { return low; }
+        float getBand() const noexcept { return band; }
     private:
-        double lastRate {-1}; double lastIndex {-1}; double lastResonance {-1};
+        float lastRate {-1}; float lastIndex {-1}; float lastResonance {-1};
         bool clipping {};
-        double f {},damping {-1},gain {1},low {},band {};
+        float f {},damping {-1},gain {1},low {},band {};
     };
 }

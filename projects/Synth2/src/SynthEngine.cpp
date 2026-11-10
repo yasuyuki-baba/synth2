@@ -78,7 +78,7 @@ namespace synth2
                 voice->setAudioOutput(factor,oversampledAudio[0].data(),oversampledAudio[1].data());
     }
 
-    void SynthEngine::prepareToPlay (double sampleRate, int samplesPerBlock)
+    void SynthEngine::prepareToPlay (float sampleRate, int samplesPerBlock)
     {
         // The native host's mains/sample-rate/block-size cycle retains held
         // voices and physical allocation. Keep that history for the audited
@@ -130,18 +130,16 @@ namespace synth2
         if(audioFactor>1)setOversamplingFactor(audioFactor);
     }
 
-    void SynthEngine::initWaveTables (double sampleRateForTables)
+    void SynthEngine::initWaveTables (float sampleRateForTables)
     {
-        const double nyquist = sampleRateForTables * 0.5;
+        const float nyquist = sampleRateForTables * 0.5f;
 
-        waveTableBank->setAliasBorderHz ((double) nyquist);
+        waveTableBank->setAliasBorderHz ((float) nyquist);
         
         constexpr int N = 2048;
         constexpr int halfN = N / 2;
 
-        std::vector<float> sinTable (N);
-        for (int n = 0; n < N; ++n)
-            sinTable[n] = (float) std::sin (::synth2::audio::MathConstants<double>::twoPi * (double) n / (double) N);
+        const std::vector<float> sinTable(dsp::oscillatorSine.begin(),dsp::oscillatorSine.end());
 
         const auto nativeSaw = dsp::buildNativeSaw (sinTable);
         auto square = nativeSaw;
@@ -155,7 +153,7 @@ namespace synth2
         waveTableBank->setShapeTables (2,dsp::buildNativeTriangle (sinTable));
         synth2::ShapeTables sineShape;
         sineShape.data.assign(sinTable.begin(),sinTable.end());
-        sineShape.infos.push_back ({ 0u, (std::size_t) N, (double) nyquist });
+        sineShape.infos.push_back ({ 0u, (std::size_t) N, (float) nyquist });
         waveTableBank->setShapeTables (3,std::move (sineShape));
     }
 
@@ -171,7 +169,7 @@ namespace synth2
     void SynthEngine::applyNativeLfoHistory(const dsp::LfoHistoryEvent& event) noexcept
     { sharedModulation.applyHistory(event,params.hostBpm); }
 
-    void SynthEngine::render (::synth2::audio::AudioBuffer<double>& buffer,
+    void SynthEngine::render (::synth2::audio::AudioBuffer<float>& buffer,
                              ::synth2::audio::MidiBuffer& midiMessages,
                              int startSample,
                              int numSamples)
@@ -199,16 +197,16 @@ namespace synth2
             bool nonzero=false;
             for(int frame=0;frame<count;++frame)
             {
-                std::array<double,2> output{};
+                std::array<float,2> output{};
                 for(int channel=0;channel<2;++channel)
                 {
-                    std::array<double,16> values{};
+                    std::array<float,16> values{};
                     for(int step=0;step<audioFactor;++step)
                         values[step]=oversampledAudio[channel][(start+frame-audioChunkStart)*audioFactor+step];
                     output[channel]=audioDownsamplers[channel].process(values);
                     nonzero=nonzero || output[channel]!=0;
                 }
-                if(buffer.getNumChannels()==1)buffer.setSample(0,start+frame,(output[0]+output[1])*.5);
+                if(buffer.getNumChannels()==1)buffer.setSample(0,start+frame,(output[0]+output[1])*.5f);
                 else for(int channel=0;channel<2;++channel)buffer.setSample(channel,start+frame,output[channel]);
             }
             return !nonzero;
@@ -242,7 +240,7 @@ namespace synth2
             audioChunkStart=startSample+offset;
             if(audioFactor>1)
             {
-                for(auto& channel:oversampledAudio)std::fill_n(channel.data(),size*audioFactor,0.);
+                for(auto& channel:oversampledAudio)std::fill_n(channel.data(),size*audioFactor,0.f);
                 for(int i=0;i<synth.getNumVoices();++i)
                     if(auto* voice=dynamic_cast<SynthVoice*>(synth.getVoice(i)))voice->setAudioChunkStart(audioChunkStart);
             }

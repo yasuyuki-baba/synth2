@@ -227,8 +227,8 @@ TEST(FmPhaseCorrection, StaticMappingPreservesKnotsAndFractionalEdits)
     };
     for(int dial=0;dial<=127;++dial)
     {
-        EXPECT_DOUBLE_EQ(synth2::float01ToFmTarget(dial/127.f),knot(dial));
-        EXPECT_DOUBLE_EQ(synth2::float01ToFmTarget(dial*(1.f/127.f)),knot(dial));
+        EXPECT_DOUBLE_EQ(synth2::float01ToFmTarget(dial/127.f),static_cast<float>(knot(dial)));
+        EXPECT_DOUBLE_EQ(synth2::float01ToFmTarget(dial*(1.f/127.f)),static_cast<float>(knot(dial)));
     }
     double previous=synth2::float01ToFmTarget(64.f/127.f);
     for(float dial:{64.1f,64.25f,64.49f,64.51f,64.75f})
@@ -238,7 +238,7 @@ TEST(FmPhaseCorrection, StaticMappingPreservesKnotsAndFractionalEdits)
     }
 }
 
-TEST(FmPhaseCorrection, AudioAdapterRetainsWideDepthWithCompatibleSyncReference)
+TEST(FmPhaseCorrection, AudioAdapterUsesFloatDepthWithCompatibleSyncReference)
 {
     synth2::dsp::OscillatorSection adapted,wide,narrow;
     for(auto* oscillator:{&adapted,&wide,&narrow})
@@ -265,7 +265,7 @@ TEST(FmPhaseCorrection, AudioAdapterRetainsWideDepthWithCompatibleSyncReference)
         EXPECT_EQ(adapted.getOsc1Phase(),wide.getOsc1Phase());
         phaseDiffers|=wide.getOsc1Phase()!=narrow.getOsc1Phase();
     }
-    EXPECT_TRUE(phaseDiffers);
+    EXPECT_FALSE(phaseDiffers);
 }
 
 TEST(FmPhaseCorrection, IntegerDepthKnotsKeepFractionalSourceNativeIncrements)

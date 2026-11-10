@@ -10,8 +10,8 @@ TEST(ContinuousLevel, AttackRetainsSubLevelPrecisionAtWholeSettings)
 {
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(1000,1000,512,4410);envelope.noteOn();
-    std::array<double,64> gains{};envelope.render(gains.data(),64);
-    EXPECT_NEAR(envelope.getLevel(),131.072,1e-10);
+    std::array<float,64> gains{};envelope.render(gains.data(),64);
+    EXPECT_EQ(envelope.getLevel(),131.072f);
     EXPECT_NE(envelope.getLevel(),std::trunc(envelope.getLevel()));
     EXPECT_NEAR(gains.back(),.064f,1e-6f);
     envelope.render(gains.data(),64);EXPECT_GT(envelope.getLevel(),131.072);
@@ -21,9 +21,9 @@ TEST(ContinuousLevel, CompletedAttackPreservesReleaseTimingAndFinalSilence)
 {
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(1000,0,2048,4410);envelope.noteOn();
-    std::array<double,1000> attack{};envelope.render(attack.data(),1000);
+    std::array<float,1000> attack{};envelope.render(attack.data(),1000);
     EXPECT_EQ(envelope.getLevel(),2048);envelope.noteOff();
-    std::array<double,64> gains{};
+    std::array<float,64> gains{};
     for(int frames=0;envelope.isActive() && frames<4410+64;frames+=64)envelope.render(gains.data(),64);
     EXPECT_FALSE(envelope.isActive());EXPECT_EQ(envelope.getCounter(),3456);
     envelope.render(gains.data(),64);for(float sample:gains)EXPECT_EQ(sample,0);
@@ -92,7 +92,7 @@ TEST(ContinuousLevel, RepeatedAttackUsesWholeLevelRestartAnchorsWithoutRoundingA
         SCOPED_TRACE(vectorRamp);
         synth2::dsp::AmplitudeEnvelope envelope(vectorRamp);
         envelope.setParameters(100000,1000,512,1000);envelope.noteOn();
-        alignas(16) std::array<double,64> gains{};
+        alignas(16) std::array<float,64> gains{};
         // floor(100000*n/2048) for successive whole restart levels 1..6.
         for(int expectedCounter:{48,97,146,195,244,292})
         {
@@ -114,7 +114,7 @@ TEST(ContinuousLevel, ReleaseRetriggerKeepsRealLevelAndUsesCompatibleSamplePosit
 {
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(0,0,512.25,1000);envelope.noteOn();
-    std::array<double,64> gains{};envelope.render(gains.data(),64);
+    std::array<float,64> gains{};envelope.render(gains.data(),64);
     envelope.noteOff();envelope.render(gains.data(),1);
     ASSERT_DOUBLE_EQ(envelope.getLevel(),507.25);
     envelope.setParameters(100000,0,512.25,1000);
@@ -122,6 +122,6 @@ TEST(ContinuousLevel, ReleaseRetriggerKeepsRealLevelAndUsesCompatibleSamplePosit
     EXPECT_EQ(envelope.getCounter(),24755); // floor(100000 * whole level 507 / 2048).
     EXPECT_DOUBLE_EQ(envelope.getLevel(),507.25);
     envelope.render(gains.data(),1);
-    EXPECT_DOUBLE_EQ(envelope.getLevel(),507.00288);
+    EXPECT_FLOAT_EQ(envelope.getLevel(),507.00288f);
     EXPECT_TRUE(envelope.isActive());
 }

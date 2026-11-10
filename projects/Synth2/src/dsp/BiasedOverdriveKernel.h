@@ -9,18 +9,18 @@ namespace synth2::dsp
     {
         struct Stage
         {
-            double bias=0,high=0,previous=0,low=0,shaped=0;
+            float bias=0,high=0,previous=0,low=0,shaped=0;
         };
     public:
-        static double shape(double value) noexcept
+        static float shape(float value) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
             if(value<0)return 0;
-            double denominator=value+0.4;
-            denominator*=value;denominator*=value;denominator*=2.0;denominator+=1.0;
-            return -1.0/denominator+1.0;
+            float denominator=value+0.4f;
+            denominator*=value;denominator*=value;denominator*=2.0f;denominator+=1.0f;
+            return -1.0f/denominator+1.0f;
         }
         void prepare(int rate,bool preserve) noexcept
         {
@@ -33,7 +33,7 @@ namespace synth2::dsp
             }
             configure(rate);
         }
-        double process(double value,int channel) noexcept
+        float process(float value,int channel) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
@@ -41,8 +41,8 @@ namespace synth2::dsp
             for(int stage=0;stage<3;++stage)
             {
                 auto& s=stages[channel][stage];
-                double desired=1.0-s.shaped;
-                if(stage==0)desired*=5.0;
+                float desired=1.0f-s.shaped;
+                if(stage==0)desired*=5.0f;
                 s.bias=(desired-s.bias)*biasCoefficient[stage]+s.bias;
                 s.shaped=shape(value+s.bias);
                 value=((s.shaped-s.previous)+s.high)*highCoefficient;
@@ -54,13 +54,13 @@ namespace synth2::dsp
     private:
         void configure(int rate) noexcept
         {
-            const double r=rate;
-            biasCoefficient={static_cast<double>(540.3539364174444/r),static_cast<double>(829.3804605477054/r),static_cast<double>(1218.9379495928397/r)};
-            highCoefficient=static_cast<double>(1.0/(194.77874452256717/r+1.0));
-            lowCoefficient=static_cast<double>(41035.483241189875/r);
+            const float r=rate;
+            biasCoefficient={static_cast<float>(540.3539364174444f/r),static_cast<float>(829.3804605477054f/r),static_cast<float>(1218.9379495928397f/r)};
+            highCoefficient=static_cast<float>(1.0f/(194.77874452256717f/r+1.0f));
+            lowCoefficient=static_cast<float>(41035.483241189875f/r);
         }
         std::array<std::array<Stage,3>,2> stages{};
-        std::array<double,3> biasCoefficient{};
-        double highCoefficient=0,lowCoefficient=0;
+        std::array<float,3> biasCoefficient{};
+        float highCoefficient=0,lowCoefficient=0;
     };
 }

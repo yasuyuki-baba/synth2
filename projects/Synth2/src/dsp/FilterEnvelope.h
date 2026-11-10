@@ -14,21 +14,21 @@ namespace synth2::dsp
     {
     public:
         enum class Phase { Idle, Attack, Decay, Sustain, Release };
-        static double boundedAmount (int baseIndex,double amount) noexcept
+        static float boundedAmount (int baseIndex,float amount) noexcept
         {
-            const double headroom=static_cast<double>(1024-baseIndex)*(1.0/1024.0);
-            return std::clamp(amount,headroom-1.0,headroom);
+            const float headroom=static_cast<float>(1024-baseIndex)*(1.0f/1024.0f);
+            return std::clamp(amount,headroom-1.0f,headroom);
         }
-        static double boundedAmount(double baseIndex,double amount) noexcept
+        static float boundedAmount(float baseIndex,float amount) noexcept
         {
-            return static_cast<double>(compatibleControlCurve(baseIndex,
+            return static_cast<float>(compatibleControlCurve(baseIndex,
                 [&](int index){return boundedAmount(index,amount);}));
         }
-        void configure (int attackFrames,int decayFrames,double peakLevel,double sustainLevel,
+        void configure (int attackFrames,int decayFrames,float peakLevel,float sustainLevel,
                         int releaseFrames,bool negative=false,bool linear=false) noexcept
         {
-            const double nextPeak=std::max(0.0,peakLevel);
-            const double nextSustain=std::clamp(sustainLevel,0.0,nextPeak);
+            const float nextPeak=std::max(0.0f,peakLevel);
+            const float nextSustain=std::clamp(sustainLevel,0.0f,nextPeak);
             // Keep normalized real state through every peak edit, independently
             // of whether the stored level/peaks happen to be integer-valued.
             if(phase==Phase::Sustain)level=nextSustain;
@@ -47,13 +47,13 @@ namespace synth2::dsp
             release=std::max(0,releaseFrames);peak=nextPeak;
             sustain=nextSustain;inverted=negative;linearDecay=linear;
         }
-        void reset() noexcept { phase=Phase::Idle;level=counter=boundary=step=initial=0; }
+        void reset() noexcept { phase=Phase::Idle;level=initial=0;counter=boundary=step=0; }
         void noteOn() noexcept
         {
             phase=Phase::Attack;
             // Restart position is discrete metadata; retain the real level.
-            const double restartLevel=std::trunc(level);
-            counter=level!=0 && peak>0 ? static_cast<int>(static_cast<double>(attack)*restartLevel/peak) : 0;
+            const float restartLevel=std::trunc(level);
+            counter=level!=0 && peak>0 ? static_cast<int>(static_cast<float>(attack)*restartLevel/peak) : 0;
         }
         void noteOff() noexcept
         {
@@ -62,7 +62,7 @@ namespace synth2::dsp
         }
         bool isActive() const noexcept { return phase!=Phase::Idle; }
         Phase getPhase() const noexcept { return phase; }
-        double getLevel() const noexcept { return level; }
+        float getLevel() const noexcept { return level; }
         int getCounter() const noexcept { return counter; }
         int getBoundary() const noexcept { return boundary; }
         int getStep() const noexcept { return step; }
@@ -75,12 +75,12 @@ namespace synth2::dsp
 #endif
             if(phase==Phase::Attack)
             {
-                const int stride=std::max(1,static_cast<int>(attack/std::max(1.0,peak)));
+                const int stride=std::max(1,static_cast<int>(attack/std::max(1.0f,peak)));
                 while(frames>0 && counter<attack)
                 {
                     const int count=std::min({frames,stride,attack-counter});
                     level=std::min(peak,compatibleControlCurve(peak,[&](int top) {
-                        return std::trunc(static_cast<double>(counter+count)*top/attack);
+                        return std::trunc(static_cast<float>(counter+count)*top/attack);
                     }));
                     segment(inverted ? -level : level,count);
                     counter+=count;frames-=count;
@@ -95,8 +95,8 @@ namespace synth2::dsp
             {
                 const bool releasing=phase==Phase::Release;
                 const int duration=releasing ? release : decay;
-                const double end=releasing ? 0 : sustain;
-                const double start=releasing ? initial : peak;
+                const float end=releasing ? 0 : sustain;
+                const float start=releasing ? initial : peak;
                 while(frames>0 && counter<duration && level>end)
                 {
                     const int count=std::min({frames,step,duration-counter});
@@ -130,8 +130,8 @@ namespace synth2::dsp
         void updateResolution() noexcept
         {
             const int duration=phase==Phase::Decay ? decay : release;
-            const double range=phase==Phase::Decay ? peak-sustain : initial;
-            const int unit=static_cast<int>(duration/std::max(1.0,range));
+            const float range=phase==Phase::Decay ? peak-sustain : initial;
+            const int unit=static_cast<int>(duration/std::max(1.0f,range));
             if(linearDecay){boundary=duration;step=std::max(1,unit);return;}
             if(boundary>=duration/2){boundary=duration;step=unit*5;}
             else if(boundary>=duration/3){boundary=duration/2;step=unit*2;}
@@ -143,7 +143,7 @@ namespace synth2::dsp
         }
         Phase phase {Phase::Idle};
         int attack {},decay {},release {},counter {},boundary {},step {};
-        double peak {},sustain {},level {},initial {};
+        float peak {},sustain {},level {},initial {};
         bool inverted {},linearDecay {};
     };
 }

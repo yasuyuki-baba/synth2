@@ -24,17 +24,17 @@ namespace synth2::dsp
         // Native reset/note-on skips the live-edit slew on the next dispatch.
         void settle() noexcept { elapsed = horizon; }
 
-        static double target(double base,double keyboard,double offset,double envelope,
-                             double modulation1,double modulation2) noexcept
+        static float target(float base,float keyboard,float offset,float envelope,
+                             float modulation1,float modulation2) noexcept
         {
-            const double combined=base+keyboard+offset+envelope;
-            const double modulation=modulation1+modulation2;
+            const float combined=base+keyboard+offset+envelope;
+            const float modulation=modulation1+modulation2;
             return compatibleControlCurve(combined,[&](int position){
                 return compatibleControlCurve(modulation,[&](int amount){
-                    const double product=static_cast<double>(amount>0 ? 1024-position : position)*amount;
+                    const float product=static_cast<float>(amount>0 ? 1024-position : position)*amount;
                     // Quantization belongs to the compatible transfer-curve knots,
                     // not to signal transport or storage.
-                    return std::clamp(position+std::trunc(product/1024.0),0.0,1023.0);
+                    return std::clamp(position+std::trunc(product/1024.0f),0.0f,1023.0f);
                 });
             });
         }
@@ -43,18 +43,18 @@ namespace synth2::dsp
         // elapsed advances by the segment length; target changes alone do not
         // restart the clock. Preserve the caller's callback boundaries.
         template <typename Segment>
-        void render (double desired,int frames,Segment&& segment) noexcept
+        void render (float desired,int frames,Segment&& segment) noexcept
         {
             while (frames>0)
             {
                 int count = frames;
                 if (desired!=current && elapsed<horizon)
                 {
-                    const double distance = desired-anchor;
+                    const float distance = desired-anchor;
                     current=anchor+compatibleControlCurve(distance,[&](int delta){
-                        return std::trunc(static_cast<double>(delta)*elapsed/horizon);
+                        return std::trunc(static_cast<float>(delta)*elapsed/horizon);
                     });
-                    count=std::min(frames,std::max(1,static_cast<int>(horizon/std::max(1.0,std::abs(distance)))));
+                    count=std::min(frames,std::max(1,static_cast<int>(horizon/std::max(1.0f,std::abs(distance)))));
                 }
                 else current = desired;
                 segment(current,count);
@@ -63,12 +63,12 @@ namespace synth2::dsp
             }
         }
 
-        double getCurrent() const noexcept { return current; }
+        float getCurrent() const noexcept { return current; }
         int getElapsed() const noexcept { return elapsed; }
-        double getAnchor() const noexcept { return anchor; }
+        float getAnchor() const noexcept { return anchor; }
 
     private:
         int horizon {2205},elapsed {2205};
-        double current {},anchor {};
+        float current {},anchor {};
     };
 }

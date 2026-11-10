@@ -6,21 +6,21 @@
 #include <vector>
 
 namespace {
-std::vector<double> render(int voices,float time,float depth,float rate,bool history=false)
+std::vector<float> render(int voices,float time,float depth,float rate,bool history=false)
 {
     auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
     EXPECT_TRUE(chorus->configure(44100,voices,64,64,64,64,127));
     if(history)
     {
         chorus->setTimeDial(23.25f);chorus->setDepthDial(78.5f);chorus->setRateDial(54.75f);
-        double impulse[2]{1,-.5f};chorus->process(impulse,nullptr,1);
+        float impulse[2]{1,-.5f};chorus->process(impulse,nullptr,1);
     }
     chorus->setTimeDial(time);chorus->setDepthDial(depth);chorus->setRateDial(rate);chorus->reset();
-    std::vector<double> audio(16384);
+    std::vector<float> audio(16384);
     for(size_t i=0;i<audio.size()/2;++i)
     {
-        audio[2*i]=static_cast<float>(std::sin(i*.07));
-        audio[2*i+1]=static_cast<float>(std::cos(i*.11))*.5f;
+        audio[2*i]=static_cast<float>(std::sin(i*.07f));
+        audio[2*i+1]=static_cast<float>(std::cos(i*.11f))*.5f;
     }
     for(int i=0;i<8192;i+=64)chorus->process(audio.data()+2*i,nullptr,64);
     return audio;
@@ -43,7 +43,7 @@ TEST(ChorusPath, CoordinatesRemainContinuousAcrossIntegralDials)
         const auto exact=render(voices,64,64,64);
         for(const auto& audio:{render(voices,lower[0],lower[1],lower[2]),render(voices,upper[0],upper[1],upper[2])})
         {
-            double maximum=0;
+            float maximum=0;
             for(size_t i=0;i<audio.size();++i)maximum=std::max(maximum,std::abs(audio[i]-exact[i]));
             EXPECT_LT(maximum,.001f)<<"voices="<<voices<<" control="<<control;
         }
@@ -57,7 +57,7 @@ TEST(ChorusPath, ZeroDepthKeepsExactIntegralAndFractionalImpulseDelays)
         auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
         ASSERT_TRUE(chorus->configure(44100,1,64,0,64,64,127));
         chorus->setTimeDial(dial);chorus->reset();
-        std::vector<double> audio(1400);audio[0]=1;
+        std::vector<float> audio(1400);audio[0]=1;
         chorus->process(audio.data(),nullptr,700);
         for(int i=1;i<700;++i)
         {
@@ -68,20 +68,20 @@ TEST(ChorusPath, ZeroDepthKeepsExactIntegralAndFractionalImpulseDelays)
     }
 }
 
-TEST(ChorusPath, ModulationPhaseWordsDoNotNarrowTheAudioRing)
+TEST(ChorusPath, ModulationAndAudioRingUseFloatWords)
 {
     auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
     ASSERT_TRUE(chorus->configure(44100,2,64,0,50,64,127));
-    chorus->setRateDial(50.125);
+    chorus->setRateDial(50.125f);
     chorus->reset();
-    const double input=1.0+std::ldexp(1.0,-40);
-    std::array<double,128> audio{};
+    const float input=std::nextafter(1.0f,2.0f);
+    std::array<float,128> audio{};
     audio[0]=input;
     chorus->process(audio.data(),nullptr,64);
     EXPECT_EQ(audio[0],input);
-    EXPECT_NE(audio[0],static_cast<double>(static_cast<float>(audio[0])));
-    EXPECT_EQ(chorus->getPhaseSin(),static_cast<double>(static_cast<float>(chorus->getPhaseSin())));
-    EXPECT_EQ(chorus->getPhaseCos(),static_cast<double>(static_cast<float>(chorus->getPhaseCos())));
+    EXPECT_EQ(audio[0],std::nextafter(1.0f,2.0f));
+    EXPECT_EQ(chorus->getPhaseSin(),static_cast<float>(static_cast<float>(chorus->getPhaseSin())));
+    EXPECT_EQ(chorus->getPhaseCos(),static_cast<float>(static_cast<float>(chorus->getPhaseCos())));
     for(int block=1;block<=10;++block)
     {
         audio.fill(0);chorus->process(audio.data(),nullptr,64);

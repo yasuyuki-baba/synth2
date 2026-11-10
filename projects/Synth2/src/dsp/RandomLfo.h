@@ -20,10 +20,10 @@ namespace synth2::dsp
 
     struct RandomLfo
     {
-        double current {},previous {};
+        float current {},previous {};
 
         template <typename Random>
-        void setWave(int nativeWave,double first,double second,Random& random) noexcept
+        void setWave(int nativeWave,float first,float second,Random& random) noexcept
         {
             if(nativeWave!=3 && nativeWave!=4)return;
             previous=first==second ? first : compatibleControlCurve(first,[&](int a) {
@@ -33,7 +33,7 @@ namespace synth2::dsp
         }
 
         template <typename Random>
-        void resetPhase(int& counter,int nativeWave,double first,double second,Random& random) noexcept
+        void resetPhase(int& counter,int nativeWave,float first,float second,Random& random) noexcept
         {
             counter=0;
             if(nativeWave==3 || nativeWave==4)
@@ -46,7 +46,7 @@ namespace synth2::dsp
         // Stable-period portion of 0x14f60, before the separately recovered slew.
         // A call crossing several periods still draws once; enable is not tested.
         template <typename Random>
-        void advance(int samples,int& counter,int period,int nativeWave,double first,double second,Random& random) noexcept
+        void advance(int samples,int& counter,int period,int nativeWave,float first,float second,Random& random) noexcept
         {
             counter+=samples;
             if(counter<period)return;
@@ -61,7 +61,7 @@ namespace synth2::dsp
         // Whole-value knots retain the native held target / inclusive ramp.
         // Fractional state and bounds interpolate those queries and their spans.
         // Domain: positive period, 0<=counter<period; varying ramps require period>=2.
-        std::pair<double,int> query(int nativeWave,double first,double second,int counter,int period,int minimumStep) const noexcept
+        std::pair<float,int> query(int nativeWave,float first,float second,int counter,int period,int minimumStep) const noexcept
         {
             if(first==second)return {second,-1};
             return compatibleControlQuery(current,[&](int value) {
@@ -103,7 +103,7 @@ namespace synth2::dsp
         }
 
         template <typename Random>
-        void draw(double first,double second,Random& random) noexcept
+        void draw(float first,float second,Random& random) noexcept
         {
             if(first==second){current=second;return;}
             const int word=random.next();

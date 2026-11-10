@@ -11,7 +11,7 @@ namespace synth2::render
     // controls only; it never edits source files, APVTS or saved patch metadata.
     inline bool applyControllerDial(RenderControls& p,int destination,int dial)
     {
-        const double unit=static_cast<double>(dial)/127.0;
+        const float unit=static_cast<float>(dial)/127.0f;
         switch(destination)
         {
             case 2:p.osc2PitchSemis=static_cast<float>(coarseTuneSemitones(dial));return true;

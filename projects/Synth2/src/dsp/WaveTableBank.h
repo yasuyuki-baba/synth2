@@ -26,7 +26,7 @@ namespace synth2
         std::size_t length = 0;
         // このテーブルが有効な境界周波数 [Hz]。
         // freq <= freqBorder であればこのテーブル候補になる。
-        double freqBorderHz = 0.0;
+        float freqBorderHz = 0.0f;
     };
 
     struct ShapeTables
@@ -34,7 +34,7 @@ namespace synth2
         // この shape 用の bandlimited テーブル群
         std::vector<WaveTableInfo> infos;
         // すべてのテーブルを連結したサンプル配列
-        std::vector<double> data;
+        std::vector<float> data;
     };
 
     class WaveTableBank
@@ -57,11 +57,11 @@ namespace synth2
             shapes[(std::size_t) shapeIndex] = std::move (tables);
         }
 
-        void setAliasBorderHz (double borderHz) { freqAliasBorderHz = std::max (0.0, borderHz); }
+        void setAliasBorderHz (float borderHz) { freqAliasBorderHz = std::max (0.0f, borderHz); }
 
         // 指定した shape / freq [Hz] に対応するテーブルの生ポインタと長さを返す。
         // テーブルが存在しない場合は {nullptr, 0} を返す。
-        std::pair<const double*, std::size_t> getTableFor (int shapeIndex, double freqHz) const
+        std::pair<const float*, std::size_t> getTableFor (int shapeIndex, float freqHz) const
         {
             if (shapeIndex < 0 || shapeIndex >= (int) shapes.size())
                 return { nullptr, 0 };
@@ -84,7 +84,7 @@ namespace synth2
             while (low < high)
             {
                 int mid = low + (high - low) / 2;
-                double border = shape.infos[(std::size_t) mid].freqBorderHz;
+                float border = shape.infos[(std::size_t) mid].freqBorderHz;
                 if (border < freqHz)
                     low = mid + 1;
                 else
@@ -110,21 +110,21 @@ namespace synth2
 
         // Win64 shape-3 selector (RVA 0x3cad0). Search first strictly greater
         // border, then step back only below the fixed 1575 Hz alias boundary.
-        std::pair<const double*, std::size_t> getNativeTableFor (int shapeIndex,double frequency) const
+        std::pair<const float*, std::size_t> getNativeTableFor (int shapeIndex,float frequency) const
         {
             if (shapeIndex < 0 || static_cast<std::size_t>(shapeIndex) >= shapes.size() || shapes[shapeIndex].infos.empty()) return {nullptr,0};
             const auto& shape = shapes[shapeIndex];
             auto upper = std::upper_bound (shape.infos.begin(),shape.infos.end(),frequency,
-                [](double value,const WaveTableInfo& info) { return value < info.freqBorderHz; });
+                [](float value,const WaveTableInfo& info) { return value < info.freqBorderHz; });
             std::size_t index = upper == shape.infos.end() ? shape.infos.size()-1
                                                          : static_cast<std::size_t> (upper-shape.infos.begin());
-            if (frequency != shape.infos[index].freqBorderHz && frequency <= 1575.0 && index > 0) --index;
+            if (frequency != shape.infos[index].freqBorderHz && frequency <= 1575.0f && index > 0) --index;
             const auto& info = shape.infos[index];
             if (info.offset+info.length > shape.data.size()) return {nullptr,0};
             return {shape.data.data()+info.offset,info.length};
         }
 
-        std::pair<const double*, std::size_t> getNativeTriangleFor (double frequency) const
+        std::pair<const float*, std::size_t> getNativeTriangleFor (float frequency) const
         {
             return getNativeTableFor (2,frequency);
         }
@@ -138,7 +138,7 @@ namespace synth2
 
     private:
         std::vector<ShapeTables> shapes;
-        double freqAliasBorderHz = 20000.0; // デフォルトは高めに設定しておく
+        float freqAliasBorderHz = 20000.0f; // デフォルトは高めに設定しておく
     };
 
 }

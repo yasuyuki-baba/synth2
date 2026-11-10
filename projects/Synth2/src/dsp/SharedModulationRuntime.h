@@ -16,16 +16,16 @@ namespace synth2::dsp
         SharedModulationRuntime()=default;
         SharedModulationRuntime(const SharedModulationRuntime&)=delete;
         SharedModulationRuntime& operator=(const SharedModulationRuntime&)=delete;
-        void retimeClocks(double sampleRate);
+        void retimeClocks(float sampleRate);
         void prepareBlock(int capacity);
-        void synchronize(const SharedModulationSettings&,double sampleRate);
+        void synchronize(const SharedModulationSettings&,float sampleRate);
         void beginChunk(int start);
         int randomBoundary(int count,const SharedModulationSettings&) const noexcept;
         void renderSpan(int start,int count,const SharedModulationSettings&);
         void trackKey(const ::synth2::audio::MidiMessage&,const SharedModulationSettings&);
         void releaseKey(int channel,int note) noexcept;
         void releaseKeys(int channel) noexcept;
-        void applyHistory(const LfoHistoryEvent&,double bpm) noexcept;
+        void applyHistory(const LfoHistoryEvent&,float bpm) noexcept;
         void requestReload() noexcept { reload=true; }
         void touchRate(size_t index) noexcept { slots[index].rateTouched=true; }
         bool isInitial() const noexcept { return initial; }
@@ -42,15 +42,15 @@ namespace synth2::dsp
         {
             LfoClock clock;
             bool tempoSync {},rateTouched {};
-            double previousRate {};
+            float previousRate {};
         };
         std::array<Slot,2> slots{};
         LfoBlock sharedBlock;
         RandomLfoRuntime random;
         MidiRoutingHistory midiRouting;
         std::array<std::array<bool,128>,16> heldKeys {};
-        double previousBpm {120};
+        float previousBpm {120};
         bool initial {true},reload {},loadAlreadyApplied {};
-        void updateRate(size_t slot,double dial,double bpm) noexcept;
+        void updateRate(size_t slot,float dial,float bpm) noexcept;
     };
 }

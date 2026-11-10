@@ -23,20 +23,20 @@ namespace synth2
 
         bool canPlaySound (::synth2::audio::Sound* sound) override;
 
-        void prepare (double newSampleRate);
+        void prepare (float newSampleRate);
         void setAudioChunkStart(int start) noexcept {audioChunkStart=start;}
-        void setAudioOutput(int factor,double* left,double* right) noexcept
+        void setAudioOutput(int factor,float* left,float* right) noexcept
         {audioFactor=factor;audioLeft=left;audioRight=right; }
-        void updateSampleRate (double newSampleRate);
+        void updateSampleRate (float newSampleRate);
 
-        void startNote (int midiNoteNumber, double velocity,
+        void startNote (int midiNoteNumber, float velocity,
                         ::synth2::audio::Sound*, int) override;
-        void stopNote (double velocity, bool allowTailOff) override;
+        void stopNote (float velocity, bool allowTailOff) override;
         void pitchWheelMoved (int newPitchWheelValue) override;
         void updateFilterEnvelopeConfiguration();
         void controllerMoved (int controllerNumber, int newControllerValue) override;
 
-        void renderNextBlock (::synth2::audio::AudioBuffer<double>& outputBuffer,
+        void renderNextBlock (::synth2::audio::AudioBuffer<float>& outputBuffer,
                               int startSample,
                               int numSamples) override;
 
@@ -49,8 +49,8 @@ namespace synth2
         bool didRenderSignal() const noexcept { return renderedSignal; }
         void setNextTransition(dsp::NoteTransition transition) noexcept { lifecycle.schedule(transition); }
         dsp::VoiceLifecycle::Phase getLifecyclePhase() const noexcept { return lifecycle.phase(); }
-        double getCurrentFrequency() const noexcept
-        {return cores[0]!=nullptr ? static_cast<double>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
+        float getCurrentFrequency() const noexcept
+        {return cores[0]!=nullptr ? static_cast<float>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
         void setPitchBendOffset(int offset) noexcept {pitchBendOffset=offset;}
         // Offline read-only inspection of the core actually used by this
         // logical voice, using the same physical pool in every play mode.
@@ -115,15 +115,15 @@ namespace synth2
 
         RenderControls& params;
         dsp::OscillatorPhaseRandom& phaseRandom;
-        double sampleRate { 0.0 };
+        float sampleRate { 0.0f };
         int nativeWorkspaceOrigin {};
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
-        int audioFactor=1,audioChunkStart=0;double* audioLeft=nullptr;double* audioRight=nullptr;
+        int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
         bool renderedSignal {};
         int filterMidiNote {60};
         int pitchBendOffset {};
         dsp::VoiceLifecycle lifecycle;
-        double  level  { 0.0 };
+        float  level  { 0.0f };
 
         std::array<VoiceCore*,8> cores {};
         VoiceCorePool& pool;

@@ -11,46 +11,46 @@ namespace synth2::dsp
     class LfoClock
     {
     public:
-        void setRate(double dial) noexcept
+        void setRate(float dial) noexcept
         {
-            rateDial=std::clamp(dial,0.0,127.0);
+            rateDial=std::clamp(dial,0.0f,127.0f);
             rate=static_cast<int>(std::lround(rateDial));
             targetHz=compatibleControlCurve(rateDial,[](int value) {
-                return std::pow(1500.0,value/127.0)/12.0;
+                return std::pow(1500.0f,value/127.0f)/12.0f;
             });
             slew(1);
-            step=targetHz>10.0 ? 32 : 64;
+            step=targetHz>10.0f ? 32 : 64;
         }
 
         // Native CLFO RVA0x15255. Kept separate from the integrated free clock:
         // a temporary sync setter also changes history after sync is disabled.
-        void setSynchronizedRate(double dial, double bpm) noexcept
+        void setSynchronizedRate(float dial, float bpm) noexcept
         {
             constexpr int divisions[] {1536,1152,864,768,576,432,384,288,216,192,
                 144,96,84,72,48,42,36,32,24,21,18,16,12,9,8,6,4,3,2,1};
-            rateDial=std::clamp(dial,0.0,127.0);
+            rateDial=std::clamp(dial,0.0f,127.0f);
             // Tempo divisions are discrete choices, separate from free-rate Hz.
             rate=static_cast<int>(std::lround(rateDial));
             const int division=divisions[(rate*30)>>7];
             // Tempo knots define discrete periods: the compatible 3 Hz word
             // is just above 3, so its period is 14699, not 14700 frames.
-            // Interpolate fractional BPM in double after resolving those words.
+            // Interpolate fractional BPM in Float32 after resolving those words.
             targetHz=compatibleControlCurve(bpm,[division](int tempo) {
                 const float pulses=static_cast<float>(tempo)*48.0f;
                 const float divided=pulses/static_cast<float>(division);
                 return divided*(1.0f/120.0f);
             });
             slew(1);
-            step=targetHz > 10.0 ? 32 : 64;
+            step=targetHz > 10.0f ? 32 : 64;
         }
 
         void setSampleRate(int value) noexcept
         {
             sampleRate = std::max(1,value);
             slew(1);
-            step = targetHz > 10.0 ? 32 : 64;
+            step = targetHz > 10.0f ? 32 : 64;
             // The sample-rate setter recalculates even when no slew is pending.
-            rescale(static_cast<int>(static_cast<double>(sampleRate)/currentHz));
+            rescale(static_cast<int>(static_cast<float>(sampleRate)/currentHz));
         }
 
         void resetPhase() noexcept { counter = 0; }
@@ -69,29 +69,29 @@ namespace synth2::dsp
 
         int sampleRate = 44100;
         int step = 0;
-        double currentHz = 1.0;
-        double targetHz = 1.0;
+        float currentHz = 1.0f;
+        float targetHz = 1.0f;
         int counter = 0;
         int period = 44100;
         int rate = 0;
-        double rateDial = 0;
+        float rateDial = 0;
 
     private:
         void rescale(int nextPeriod) noexcept
         {
-            const double scaled = static_cast<double>(nextPeriod) * static_cast<double>(counter);
-            counter = static_cast<int>(scaled / static_cast<double>(period));
+            const float scaled = static_cast<float>(nextPeriod) * static_cast<float>(counter);
+            counter = static_cast<int>(scaled / static_cast<float>(period));
             period = nextPeriod;
         }
 
         void slew(int samples) noexcept
         {
             if(currentHz == targetHz) return;
-            const double denominator = static_cast<double>(sampleRate) * 0.001;
-            const double delta = static_cast<double>(samples) / denominator;
+            const float denominator = static_cast<float>(sampleRate) * 0.001f;
+            const float delta = static_cast<float>(samples) / denominator;
             if(currentHz < targetHz) currentHz = std::min(currentHz + delta,targetHz);
             else currentHz = std::max(currentHz - delta,targetHz);
-            rescale(static_cast<int>(static_cast<double>(sampleRate) / currentHz));
+            rescale(static_cast<int>(static_cast<float>(sampleRate) / currentHz));
         }
     };
 }

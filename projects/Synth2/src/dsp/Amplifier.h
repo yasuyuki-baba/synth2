@@ -23,10 +23,10 @@ namespace synth2::dsp
         /**
             Processes a single mono sample into stereo output based on gain and pan.
         */
-        void processSample (double input, double gain, double pan, double& outL, double& outR)
+        void processSample (float input, float gain, float pan, float& outL, float& outR)
         {
             // Linear gain for now, can be changed to exponential if needed
-            double level = input * gain;
+            float level = input * gain;
             
             // Original-DLL p90 sweeps use balance: both channels at full level
             // in the centre, fading only the opposite channel toward an edge.
@@ -34,7 +34,7 @@ namespace synth2::dsp
             
             // Measured unity-gain, zero-effect sine reference at default native
             // master level. It does not model the original master-volume knob.
-            constexpr double outputTrim = OutputGain::defaultTarget;
+            constexpr float outputTrim = OutputGain::defaultTarget;
             outL = level * balance.left * outputTrim;
             outR = level * balance.right * outputTrim;
         }

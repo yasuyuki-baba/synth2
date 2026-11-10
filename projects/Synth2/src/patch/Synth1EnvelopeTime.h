@@ -24,7 +24,7 @@ namespace synth2
     {
         raw = std::clamp (raw, 0, 127);
         if (raw == 0) return 0.0f;
-        const double gain = std::pow (2048.0, std::pow (raw / 127.0, 0.3) - 1.0);
-        return static_cast<float> (std::floor (gain * 2048.0) / 2048.0);
+        const float gain = std::pow (2048.0f, std::pow (raw / 127.0f, 0.3f) - 1.0f);
+        return static_cast<float> (std::floor (gain * 2048.0f) / 2048.0f);
     }
 }

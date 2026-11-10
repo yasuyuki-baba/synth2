@@ -14,7 +14,7 @@ namespace synth2::dsp
         {
             state = state * 214013u + 2531011u;
             const auto random15 = (state >> 16) & 32767u;
-            const float fraction = static_cast<float> (static_cast<double> (static_cast<float> (random15)) * (1.0 / 32767.0));
+            const float fraction = static_cast<float> (static_cast<float> (static_cast<float> (random15)) * (1.0f / 32767.0f));
             return fraction;
         }
         uint32_t nextPhase() noexcept
@@ -30,11 +30,11 @@ namespace synth2::dsp
         uint32_t osc1 {},osc2 {};
         std::array<uint32_t,8> lanes {};
         bool pending {true};
-        double dial {-1};
+        float dial {-1};
 
-        void setDial (double value) noexcept
+        void setDial (float value) noexcept
         {
-            value = std::clamp (value,0.0,127.0);
+            value = std::clamp (value,0.0f,127.0f);
             // Preserve the compatible selection word at the random/fixed boundary. Fractional
             // edits inside random mode do not publish a new pending draw.
             if (std::lround(static_cast<float>(value))==0 && std::lround(static_cast<float>(dial))!=0) pending = true;
@@ -43,7 +43,7 @@ namespace synth2::dsp
 
         // DLL random branch consumes two scalar and eight lane draws once per
         // pending request. Fixed mode restarts the two scalars on every note.
-        bool start (OscillatorPhaseRandom& random, int count = 1, int slot = 0, double spreadDial = 0) noexcept
+        bool start (OscillatorPhaseRandom& random, int count = 1, int slot = 0, float spreadDial = 0) noexcept
         {
             if (std::lround(static_cast<float>(dial)) > 0)
             {
@@ -68,7 +68,7 @@ namespace synth2::dsp
                 {
                     OscillatorPhaseRandom offsets;
                     for (int draw = 0; draw < std::clamp(slot,0,7)*10; ++draw) offsets.nextFraction();
-                    const double spread=std::clamp(spreadDial,0.0,127.0);
+                    const float spread=std::clamp(spreadDial,0.0f,127.0f);
                     auto offset=[&] {
                         // Draw once; interpolation must not advance the local table.
                         const float random=offsets.nextFraction();

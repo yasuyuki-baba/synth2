@@ -35,13 +35,13 @@ TEST(OscillatorRead, EveryTableReadUsesAdjacentSamplesWithoutAdvancingPhase)
             for(unsigned bin:{0u,31u,511u,1023u,2047u})
             {
                 oscillator.setPhaseFixed27(bin<<16);
-                const double first=oscillator.renderSample(shape,.5f,0,&bank);
+                const float first=oscillator.renderSample(shape,.5f,0,&bank);
                 oscillator.setPhaseFixed27(((bin+1)&2047u)<<16);
-                const double second=oscillator.renderSample(shape,.5f,0,&bank);
+                const float second=oscillator.renderSample(shape,.5f,0,&bank);
                 for(unsigned fraction:{0u,8192u,32768u,57344u})
                 {
                     const unsigned phase=(bin<<16)|fraction;oscillator.setPhaseFixed27(phase);
-                    const double weight=static_cast<float>(fraction)/65536.f;
+                    const float weight=static_cast<float>(fraction)/65536.f;
                     EXPECT_EQ(oscillator.renderSample(shape,.5f,0,&bank),first+weight*(second-first));
                     EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
                 }
@@ -73,7 +73,7 @@ TEST(OscillatorRead, DefaultVoiceAdapterAndDirectOscillatorUseTheSameReader)
 TEST(OscillatorRead, RingAlwaysUsesProductMixAndSuppressesFmPhaseOffsets)
 {
     const auto bank=generatedBank();
-    for(int shape:{0,1,2,3,4})for(double mix:{0.f,.25f,1.f})for(double depth:{0.,16384.5})
+    for(int shape:{0,1,2,3,4})for(float mix:{0.f,.25f,1.f})for(float depth:{0.,16384.5})
     {
         synth2::dsp::OscillatorSection ring;
         ring.prepare({44100,64,2});ring.params.osc1Wave=3;ring.params.osc2Wave=shape;
@@ -81,11 +81,11 @@ TEST(OscillatorRead, RingAlwaysUsesProductMixAndSuppressesFmPhaseOffsets)
         first.updatePhaseIncrement(220);second.updatePhaseIncrement(330);
         for(int i=0;i<256;++i)
         {
-            const double carrier=first.renderSample(3,.5f,0,&bank);
-            double modulator=second.renderSample(shape,.5f,0,&bank);
-            if(shape==4 && depth==0)modulator*=.65;
+            const float carrier=first.renderSample(3,.5f,0,&bank);
+            float modulator=second.renderSample(shape,.5f,0,&bank);
+            if(shape==4 && depth==0)modulator*=.65f;
             if(shape==1 && depth!=0)modulator*=2.f;
-            const double expected=(modulator*mix)*carrier+carrier*(1.f-mix);
+            const float expected=(modulator*mix)*carrier+carrier*(1.f-mix);
             EXPECT_EQ(ring.processSample(220,330,.5f,mix,depth,false,true,0,0,-1,&bank),expected);
             first.advancePhase();if(shape!=4)second.advancePhase();
             EXPECT_EQ(ring.osc1.getPhaseFixed27(),first.getPhaseFixed27());
@@ -171,7 +171,7 @@ TEST(OscillatorRead, ScalarFrequenciesUseFixedCeilingAtEverySampleRate)
                 synth2::dsp::Oscillator phaseReference;
                 phaseReference.setSampleRate(rate);phaseReference.updatePhaseIncrement(expected);
                 for(auto* section:{&actual,&reference}) {
-                    section->prepare({rate,64,2});section->params={0,2};
+                    section->prepare({static_cast<float>(rate),64,2});section->params={0,2};
                 }
                 for(int frame=0;frame<128;++frame) {
                     const auto* selected=tables ? &bank : nullptr;
@@ -239,7 +239,7 @@ TEST(OscillatorRead, FineFramesPreserveBaseTrajectoryAcrossWaveformsAndControlCh
     for(int first:{0,1,2,3})for(int second:{0,1,2,3,4})for(int mode:{0,1,2,3})
     {
         synth2::dsp::OscillatorSection base,fine;
-        for(auto* o:{&base,&fine}){o->prepare({rate,64,2});o->params={first,second};o->resetPhase(.87f);}
+        for(auto* o:{&base,&fine}){o->prepare({static_cast<float>(rate),64,2});o->params={first,second};o->resetPhase(.87f);}
         for(int frame=0;frame<96;++frame)
         {
             if(frame==48){base.resetPhase(.13f);fine.resetPhase(.13f);}
@@ -250,7 +250,7 @@ TEST(OscillatorRead, FineFramesPreserveBaseTrajectoryAcrossWaveformsAndControlCh
             const double width=frame%2 ? .23f : .77f;
             const double depth=frame<8 ? 0 : 15400286.75;
             const double expected=base.processSample(f1,f2,width,.35f,depth,sync,ring,sub,2,-1,&bank,-1,.1,-.2,true,true);
-            std::array<double,16> actual{};
+            std::array<float,16> actual{};
             fine.processFrame(actual.data(),factor,f1,f2,width,.35f,depth,sync,ring,sub,2,-1,&bank,-1,.1,-.2,true,true);
             ASSERT_EQ(actual[0],expected);
             ASSERT_EQ(fine.readPhaseWords(),base.readPhaseWords());
@@ -272,7 +272,7 @@ TEST(OscillatorRead, FineFrameFollowsSignedFmAdvanceIncludingMoreThanHalfACycle)
         bank.setShapeTables(2,std::move(constant));
         synth2::dsp::OscillatorSection o;o.prepare({48000,64,2});o.params={3,2};
         o.osc1.setPhaseFixed27(0x07000000);o.osc2.setPhaseFixed27(0);
-        std::array<double,16> values{};
+        std::array<float,16> values{};
         o.processFrame(values.data(),factor,22000,1000,.5f,0,67108864,true,false,0,0,-1,&bank);
         const int64_t increment=o.osc1.getPhaseIncFixed27();
         const int64_t delta=increment+(source<0 ? -67108864 : 67108864);
@@ -297,7 +297,7 @@ TEST(OscillatorRead, FineFmTrajectorySuppressesAnAboveNyquistCarrierWithoutRetun
         double re=0,im=0;
         for(int i=0;i<12288;++i)
         {
-            std::array<double,16> samples{};
+            std::array<float,16> samples{};
             // 12 kHz base + 20 kHz constant FM = 32 kHz. At 48 kHz it
             // folds to 16 kHz. A finer read must remove, not retune, this tone.
             o.processFrame(samples.data(),factor,12000,1000,.5f,0,20000.*134217728./48000.,false,false,0,0,-1,&bank);
@@ -310,7 +310,7 @@ TEST(OscillatorRead, FineFmTrajectorySuppressesAnAboveNyquistCarrierWithoutRetun
     }
 }
 
-TEST(OscillatorRead, DoubleAudioAndCompatiblePhaseWordShareOneTableRead)
+TEST(OscillatorRead, AudioAndFmUseTheSameFloatTableRead)
 {
     synth2::ShapeTables table;table.infos.push_back({0,2048,100000});table.data.assign(2048,0);
     table.data[0]=1.0;table.data[1]=std::nextafter(-1.0f,0.0f);
@@ -318,8 +318,7 @@ TEST(OscillatorRead, DoubleAudioAndCompatiblePhaseWordShareOneTableRead)
     synth2::dsp::Oscillator oscillator;oscillator.setSampleRate(44100);oscillator.updatePhaseIncrement(220);
     oscillator.setPhaseFixed27(1u<<15);
     const auto sample=oscillator.readSample(3,.5,0,&bank);
-    EXPECT_EQ(sample.value,0x1p-25);
-    EXPECT_EQ(sample.referenceWord,0.0f);
-    EXPECT_EQ(oscillator.renderSample(3,.5,0,&bank),sample.value);
+    EXPECT_EQ(sample,0.0f);
+    EXPECT_EQ(oscillator.renderSample(3,.5,0,&bank),sample);
     EXPECT_EQ(oscillator.getPhaseFixed27(),1u<<15);
 }

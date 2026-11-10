@@ -10,33 +10,33 @@ class OversamplingFilter
 public:
     OversamplingFilter() noexcept { (void)coefficients(); }
     void reset() noexcept { history={};head=64; }
-    void push(double value) noexcept { head=(head+1)%65;history[head]=value; }
-    double value() const noexcept
+    void push(float value) noexcept { head=(head+1)%65;history[head]=value; }
+    float value() const noexcept
     {
         const auto& h=coefficients();
-        double result=h[32]*history[(head+33)%65];
+        float result=h[32]*history[(head+33)%65];
         for(int i=1;i<65;i+=2)result+=h[i]*history[(head+65-i)%65];
         return result;
     }
-    static const std::array<double,65>& coefficients() noexcept
+    static const std::array<float,65>& coefficients() noexcept
     {
         static const auto values=[] {
-            std::array<double,65> h{};double sum=0;
-            constexpr double pi=3.14159265358979323846;
+            std::array<float,65> h{};float sum=0;
+            constexpr float pi=3.14159265358979323846f;
             for(int i=0;i<65;++i)
             {
                 const int n=i-32;
-                const double window=.42-.5*std::cos(2*pi*i/64)+.08*std::cos(4*pi*i/64);
-                const double tap=n==0 ? .5 : n%2==0 ? 0 : std::sin(.5*pi*n)/(pi*n);
-                h[i]=static_cast<double>(tap*window);sum+=h[i];
+                const float window=.42f-.5f*std::cos(2*pi*i/64)+.08f*std::cos(4*pi*i/64);
+                const float tap=n==0 ? .5f : n%2==0 ? 0 : std::sin(.5f*pi*n)/(pi*n);
+                h[i]=static_cast<float>(tap*window);sum+=h[i];
             }
-            for(auto& tap:h)tap=static_cast<double>(tap/sum);
+            for(auto& tap:h)tap=static_cast<float>(tap/sum);
             return h;
         }();
         return values;
     }
 private:
-    std::array<double,65> history{};
+    std::array<float,65> history{};
     int head=64;
 };
 
@@ -47,7 +47,7 @@ public:
     { if(OversamplingSettings::valid(next) && next!=factor){factor=next;reset();} }
     int getFactor() const noexcept { return factor; }
     void reset() noexcept { for(auto& stage:stages)stage.reset(); }
-    double process(const std::array<double,16>& input) noexcept
+    float process(const std::array<float,16>& input) noexcept
     {
         if(factor==1)return input[0];
         auto values=input;
@@ -57,7 +57,7 @@ public:
             {
                 // Phase zero keeps the total delay an integral host-frame count.
                 stages[stage].push(values[i*2]);
-                const double output=stages[stage].value();
+                const float output=stages[stage].value();
                 stages[stage].push(values[i*2+1]);values[i]=output;
             }
         return values[0];
@@ -79,14 +79,14 @@ public:
     }
     int getFactor() const noexcept { return factor; }
     void reset() noexcept {for(auto& channel:up)for(auto& stage:channel)stage.reset();for(auto& channel:down)channel.reset();}
-    template<class Kernel> std::array<double,2> process(double left,double right,Kernel&& kernel) noexcept
+    template<class Kernel> std::array<float,2> process(float left,float right,Kernel&& kernel) noexcept
     {
-        std::array<std::array<double,16>,2> values{};
+        std::array<std::array<float,16>,2> values{};
         values[0][0]=left;values[1][0]=right;
         for(int channel=0;channel<2;++channel)
             for(int count=1,stage=0;count<factor;count*=2,++stage)
             {
-                std::array<double,16> next{};
+                std::array<float,16> next{};
                 for(int i=0;i<count;++i)
                 {
                     up[channel][stage].push(values[channel][i]*2);

@@ -18,7 +18,7 @@ namespace synth2::midi
     {
     public:
         explicit Arpeggiator(dsp::CrtRandom& random) noexcept : randomSource(random) {}
-        void prepare (double rate) noexcept
+        void prepare (float rate) noexcept
         {
             sampleRate = rate;
             clock = 0;
@@ -30,13 +30,13 @@ namespace synth2::midi
         }
 
         // Read-only lookahead; only process() advances the scheduler or RNG.
-        int framesUntilBoundary(double frame,int limit) const noexcept
+        int framesUntilBoundary(int64_t frame,int limit) const noexcept
         {
             if(!enabled)return limit;
             for(const auto& channel:channels)
-                for(double next:{channel.next,channel.off,channel.idleNext})
+                for(int64_t next:{channel.next,channel.off,channel.idleNext})
                 {
-                    const double distance=std::ceil(next-1e-8)-frame;
+                    const int64_t distance=next-frame;
                     if(distance>0 && distance<limit)limit=static_cast<int>(distance);
                 }
             return limit;
@@ -44,37 +44,37 @@ namespace synth2::midi
 
         template <typename Sink>
         void process (const ::synth2::audio::MidiBuffer& input, int start, int count,
-                      const ArpeggiatorSettings& params, double bpm, Sink&& sink)
+                      const ArpeggiatorSettings& params, float bpm, Sink&& sink)
         {
             process(input,start,count,params,bpm,std::forward<Sink>(sink),[](int){});
         }
 
         template <typename Sink,typename Boundary>
         void process (const ::synth2::audio::MidiBuffer& input, int start, int count,
-                      const ArpeggiatorSettings& params, double bpm, Sink&& sink,Boundary&& boundary)
+                      const ArpeggiatorSettings& params, float bpm, Sink&& sink,Boundary&& boundary)
         {
             process(input,start,count,params,bpm,std::forward<Sink>(sink),std::forward<Boundary>(boundary),[](const ::synth2::audio::MidiMessage&,int){});
         }
 
         template <typename Sink,typename Boundary,typename InputEvent>
         void process (const ::synth2::audio::MidiBuffer& input, int start, int count,
-                      const ArpeggiatorSettings& params, double bpm, Sink&& sink,Boundary&& boundary,InputEvent&& inputEvent,bool nativeOmni=false)
+                      const ArpeggiatorSettings& params, float bpm, Sink&& sink,Boundary&& boundary,InputEvent&& inputEvent,bool nativeOmni=false)
         {
             if (count <= 0) return;
-            const double begin = clock, end = begin + count;
-            auto emit = [&](const ::synth2::audio::MidiMessage& msg, double time)
+            const int64_t begin = clock, end = begin + count;
+            auto emit = [&](const ::synth2::audio::MidiMessage& msg, int64_t time)
             {
                 sink (msg, start + static_cast<int> (time - begin));
             };
-            const double safeBpm = std::isfinite (bpm) && bpm > 0 ? bpm : 120.0;
+            const float safeBpm = std::isfinite (bpm) && bpm > 0 ? bpm : 120.0f;
             // One integer period/gate clock at every supported host rate.
-            const double nextInterval=std::max(1,dsp::ArpeggiatorClock::period(
+            const int nextInterval=std::max(1,dsp::ArpeggiatorClock::period(
                 sampleRate,static_cast<float>(safeBpm),params.beat));
             if (interval > 0 && interval != nextInterval)
                 for (auto& ch : channels)
                 {
-                    if (std::isfinite (ch.next)) ch.next = begin + std::max (0.0, ch.next - begin) * nextInterval / interval;
-                    if (std::isfinite (ch.off)) ch.off = begin + std::max (0.0, ch.off - begin) * nextInterval / interval;
+                    if(ch.next!=infinity)ch.next=begin+rescaledFrames(ch.next-begin,nextInterval,interval);
+                    if(ch.off!=infinity)ch.off=begin+rescaledFrames(ch.off-begin,nextInterval,interval);
                 }
             if(interval != nextInterval || idleGate != params.gate)
                 for(auto& ch:channels)ch.idleNext=infinity;
@@ -122,20 +122,20 @@ namespace synth2::midi
                 enabled = params.enabled;
             }
 
-            auto advance = [&](double limit)
+            auto advance = [&](int64_t limit)
             {
                 while (enabled)
                 {
-                    double next = infinity;
+                    int64_t next = infinity;
                     for (const auto& ch : channels) next = std::min ({next,ch.next,ch.off,ch.idleNext});
-                    const double sample = std::ceil (next - 1e-8);
+                    const int64_t sample=next;
                     if (sample >= limit) break;
                     for (int c = 0; c < 16; ++c)
                     {
                         auto& ch = channels[c];
                         // An empty native keyboard still partitions the audio
                         // at gate/period boundaries; it emits no MIDI message.
-                        if(std::ceil(ch.idleNext-1e-8)<=sample)
+                        if(ch.idleNext<=sample)
                         {
                             boundary(start+static_cast<int>(sample-begin));
                             if(idleGate==127)
@@ -152,14 +152,14 @@ namespace synth2::midi
                                 ch.idleGateEnd=!ch.idleGateEnd;
                             }
                         }
-                        if (std::ceil (ch.off - 1e-8) <= sample)
+                        if (ch.off <= sample)
                         {
                             // An out-of-range random step emits no note, but
                             // native CArp still partitions at its gate boundary.
                             if(randomTiming)boundary(start+static_cast<int>(sample-begin));
                             stop (ch, c, sample, emit);
                         }
-                        if (std::ceil (ch.next - 1e-8) <= sample)
+                        if (ch.next <= sample)
                         {
                             // Finish preceding CLFO draws before this arp step.
                             if(randomTiming)boundary(start+static_cast<int>(sample-begin));
@@ -172,7 +172,7 @@ namespace synth2::midi
             while (it != input.cend() && (*it).samplePosition < start + count)
             {
                 const int position = (*it).samplePosition;
-                const double time = begin + position - start;
+                const int64_t time = begin + position - start;
                 advance (time);
                 do
                 {
@@ -195,13 +195,15 @@ namespace synth2::midi
         }
 
     private:
-        static constexpr double infinity = std::numeric_limits<double>::infinity();
+        static constexpr int64_t infinity=std::numeric_limits<int64_t>::max();
+        static int64_t rescaledFrames(int64_t remaining,int next,int previous) noexcept
+        {return (std::max<int64_t>(0,remaining)*next+previous-1)/previous;}
         struct Channel
         {
             std::array<float, 128> velocity {};
             std::array<bool, 128> down {};
             bool sustain = false;
-            double next = infinity, off = infinity, idleNext = infinity;
+            int64_t next = infinity, off = infinity, idleNext = infinity;
             bool idleGateEnd = true;
             uint64_t step = 0;
             int sounding = -1;
@@ -213,14 +215,14 @@ namespace synth2::midi
             return false;
         }
         template <typename Emit>
-        static void stop (Channel& ch, int c, double time, Emit& emit)
+        static void stop (Channel& ch, int c, int64_t time, Emit& emit)
         {
             if (ch.sounding >= 0) emit (::synth2::audio::MidiMessage::noteOff (c + 1, ch.sounding), time);
             ch.sounding = -1;
             ch.off = infinity;
         }
         template <typename Emit>
-        void handle (const ::synth2::audio::MidiMessage& msg, double time, Emit& emit)
+        void handle (const ::synth2::audio::MidiMessage& msg, int64_t time, Emit& emit)
         {
             const int c = msg.getChannel() - 1;
             if (c < 0 || c >= 16) { emit (msg, time); return; }
@@ -273,7 +275,7 @@ namespace synth2::midi
                 emit (msg, time);
         }
         template <typename Emit>
-        void step (Channel& ch, int c, double time, const ArpeggiatorSettings& p, Emit& emit)
+        void step (Channel& ch, int c, int64_t time, const ArpeggiatorSettings& p, Emit& emit)
         {
             struct Candidate { int pitch; float velocity; };
             std::array<Candidate, 512> candidates {};
@@ -318,11 +320,11 @@ namespace synth2::midi
             }
             const int note = randomTiming ? nativePitch : candidates[index].pitch;
             const int gate=std::clamp(p.gate,0,127);
-            const double gateSamples=dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),gate);
+            const int gateSamples=dsp::ArpeggiatorClock::gateFrames(static_cast<int>(interval),gate);
             if(note>127)
             {
                 stop(ch,c,time,emit);
-                ch.off=ch.next+std::max(1.0,gateSamples);
+                ch.off=ch.next+std::max(1,gateSamples);
                 ch.next+=interval;++ch.step;return;
             }
             // At full gate overlap different notes so mono/legato can glide.
@@ -334,12 +336,14 @@ namespace synth2::midi
             emit (::synth2::audio::MidiMessage::noteOn (c + 1, note, randomTiming ? nativeVelocity : candidates[index].velocity), time);
             if (previous >= 0 && previous != note && !randomTiming) emit (::synth2::audio::MidiMessage::noteOff (c + 1, previous), time);
             ch.sounding = note;
-            ch.off = p.gate >= 127 ? infinity : ch.next + std::max (1.0, gateSamples);
+            ch.off = p.gate >= 127 ? infinity : ch.next + std::max (1, gateSamples);
             ch.next += interval;
             ++ch.step;
         }
         std::array<Channel, 16> channels {};
-        double sampleRate = 44100, clock = 0, interval = 0;
+        float sampleRate=44100;
+        int64_t clock=0;
+        int interval=0;
         bool enabled = false, idleTiming = false;
         bool randomTiming=false;
         dsp::CrtRandom& randomSource;

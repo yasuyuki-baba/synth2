@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <tuple>
+#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -14,7 +15,7 @@ namespace synth2::audio
 using uint32=uint32_t;
 template<class T> struct MathConstants
 {
-    static constexpr T pi=static_cast<T>(3.141592653589793238462643383279502884L);
+    static constexpr T pi=std::numbers::pi_v<T>;
     static constexpr T twoPi=static_cast<T>(2)*pi;
 };
 template<class T> T jlimit(T low,T high,T value) { return std::clamp(value,low,high); }
@@ -27,14 +28,14 @@ private:T& ref;T previous;
 };
 struct Decibels
 {
-    static double decibelsToGain(double db,double floor=-100.0) {return db>floor ? std::pow(10.0,db*.05) : 0.0;}
-    static double gainToDecibels(double gain,double floor=-100.0) {return gain>0.0 ? std::max(floor,20.0*std::log10(gain)) : floor;}
+    static float decibelsToGain(float db,float floor=-100.0f) {return db>floor ? std::pow(10.0f,db*.05f) : 0.0f;}
+    static float gainToDecibels(float gain,float floor=-100.0f) {return gain>0.0f ? std::max(floor,20.0f*std::log10(gain)) : floor;}
 };
 struct ProcessSpec
 {
-    double sampleRate{};uint32_t maximumBlockSize{},numChannels{};
+    float sampleRate{};uint32_t maximumBlockSize{},numChannels{};
     ProcessSpec()=default;
-    ProcessSpec(double rate,uint32_t frames,uint32_t channels):sampleRate(rate),maximumBlockSize(frames),numChannels(channels){}
+    ProcessSpec(float rate,uint32_t frames,uint32_t channels):sampleRate(rate),maximumBlockSize(frames),numChannels(channels){}
     template<class Spec> ProcessSpec(const Spec& s):ProcessSpec(s.sampleRate,s.maximumBlockSize,s.numChannels){}
 };
 // Storage is resized only during preparation. A pointer-backed view never owns

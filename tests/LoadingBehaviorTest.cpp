@@ -125,7 +125,7 @@ TEST(ParameterContract, AllHostIdsRangesAndDeclaredDefaultsAreStable)
 {
     ProcessorBridge source;
     ASSERT_EQ(ProcessorBridge::parameterCount, 129);
-    std::array<double,128> defaults{};
+    std::array<float,128> defaults{};
     for (int i : {2,3,8,11,21,34,52,60,61,62,63,72,84,90,98}) defaults[i] = 64;
     for (int i : {17,19,27}) defaults[i] = 127;
     defaults[1]=1; defaults[4]=1; defaults[29]=100; defaults[31]=2;

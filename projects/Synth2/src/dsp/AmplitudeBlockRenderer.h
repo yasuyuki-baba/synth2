@@ -13,12 +13,12 @@ namespace synth2::dsp
         // All inputs use physical VCA attenuation coordinates. Keep independent
         // slot products, caller-owned alignment and each source's held spans.
         static bool render(const AmplitudeBlockSettings& config,const ReceiverLfoView& lfos,
-            AmplitudeEnvelope& amplitude,int frames,double* gains)
+            AmplitudeEnvelope& amplitude,int frames,float* gains)
         {
             bool rendered=false;
             for(int offset=0;offset<frames;)
             {
-                std::array<double,2> control{};int count=frames-offset;
+                std::array<float,2> control{};int count=frames-offset;
                 int horizon=config.gainHorizon;
                 if(config.repeatHorizon>0)
                 {

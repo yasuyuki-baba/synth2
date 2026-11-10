@@ -4,7 +4,7 @@
 
 namespace synth2::dsp
 {
-    void SharedModulationRuntime::retimeClocks(double sampleRate)
+    void SharedModulationRuntime::retimeClocks(float sampleRate)
     { if(!initial)for(auto& slot:slots)slot.clock.setSampleRate(static_cast<int>(sampleRate)); }
     void SharedModulationRuntime::prepareBlock(int capacity)
     {
@@ -52,13 +52,13 @@ namespace synth2::dsp
         }
     }
 
-    void SharedModulationRuntime::updateRate(size_t slot,double dial,double bpm) noexcept
+    void SharedModulationRuntime::updateRate(size_t slot,float dial,float bpm) noexcept
     {
         if(slots[slot].tempoSync)slots[slot].clock.setSynchronizedRate(dial,bpm);
         else slots[slot].clock.setRate(dial);
     }
 
-    void SharedModulationRuntime::applyHistory(const LfoHistoryEvent& event,double bpm) noexcept
+    void SharedModulationRuntime::applyHistory(const LfoHistoryEvent& event,float bpm) noexcept
     {
         if(event.kind==4){random.edit(event.a,event.b);return;}
         if(event.kind==1 || event.kind==2)
@@ -103,7 +103,7 @@ namespace synth2::dsp
         }
     }
 
-    void SharedModulationRuntime::synchronize(const SharedModulationSettings& settings,double sampleRate)
+    void SharedModulationRuntime::synchronize(const SharedModulationSettings& settings,float sampleRate)
     {
         const LfoSettings* lfoControls[] {&settings.lfos[0],&settings.lfos[1]};
         std::array<int,2> routingRateCalls {};
@@ -114,7 +114,7 @@ namespace synth2::dsp
         for (size_t i = 0; i < 2; ++i)
         {
             auto& clock=slots[i].clock;
-            const double dial=fractionalDial(lfoControls[i]->speed);
+            const float dial=fractionalDial(lfoControls[i]->speed);
             if(initial)
             {
                 clock=LfoClock{};slots[i].tempoSync=false;
@@ -174,7 +174,7 @@ namespace synth2::dsp
             const bool dualPulse=controls[0]->on && controls[0]->dest == 4 && controls[1]->dest == 4;
             const bool nestedPulse=settings.pulseWidthReceiver && (settings.pitchReceiver || dualPulse);
             const bool followFirstSpan=lfo == 1 && (dualPitch || dualFilter || nestedPulse);
-            int remaining=0;double target=0;
+            int remaining=0;float target=0;
             for (int i = 0; i < count; ++i)
             {
                 if (remaining==0)

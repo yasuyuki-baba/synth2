@@ -70,7 +70,7 @@ TEST(PlaybackBehavior, NonFiniteHostEditsAreNoOpsAndFiniteEditsClampToHostBounds
     }
 }
 
-TEST(PlaybackBehavior, PulseWidthPreservesDoubleCoordinatesForIntegerAndFractionalControls)
+TEST(PlaybackBehavior, PulseWidthPreservesFloatCoordinatesForIntegerAndFractionalControls)
 {
     ProcessorBridge continuous,legacy;
     setup(continuous,hostvalidation::patch());
@@ -85,7 +85,7 @@ TEST(PlaybackBehavior, PulseWidthPreservesDoubleCoordinatesForIntegerAndFraction
         block(*processor,1);
         synth2::RenderControls mapped;
         ASSERT_TRUE(synth2::readMappedSynthParams(*processor,mapped));
-        EXPECT_EQ(mapped.pulseWidth,dial/127.0);
+        EXPECT_EQ(mapped.pulseWidth,static_cast<float>(dial)/127.0f);
     }
     for(double dial:{.25,17.5,72.25,126.75})
     {
@@ -136,7 +136,7 @@ TEST(PlaybackBehavior, FractionalSubLevelInterpolatesAndSurvivesRecall)
         EXPECT_TRUE(synth2::readMappedSynthParams(processor,mapped));
         return mapped.subOscGain;
     };
-    for(const auto& interval:std::array<std::array<double,2>,2>{{{0,.25},{32,.5}}})
+    for(const auto& interval:std::array<std::array<float,2>,2>{{{0,.25},{32,.5}}})
     {
         const auto [start,fraction]=interval;
         const float low=gain(start),high=gain(start+1),middle=gain(start+fraction);

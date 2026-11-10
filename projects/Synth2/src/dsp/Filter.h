@@ -21,7 +21,7 @@ namespace synth2::dsp
     public:
         enum class Mode { LP12 = 0, LP24 = 1, HP12 = 2, BP12 = 3, Diode = 4 };
 
-        void setSampleRate (double sr) noexcept { sampleRate = sr; nativeLimiter.prepare(sr,true); nativeLp24.prepare(static_cast<int>(sr),true); }
+        void setSampleRate (float sr) noexcept { sampleRate = sr; nativeLimiter.prepare(sr,true); nativeLp24.prepare(static_cast<int>(sr),true); }
         void prepare (const ::synth2::audio::ProcessSpec& spec)
         {
             sampleRate = spec.sampleRate;
@@ -36,15 +36,15 @@ namespace synth2::dsp
             nativeDiode.reset();
             nativeLimiter.reset();
         }
-        void setParams (int type, double cutoff, double resonance, double amount,
-                        double tracking, double drive = 0.0) noexcept
+        void setParams (int type, float cutoff, float resonance, float amount,
+                        float tracking, float drive = 0.0f) noexcept
         {
             mode = static_cast<Mode> (std::clamp (type, 0, 4));
-            cutoffIndex = std::clamp (cutoff, 0.0, 1023.0);
-            resonanceNorm = std::clamp (resonance, 0.0, 1.0);
-            envelopeAmount = std::clamp (amount, -1.0, 1.0);
+            cutoffIndex = std::clamp (cutoff, 0.0f, 1023.0f);
+            resonanceNorm = std::clamp (resonance, 0.0f, 1.0f);
+            envelopeAmount = std::clamp (amount, -1.0f, 1.0f);
             keyboardTracking = tracking;
-            const double newSaturation = std::clamp (drive, 0.0, 1.0);
+            const float newSaturation = std::clamp (drive, 0.0f, 1.0f);
             if (newSaturation != saturation)
             {
                 saturation = newSaturation;
@@ -53,16 +53,16 @@ namespace synth2::dsp
         }
         void finishNativeBlock() noexcept { nativeLimiter.finish(); }
         // SVF recurrence, limiter and LP24 state, for stopped/offline inspection.
-        std::array<double,17> readNativeMemory() const noexcept
+        std::array<float,17> readNativeMemory() const noexcept
         {
-            std::array<double,17> values{nativeStateVariable.getLow(),nativeStateVariable.getBand(),nativeLimiter.value()};
+            std::array<float,17> values{nativeStateVariable.getLow(),nativeStateVariable.getBand(),nativeLimiter.value()};
             nativeLp24.copyState(values.data()+3);return values;
         }
-        double processNativeIndex (double input,double index) noexcept
+        float processNativeIndex (float input,float index) noexcept
         {
             const bool bypass = offline::bypassFilter();
             if(bypass)return input;
-            double filtered;
+            float filtered;
             // The fifth serialized mode has its own nonlinear diode kernel.
             if(mode==Mode::Diode)
             {
@@ -77,24 +77,24 @@ namespace synth2::dsp
                 nativeStateVariable.configure(sampleRate,index,resonanceNorm);
                 filtered=nativeStateVariable.process(input,static_cast<int>(mode));
             }
-            const double output=nativeLimiter.process(filtered);
+            const float output=nativeLimiter.process(filtered);
             return saturationCurve>0 ? saturate(output,saturationCurve) : output;
         }
-        double processSample (double input, double envelope) noexcept
+        float processSample (float input, float envelope) noexcept
         {
             const bool bypass = offline::bypassFilter();
             if (bypass) return input;
             // Native LP24 inversions give 127/64 serialized cutoff steps per
             // signed amount step at full envelope, independently of base cutoff.
-            const double index = std::clamp (cutoffIndex + 1023.0
-                * envelope * envelopeAmount + keyboardTracking, 0.0, 1023.0);
+            const float index = std::clamp (cutoffIndex + 1023.0f
+                * envelope * envelopeAmount + keyboardTracking, 0.0f, 1023.0f);
             return processNativeIndex(input,index);
         }
     private:
         Mode mode {Mode::LP12};
-        double sampleRate {44100.0};
-        double cutoffIndex {1023.0}, resonanceNorm {0.0};
-        double envelopeAmount {0.0}, keyboardTracking {0.0}, saturation {0.0}, saturationCurve {0.0};
+        float sampleRate {44100.0f};
+        float cutoffIndex {1023.0f}, resonanceNorm {0.0f};
+        float envelopeAmount {0.0f}, keyboardTracking {0.0f}, saturation {0.0f}, saturationCurve {0.0f};
         StateVariableFilter nativeStateVariable;
         Lp24Kernel nativeLp24;
         DiodeKernel nativeDiode;

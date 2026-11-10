@@ -78,11 +78,11 @@ class MarkerVoice final : public synth2::audio::Voice
 {
 public:
     bool canPlaySound(synth2::audio::Sound*) override { return true; }
-    void startNote(int note,double,synth2::audio::Sound*,int) override { value=note; }
-    void stopNote(double,bool) override { value=0; clearCurrentNote(); }
+    void startNote(int note,float,synth2::audio::Sound*,int) override { value=note; }
+    void stopNote(float,bool) override { value=0; clearCurrentNote(); }
     void pitchWheelMoved(int) override {}
     void controllerMoved(int,int) override {}
-    void renderNextBlock(synth2::audio::AudioBuffer<double>& output,int start,int frames) override
+    void renderNextBlock(synth2::audio::AudioBuffer<float>& output,int start,int frames) override
     { for(int i=start;i<start+frames;++i) output.setSample(0,i,static_cast<float>(value)); }
 private:
     int value=0;
@@ -99,7 +99,7 @@ std::vector<double> dispatch(const std::vector<Event>& events,const std::vector<
     {
         const int frames=std::min(sizes[block++ % sizes.size()],1024-start);
         constexpr int prefix=7;
-        synth2::audio::AudioBuffer<double> audio(2,frames+2*prefix);
+        synth2::audio::AudioBuffer<float> audio(2,frames+2*prefix);
         audio.clear();
         synth2::audio::MidiBuffer midi;
         while(next<events.size() && events[next].frame<start+frames)
@@ -218,7 +218,7 @@ TEST(PerformanceBehavior, BendUsesOneReceiverWithChannelIsolationAndNativeOmniIn
         auto history=engine.getRenderHistory();history.nativeMidiRoutingLoadHistory=omni;
         engine.setRenderHistory(history);engine.getParams().pitchBendRange=12;
         engine.prepareToPlay(44100,64);
-        synth2::audio::AudioBuffer<double> output(2,64);
+        synth2::audio::AudioBuffer<float> output(2,64);
         synth2::audio::MidiBuffer midi;
         midi.addEvent(synth2::audio::MidiMessage::pitchWheel(2,16383),0);
         engine.render(output,midi,0,64);
@@ -253,7 +253,7 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
     dispatcher.setCurrentPlaybackSampleRate(44100);
     dispatcher.addSound(new synth2::SynthSound);
     auto* voice=new synth2::test::PooledTestVoice(controls);voice->prepare(44100);dispatcher.addVoice(voice);
-    synth2::audio::AudioBuffer<double> audio(2,64);audio.clear();
+    synth2::audio::AudioBuffer<float> audio(2,64);audio.clear();
     synth2::audio::MidiBuffer midi;
     midi.addEvent(synth2::audio::MidiMessage::pitchWheel(2,16383),0);
     midi.addEvent(synth2::audio::MidiMessage::noteOn(2,69,1.f),0);
@@ -263,7 +263,7 @@ TEST(PerformanceBehavior, OrdinaryBendAdvancesWithoutAnLfoProvider)
     EXPECT_EQ(dispatcher.pitchBendWords(1),(std::array<int,4>{0,0,0,0}));
 }
 
-TEST(PerformanceBehavior, DoubleOutputKeepsPrecisionUntilTheHostConversion)
+TEST(PerformanceBehavior, DoubleHostOutputIsAnExactWideningOfFloatDsp)
 {
     for(int factor:{1,2,4})
     {
@@ -276,7 +276,6 @@ TEST(PerformanceBehavior, DoubleOutputKeepsPrecisionUntilTheHostConversion)
         synth2::audio::AudioBuffer<double> precise(2,64);
         synth2::audio::AudioBuffer<float> narrow(2,64);
         synth2::audio::MidiBuffer midi;hostvalidation::notes(midi,1);
-        bool beyondFloat=false;
         for(int block=0;block<20;++block)
         {
             hostvalidation::process(*first,precise,midi);hostvalidation::process(*second,narrow,midi);
@@ -286,9 +285,8 @@ TEST(PerformanceBehavior, DoubleOutputKeepsPrecisionUntilTheHostConversion)
                 const double value=precise.getSample(channel,frame);
                 ASSERT_TRUE(std::isfinite(value));
                 EXPECT_EQ(narrow.getSample(channel,frame),static_cast<float>(value));
-                beyondFloat|=value!=static_cast<double>(static_cast<float>(value));
+                EXPECT_EQ(value,static_cast<double>(narrow.getSample(channel,frame)));
             }
         }
-        EXPECT_TRUE(beyondFloat)<<"factor="<<factor;
     }
 }
