@@ -341,6 +341,24 @@ TEST(Arpeggiator, BypassRestoresHeldKeysInPressOrderWithoutPanic)
     for(const auto& event:events)EXPECT_FALSE(std::get<1>(event)==0xb0 && std::get<2>(event)==120);
 }
 
+TEST(Arpeggiator, EnablingWithBypassedKeysPreservesFirstKeyVelocity)
+{
+    using synth2::audio::MidiMessage;
+    for(int type:{1,2,3,4})
+    {
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.enabled=false;settings.type=type;settings.beat=11;settings.gate=83;
+        synth2::audio::MidiBuffer input;
+        input.addEvent(MidiMessage::noteOn(1,60,static_cast<uint8_t>(91)),0);
+        input.addEvent(MidiMessage::noteOn(1,64,static_cast<uint8_t>(42)),1);
+        arp.process(input,0,2,settings,120,[](const auto&,int){});
+        settings.enabled=true;synth2::audio::MidiBuffer empty;Events events;
+        arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+        const auto on=notes(events);ASSERT_EQ(on.size(),1u)<<type;
+        EXPECT_EQ(std::get<3>(on[0]),91)<<type;
+    }
+}
+
 TEST(Arpeggiator, GateEditsQueryTheCurrentCycleEvenAfterAMissedGate)
 {
     synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
