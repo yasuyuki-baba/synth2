@@ -231,3 +231,83 @@ TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
     const auto on=notes(events);ASSERT_GT(on.size(),4u);
     for(const auto& event:on)EXPECT_EQ(std::get<3>(event),31);
 }
+
+TEST(Arpeggiator, RepeatedTempoChangesPreservePendingNoteAndGatePhase)
+{
+    for(int type:{1,2,3,4})for(int gate:{83,127})for(int block:{1,17,64,127})
+        for(int warmup:{0,1<<25})
+    {
+        SCOPED_TRACE(::testing::Message()<<type<<" "<<gate<<" "<<block<<" "<<warmup);
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.enabled=false;
+        synth2::audio::MidiBuffer empty;
+        if(warmup)arp.process(empty,0,warmup,settings,120,[](const auto&,int){});
+        settings.enabled=true;settings.type=type;settings.range=0;settings.beat=11;settings.gate=gate;
+        Events events;int position=0;
+        auto segment=[&](int length,float tempo){
+            for(int remaining=length;remaining>0;){
+                constexpr int prefix=7;
+                const int count=std::min(block,remaining);
+                synth2::audio::MidiBuffer input;
+                if(position==0)input=held({60},prefix);
+                arp.process(input,prefix,count,settings,tempo,[&](const auto& msg,int frame){
+                    EXPECT_GE(frame,prefix);EXPECT_LT(frame,prefix+count);
+                    capture(events,msg,position+frame-prefix);
+                });
+                position+=count;remaining-=count;
+            }
+        };
+        // Period250 becomes166 at100, then250 at120. The unrounded
+        // deadlines after the second edit are152.879518... and239.879518....
+        // Rounding only for emission gives Off153 and On240, not154/241.
+        segment(100,120);segment(20,180);segment(200,120);
+        const auto on=notes(events),off=notes(events,false);
+        ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
+        EXPECT_EQ(std::get<0>(on[0]),0);EXPECT_EQ(std::get<0>(on[1]),240);
+        EXPECT_EQ(std::get<0>(off[0]),gate==83 ? 153 : 240);
+    }
+}
+
+TEST(Arpeggiator, PeriodEditsKeepExactIntegerDeadlinesOnTheirSample)
+{
+    for(int firstEdit:{1,16,100})for(int wait:{1,20})
+        for(int firstTempo:{150,180,300})for(int secondTempo:{120,240})
+    {
+        SCOPED_TRACE(::testing::Message()<<firstEdit<<" "<<wait<<" "<<firstTempo<<" "<<secondTempo);
+        const int secondEdit=firstEdit+wait;
+        // At 1 kHz/beat11, the native integer period is floor(30000/BPM).
+        const int firstPeriod=30000/firstTempo,secondPeriod=30000/secondTempo;
+        auto deadline=[&](int original){
+            const int64_t denominator=250LL*firstPeriod;
+            const int64_t numerator=((original-firstEdit)*static_cast<int64_t>(firstPeriod)-wait*250LL)*secondPeriod;
+            return secondEdit+static_cast<int>((numerator+denominator-1)/denominator);
+        };
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=83;
+        synth2::audio::MidiBuffer empty;auto input=held({60});
+        Events events;int base=0;
+        auto sink=[&](const auto& message,int frame){capture(events,message,base+frame);};
+        arp.process(input,0,firstEdit,settings,120,sink);
+        base=firstEdit;arp.process(empty,0,wait,settings,static_cast<float>(firstTempo),sink);
+        base=secondEdit;arp.process(empty,0,deadline(250)-base+1,settings,static_cast<float>(secondTempo),sink);
+        const auto on=notes(events),off=notes(events,false);
+        ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
+        EXPECT_EQ(std::get<0>(on[1]),deadline(250));
+        EXPECT_EQ(std::get<0>(off[0]),deadline(163));
+    }
+}
+
+TEST(Arpeggiator, PeriodRescalingHandlesSaturatedSlowTempo)
+{
+    for(int gate:{83,127})
+    {
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=gate;
+        auto input=held({60});synth2::audio::MidiBuffer empty;
+        arp.process(input,0,100,settings,120,[](const auto&,int){});
+        arp.process(empty,0,20,settings,180,[](const auto&,int){});
+        auto sink=[](const auto&,int frame){EXPECT_GE(frame,0);EXPECT_LT(frame,64);};
+        arp.process(empty,0,64,settings,1e-40f,sink);
+        arp.process(empty,0,64,settings,120,sink);
+    }
+}

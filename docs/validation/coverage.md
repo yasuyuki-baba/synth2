@@ -187,3 +187,11 @@ compatible receiver queries. Common clocks retain native setter/query/advance
 cadence; do not infer block-size-independent LFO audio from gain-horizon tests.
 Physical ARP gain-fragment checks, receiver-knot/phase tests, history/draw-order
 checks, and end-to-end public playback coverage remain in the suite.
+
+`Arpeggiator.RepeatedTempoChangesPreservePendingNoteAndGatePhase` checks an
+analytic two-edit period sequence for ordered/random modes, partial/full gates,
+callback partitions and long-running absolute clocks.
+
+`Arpeggiator.PeriodEditsKeepExactIntegerDeadlinesOnTheirSample` checks rational
+phase arithmetic at integral deadlines. `Arpeggiator.PeriodRescalingHandlesSaturatedSlowTempo`
+checks transitions to and from saturated slow-tempo periods.
