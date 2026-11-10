@@ -5,7 +5,7 @@
 namespace synth2::dsp
 {
     // Signal amplitudes and phase-unit values must retain fractional data.
-    using ControlSignal=double;
+    using ControlSignal=float;
     using VoiceControlBuffer=std::array<ControlSignal,256>;
     using VoiceSpanBuffer=std::array<int,256>;
 

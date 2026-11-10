@@ -28,15 +28,15 @@ struct NumericCLocale
     NumericCLocale& operator=(const NumericCLocale&)=delete;
 };
 
-inline std::optional<double> parseFiniteNumber(std::string_view text)
+inline std::optional<float> parseFiniteNumber(std::string_view text)
 {
     static const NumericCLocale locale;
     if(!locale.handle)return std::nullopt;
     const std::string input(text);char* end=nullptr;
 #if defined(_WIN32)
-    const double value=_strtod_l(input.c_str(),&end,locale.handle);
+    const float value=_strtod_l(input.c_str(),&end,locale.handle);
 #else
-    const double value=strtod_l(input.c_str(),&end,locale.handle);
+    const float value=strtod_l(input.c_str(),&end,locale.handle);
 #endif
     if(end==input.c_str() || end!=input.c_str()+input.size() || !std::isfinite(value))return std::nullopt;
     return value;

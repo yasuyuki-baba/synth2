@@ -8,25 +8,25 @@ namespace synth2::dsp
     class OutputGain
     {
     public:
-        static constexpr double defaultTarget=0x1.a696eep-1;
-        void prepare (double sampleRate, bool preserveCurrent = false) noexcept
+        static constexpr float defaultTarget=0x1.a696eep-1f;
+        void prepare (float sampleRate, bool preserveCurrent = false) noexcept
         {
-            coefficient = static_cast<double> (1.0 - std::pow (0.5,
-                1.0 / static_cast<double> (static_cast<double> (sampleRate) * 0.002)));
-            if (!preserveCurrent) current = 0.0;
+            coefficient = static_cast<float> (1.0f - std::pow (0.5f,
+                1.0f / static_cast<float> (static_cast<float> (sampleRate) * 0.002f)));
+            if (!preserveCurrent) current = 0.0f;
         }
-        double next (double target) noexcept
+        float next (float target) noexcept
         {
             current += (target - current) * coefficient;
             return current;
         }
-        void finish (double target) noexcept
+        void finish (float target) noexcept
         {
-            if (std::abs (target - current) < 1.0 / 65536.0) current = target;
+            if (std::abs (target - current) < 1.0f / 65536.0f) current = target;
         }
-        void silence (double target) noexcept { current = target; }
-        double value() const noexcept { return current; }
+        void silence (float target) noexcept { current = target; }
+        float value() const noexcept { return current; }
     private:
-        double current { 0.0 }, coefficient { 0.0 };
+        float current { 0.0f }, coefficient { 0.0f };
     };
 }

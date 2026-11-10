@@ -57,7 +57,7 @@ TEST(ProcessorBridge, RecallAndSameValueEditsRetainLoadingHistory)
     }
 }
 
-TEST(ProcessorBridge, FloatOutputIsRoundedDoubleAndTempoIsForwarded)
+TEST(ProcessorBridge, DoubleOutputWidensFloatAndTempoIsForwarded)
 {
     auto direct=hostvalidation::processor();
     ProcessorBridge bridge; std::string error;
@@ -71,7 +71,7 @@ TEST(ProcessorBridge, FloatOutputIsRoundedDoubleAndTempoIsForwarded)
         forward(bridge,midi); processAtTempo(*direct,a,midi,137.);
         std::array<double,64> left{},right{};
         ASSERT_TRUE(bridge.process(left.data(),right.data(),64,137));
-        for (int i=0; i<64; ++i) { EXPECT_EQ(static_cast<float>(left[i]),a.getSample(0,i)); EXPECT_EQ(static_cast<float>(right[i]),a.getSample(1,i)); }
+        for (int i=0; i<64; ++i) { EXPECT_EQ(left[i],static_cast<double>(a.getSample(0,i))); EXPECT_EQ(right[i],static_cast<double>(a.getSample(1,i))); }
     }
 }
 

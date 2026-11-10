@@ -7,29 +7,29 @@ namespace synth2::dsp
     struct OscillatorAudioSettings
     {
         bool secondTracksKeyboard {},pitchReceiver {},pitchEnvelope {},pulseReceiver {},pulseEnvelope {};
-        double pulseWidth {};
+        float pulseWidth {};
         int subWave {},subOctave {-1};
         bool correctFmPhase {};
     };
     struct OscillatorAudioInput
     {
-        double firstFrequency {},secondFrequency {},pulseWidth {},mix {},subGain {};
+        float firstFrequency {},secondFrequency {},pulseWidth {},mix {},subGain {};
         bool sync {},ring {};
-        double firstPitch {},secondPitch {},glidePitch {},envelope {},fmDepth {};
-        double pulseControl {};
+        float firstPitch {},secondPitch {},glidePitch {},envelope {},fmDepth {};
+        float pulseControl {};
     };
     struct OscillatorAudioRenderer
     {
-        static double process(OscillatorSection& oscillator,const OscillatorAudioSettings& config,
+        static float process(OscillatorSection& oscillator,const OscillatorAudioSettings& config,
             const OscillatorAudioInput& input,const ReceiverLfoView& lfos,int position,
-            const synth2::WaveTableBank* bank,double* frame=nullptr,int factor=1)
+            const synth2::WaveTableBank* bank,float* frame=nullptr,int factor=1)
         {
-            double firstFrequency=input.firstFrequency,secondFrequency=input.secondFrequency;
-            double firstPitch=input.firstPitch+input.glidePitch;
-            double secondPitch=input.secondPitch+(config.secondTracksKeyboard ? input.glidePitch : 0);
+            float firstFrequency=input.firstFrequency,secondFrequency=input.secondFrequency;
+            float firstPitch=input.firstPitch+input.glidePitch;
+            float secondPitch=input.secondPitch+(config.secondTracksKeyboard ? input.glidePitch : 0);
             if(config.pitchEnvelope)
             {
-                const double control=input.envelope;
+                const float control=input.envelope;
                 if(config.pitchReceiver)
                 {
                     secondPitch+=control;
@@ -39,16 +39,16 @@ namespace synth2::dsp
                     secondFrequency=ModulationEnvelope::pitchFrequency(secondFrequency,control);
                 }
             }
-            const double fm=input.fmDepth;
-            double pulse=input.pulseControl;
+            const float fm=input.fmDepth;
+            float pulse=input.pulseControl;
             if(config.pulseReceiver && lfos.available)
                 for(size_t slot=0;slot<2;++slot)
                     if(lfos.receivers[slot].enabled && lfos.receivers[slot].destination==4)
                         pulse+=lfos.values[slot][position];
             if(config.pulseEnvelope)pulse+=input.envelope;
-            const double width=config.pulseReceiver || config.pulseEnvelope
+            const float width=config.pulseReceiver || config.pulseEnvelope
                 ? config.pulseWidth : input.pulseWidth;
-            const double bins=oscillator.resolvePulseWidth(width,pulse);
+            const float bins=oscillator.resolvePulseWidth(width,pulse);
             if(frame) {
                 oscillator.processFrame(frame,factor,firstFrequency,secondFrequency,input.pulseWidth,input.mix,
                     fm,input.sync,input.ring,input.subGain,config.subWave,config.subOctave,bank,

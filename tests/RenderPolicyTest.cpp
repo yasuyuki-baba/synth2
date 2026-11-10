@@ -42,7 +42,7 @@ TEST(RenderPolicy, EffectsAndSubLevelKeepTheirMappingsAcrossRandomControls)
         input.effectEnabled=true;input.effectType=effect;input.subLevelDial=dial;
         p.lfo1.on=true;p.lfo1.wave=wave;p.ringMod=1;
         synth2::render::selectRenderPolicy(input,p);
-        EXPECT_EQ(p.subOscGain,double(dial*4)/127.0);EXPECT_EQ(p.ringMod,1);
+        EXPECT_EQ(p.subOscGain,float(dial*4)/127.0f);EXPECT_EQ(p.ringMod,1);
         EXPECT_EQ(p.nativeMultiEffectType,effect<=5 ? effect : -1);
         EXPECT_EQ(p.nativePhaser,effect>=6);
         EXPECT_EQ(p.nativePhaserPairs,effect==7 ? 2 : effect==8 ? 4 : effect==9 ? 6 : 1);

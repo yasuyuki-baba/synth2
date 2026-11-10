@@ -7,9 +7,9 @@ namespace synth2::dsp
     struct VoiceTuningSettings
     {
         bool secondTracksKeyboard {};
-        double octave {},keyShift {},fine {},secondPitch {},secondFine {};
+        float octave {},keyShift {},fine {},secondPitch {},secondFine {};
         int unisonCount {1};
-        double unisonDetuneDial {};
+        float unisonDetuneDial {};
         int unisonPitchDial {24};
     };
     // One compatible note/coarse/fine calculation for every source. Running
@@ -17,7 +17,7 @@ namespace synth2::dsp
     class VoiceTuning
     {
     public:
-        struct Core { double first {},second {}; };
+        struct Core { float first {},second {}; };
         VoiceTuning(const VoiceTuningSettings& value,int note) : config(value),midiNote(note)
         {
             secondRatio=OscillatorTuning::trackedRatio(config.secondPitch,config.secondFine);
@@ -25,7 +25,7 @@ namespace synth2::dsp
             unison=Unison::layout(config.unisonCount,config.unisonDetuneDial,config.unisonPitchDial);
         }
         int unisonCount() const noexcept {return config.unisonCount;}
-        Core prepareCore(double fine) const
+        Core prepareCore(float fine) const
         {
             Core result;
             result.first=OscillatorTuning::oscillator1(midiNote,
@@ -35,23 +35,17 @@ namespace synth2::dsp
                 : OscillatorTuning::fixedOsc2(config.secondPitch,config.secondFine,config.fine,fine);
             return result;
         }
-        double coarseSecond(const Core& value,double exponent,double unisonFine) const
+        float coarseSecond(const Core& value,float exponent,float unisonFine) const
         {
-            return compatibleFloatCurve(config.secondFine,[&](float second) {
-                if(config.secondTracksKeyboard)
-                    return OscillatorTuning::coarseFrequency(value.first,second,exponent);
-                return compatibleFloatCurve(config.fine,[&](float master) {
-                    return compatibleFloatCurve(unisonFine,[&](float local) {
-                        float fine=master+second;fine+=local;
-                        return OscillatorTuning::coarseFrequency(220.0,fine,exponent);
-                    });
-                });
-            });
+            float fine=config.secondFine;
+            float base=value.first;
+            if(!config.secondTracksKeyboard){fine=config.fine+fine;fine+=unisonFine;base=220.0f;}
+            return OscillatorTuning::coarseFrequency(base,fine,exponent);
         }
         Unison unison;
     private:
         VoiceTuningSettings config;
         int midiNote;
-        double secondRatio {};
+        float secondRatio {};
     };
 }

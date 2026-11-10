@@ -12,26 +12,26 @@ namespace synth2::dsp
     // Pitch offsets use128 units per octave, including endpoint quantization.
     struct Portamento
     {
-        double seconds {};
+        float seconds {};
         int duration {},elapsed {},segment {},span {},note {},threshold {};
-        double offset {},delta {};
+        float offset {},delta {};
 
-        static double timeSeconds(int dial) noexcept
+        static float timeSeconds(int dial) noexcept
         {
             dial=std::clamp(dial,0,127);
-            const double exponent=(static_cast<double>(dial)*(1.0/127.0)-1.0)*2.5;
-            return static_cast<double>(std::exp(static_cast<double>(exponent))
-                *static_cast<double>(dial)*(1.0/127.0)*2.5);
+            const float exponent=(static_cast<float>(dial)*(1.0f/127.0f)-1.0f)*2.5f;
+            return static_cast<float>(std::exp(static_cast<float>(exponent))
+                *static_cast<float>(dial)*(1.0f/127.0f)*2.5f);
         }
 
-        static double timeSeconds(double dial) noexcept
+        static float timeSeconds(float dial) noexcept
         {return interpolateDial(dial,[](int value){return timeSeconds(value);});}
 
-        void setDuration(double value,int sampleRate) noexcept
+        void setDuration(float value,int sampleRate) noexcept
         {
             const int previous=duration;
             seconds=value;
-            duration=static_cast<int>(static_cast<double>(sampleRate)*value);
+            duration=static_cast<int>(static_cast<float>(sampleRate)*value);
             if(previous!=0)
             {
                 const auto rescale=[&](int n) {return static_cast<int>(static_cast<int64_t>(n)*duration/previous);};
@@ -52,7 +52,7 @@ namespace synth2::dsp
             offset+=old-target;
             delta=offset;
             segment=1;
-            span=std::max(32,static_cast<int>(duration/std::max(1.0,std::abs(delta)))/10);
+            span=std::max(32,static_cast<int>(duration/std::max(1.0f,std::abs(delta)))/10);
             threshold=duration/10;
         }
 
@@ -70,13 +70,13 @@ namespace synth2::dsp
                 int index=elapsed/span;
                 if(index!=segment)
                 {
-                    const double t=static_cast<double>(elapsed)/duration;
+                    const float t=static_cast<float>(elapsed)/duration;
                     offset=compatibleControlCurve(delta,[&](int distance) {
-                        return std::trunc((std::exp(-4.0*t)*(1.0-t))*distance);
+                        return std::trunc((std::exp(-4.0f*t)*(1.0f-t))*distance);
                     });
                     if(elapsed>=threshold)
                     {
-                        const double magnitude=std::max(1.0,std::abs(delta));
+                        const float magnitude=std::max(1.0f,std::abs(delta));
                         const int tenth=duration/10,quarter=duration*25/100,later=duration*55/100;
                         if(threshold>=later) {threshold=duration;span=static_cast<int>(duration*9/magnitude);}
                         else if(threshold>=quarter) {threshold=later;span=static_cast<int>(duration/magnitude);}

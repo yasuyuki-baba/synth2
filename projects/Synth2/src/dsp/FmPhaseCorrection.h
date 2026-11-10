@@ -15,7 +15,7 @@ namespace synth2::dsp
             uint32_t audibleOffset {},referenceOffset {},referenceBefore {},referenceAfter {};
         };
         void reset() noexcept { ready=false; }
-        Advance advance(double depth,double source,uint32_t increment,uint32_t phase,bool enabled) noexcept
+        Advance advance(float depth,float source,uint32_t increment,uint32_t phase,bool enabled) noexcept
         {
             constexpr uint32_t mask=0x07ffffffu;
             // Only the compatible Sync/noise reference retains the float product.
@@ -32,13 +32,21 @@ namespace synth2::dsp
             }
             // Preserve compatible integer depth knots, interpolating real depth
             // through the same mapping rather than changing the phase policy.
-            const double product=compatibleControlCurve(depth,[&](int value){
-                return static_cast<int32_t>(static_cast<float>(value)*static_cast<float>(source));
+            // Interpolate differences from the native word: absolute phase
+            // offsets can exceed Float32's exact integer range.
+            const float difference=compatibleControlCurve(depth,[&](int value){
+                return static_cast<int32_t>(static_cast<float>(value)*source)-native;
             });
-            const double nextError=(phaseError+product-native)*(31.0/32.0);
-            const double value=static_cast<double>(native)+nextError-phaseError+phaseCarry;
-            const int32_t audible=static_cast<int32_t>(value);
-            phaseCarry=value-audible;phaseError=nextError;
+            const float nextError=(phaseError+difference)*(31.0f/32.0f);
+            const float adjustment=nextError-phaseError+phaseCarry;
+            const int32_t whole=static_cast<int32_t>(adjustment);
+            int32_t audible=native+whole;
+            phaseCarry=adjustment-static_cast<float>(whole);
+            // Truncation applies to the signed sum, without promoting the
+            // large integer word to Float32 and losing its low phase bits.
+            if(audible>0 && phaseCarry<0){--audible;phaseCarry+=1;}
+            else if(audible<0 && phaseCarry>0){++audible;phaseCarry-=1;}
+            phaseError=nextError;
             const uint32_t before=reference;
             // Sync/slave/noise follows the compatible online reference, separately
             // from the corrected audible oscillator phase. No recorded input.
@@ -49,6 +57,6 @@ namespace synth2::dsp
     private:
         bool ready {};
         uint32_t reference {},lastPhase {};
-        double phaseError {},phaseCarry {};
+        float phaseError {},phaseCarry {};
     };
 }

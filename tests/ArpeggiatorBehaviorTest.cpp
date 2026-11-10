@@ -199,6 +199,21 @@ TEST(Arpeggiator, SlowTempoKeepsHeldNotesAndFullGateWithinFrameRange)
     }
 }
 
+TEST(Arpeggiator, LongRunningFrameClockPreservesSubBlockNoteOffsets)
+{
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(48000);
+    auto settings=defaults();settings.enabled=false;
+    synth2::audio::MidiBuffer empty;
+    arp.process(empty,0,1<<25,settings,120,[](const auto&,int){});
+    settings.enabled=true;settings.beat=0;settings.gate=127;
+    auto input=held({60},13);input.addEvent(synth2::audio::MidiMessage::noteOff(1,60),37);
+    Events events;
+    arp.process(input,0,64,settings,120,[&](const auto& message,int frame){capture(events,message,frame);});
+    const auto on=notes(events),off=notes(events,false);
+    ASSERT_EQ(on.size(),1u);ASSERT_EQ(off.size(),1u);
+    EXPECT_EQ(std::get<0>(on[0]),13);EXPECT_EQ(std::get<0>(off[0]),37);
+}
+
 TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
 {
     synth2::dsp::CrtRandom random;

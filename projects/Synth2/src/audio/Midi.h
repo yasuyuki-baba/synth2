@@ -11,7 +11,7 @@ class MidiMessage
 public:
     MidiMessage()=default;
     MidiMessage(int status,int first,int second=0):bytes{static_cast<uint8_t>(status),static_cast<uint8_t>(first),static_cast<uint8_t>(second)}{}
-    MidiMessage(const void* data,int size,double=0){std::copy_n(static_cast<const uint8_t*>(data),std::min(3,size),bytes.begin());}
+    MidiMessage(const void* data,int size,float=0){std::copy_n(static_cast<const uint8_t*>(data),std::min(3,size),bytes.begin());}
     void setChannel(int c){bytes[0]=static_cast<uint8_t>((bytes[0]&0xf0)|((c-1)&15));}
     static MidiMessage channelPressureChange(int c,int value){return {0xd0+c-1,value,0};}
     static MidiMessage noteOn(int c,int note,float velocity){return {0x90+c-1,note,std::clamp(static_cast<int>(std::lround(velocity*127.f)),0,127)};}
@@ -21,7 +21,7 @@ public:
     static MidiMessage allSoundOff(int c){return controllerEvent(c,120,0);}
     static MidiMessage allNotesOff(int c){return controllerEvent(c,123,0);}
     static MidiMessage pitchWheel(int c,int value){return {0xe0+c-1,value&127,(value>>7)&127};}
-    static double getMidiNoteInHertz(int note,double reference=440.){return reference*std::pow(2.,(note-69)*(1./12.));}
+    static float getMidiNoteInHertz(int note,float reference=440.f){return reference*std::pow(2.f,(note-69)*(1.f/12.f));}
     int getChannel()const{return (bytes[0]&15)+1;}
     int getNoteNumber()const{return bytes[1];}
     uint8_t getVelocity()const{return bytes[2];}

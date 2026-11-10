@@ -21,7 +21,7 @@ namespace synth2
         dsp::OscillatorSection oscillator;
         dsp::Filter filter;
         int audioFactor=1;
-        void setAudioFactor(double rate,int factor) noexcept
+        void setAudioFactor(float rate,int factor) noexcept
         {
             if(!dsp::OversamplingSettings::valid(factor))return;
             audioFactor=factor;
@@ -36,8 +36,8 @@ namespace synth2
         dsp::Portamento portamento;
         dsp::FrequencyModulation fm;
         dsp::OscillatorCoarsePitch coarse;
-        double amplitudeReferenceVelocity {1.0};
-        double keyboardOffset {},unisonOffset {};
+        float amplitudeReferenceVelocity {1.0f};
+        float keyboardOffset {},unisonOffset {};
         int physicalSlot {-1};
         std::array<uint32_t,22> readFloatWords() const noexcept
         {

@@ -8,25 +8,25 @@ namespace synth2::dsp
     class FilterLimiter
     {
     public:
-        void prepare (double rate, bool preserveState = false) noexcept
+        void prepare (float rate, bool preserveState = false) noexcept
         {
-            coefficient=std::exp(-1.0/(static_cast<double>(rate)*0.005000000353902578));
+            coefficient=std::exp(-1.0f/(static_cast<float>(rate)*0.005000000353902578f));
             if (!preserveState) reset();
         }
         void reset() noexcept { excess=0; }
-        double process (double input) noexcept
+        float process (float input) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            const double target=std::max(std::abs(input)-1.1,0.0);
+            const float target=std::max(std::abs(input)-1.1f,0.0f);
             excess=(excess-target)*coefficient+target;
-            return (1.1/(excess+1.1))*input;
+            return (1.1f/(excess+1.1f))*input;
         }
-        void finish() noexcept { if(static_cast<double>(excess)<1e-5) excess=0; }
-        double getCoefficient() const noexcept { return coefficient; }
-        double value() const noexcept { return excess; }
+        void finish() noexcept { if(static_cast<float>(excess)<1e-5f) excess=0; }
+        float getCoefficient() const noexcept { return coefficient; }
+        float value() const noexcept { return excess; }
     private:
-        double coefficient {},excess {};
+        float coefficient {},excess {};
     };
 }

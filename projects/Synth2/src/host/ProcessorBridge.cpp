@@ -63,7 +63,7 @@ struct ProcessorBridge::Impl
 {
     SynthEngine engine;
     std::atomic<int> requestedOversampling{1};
-    int fadeOut=0,fadeIn=0;double fadeFrom=1,fadeGain=1;
+    int fadeOut=0,fadeIn=0;float fadeFrom=1,fadeGain=1;
     std::array<std::atomic<float>,parameterCount> values{};
     std::array<ParameterInfo,parameterCount> info{};
     std::array<std::atomic<float>*,126> rawSourceValues{};
@@ -96,7 +96,7 @@ struct ProcessorBridge::Impl
     struct Event{int offset;uint8_t status,data1,data2;};
     std::array<Event,midiCapacity> events{};
     size_t eventCount=0;uint64_t drops=0;bool overflow=false;int capacity=0;
-    audio::AudioBuffer<double> scratch;
+    audio::AudioBuffer<float> scratch;
     audio::MidiBuffer midi,incoming;
     EditorMidiInput editorMidi;
     Impl()
@@ -398,10 +398,11 @@ struct ProcessorBridge::Impl
             ++drops;midi.clear();editorMidi.resetAudio();
             for(int c=1;c<=16;++c)midi.addEvent(audio::MidiMessage::allSoundOff(c),0);
         }
-        double* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<double> buffer(pointers,2,frames);buffer.clear();
+        float* pointers[]={scratch.getWritePointer(0),scratch.getWritePointer(1)};audio::AudioBuffer<float> buffer(pointers,2,frames);buffer.clear();
         const NoDenormals noDenormals;
         bpm=std::isfinite(bpm) && bpm>0 && bpm<=1000 ? bpm : 120;
-        engine.getParams().hostBpm=bpm;
+        const float tempo=static_cast<float>(bpm);
+        engine.getParams().hostBpm=tempo>0 ? tempo : 120.0f;
         const bool randomArp=values[59].load()!=0 && values[31].load()==4;
         if((randomArp && bpm!=120.) || frames>64)engine.invalidateNativeRandomHistory();
         for(const auto& metadata:midi)
@@ -419,8 +420,8 @@ struct ProcessorBridge::Impl
         const bool changing=fadeOut>0;
         for(int i=0;i<frames;++i)
         {
-            if(changing){fadeGain=fadeFrom*static_cast<double>(fadeOut)/64.0;if(fadeOut>0)--fadeOut;}
-            else if(fadeIn>0){fadeGain=static_cast<double>(129-fadeIn)/128.0;--fadeIn;}
+            if(changing){fadeGain=fadeFrom*static_cast<float>(fadeOut)/64.0f;if(fadeOut>0)--fadeOut;}
+            else if(fadeIn>0){fadeGain=static_cast<float>(129-fadeIn)/128.0f;--fadeIn;}
             left[i]=static_cast<Sample>(pointers[0][i]*fadeGain);right[i]=static_cast<Sample>(pointers[1][i]*fadeGain);
         }
         if(changing && fadeOut==0)
@@ -435,10 +436,10 @@ double ProcessorBridge::normalizedValue(int index)const{return impl->normalized(
 void ProcessorBridge::setNormalizedValue(int index,double value){impl->setNormalized(index,value);}
 void ProcessorBridge::prepare(double rate,int frames)
 {
-    if(!std::isfinite(rate) || rate<=0 || frames<=0)throw std::invalid_argument("Invalid Synth2 playback configuration");
+    if(!std::isfinite(rate) || rate<=0 || !std::isfinite(static_cast<float>(rate)) || static_cast<float>(rate)<=0 || frames<=0)throw std::invalid_argument("Invalid Synth2 playback configuration");
     impl->scratch.setSize(2,frames);impl->eventCount=0;impl->overflow=false;impl->midi.clear();
     impl->flushNativeLfoHistory();if(rate!=44100. || frames!=64)impl->engine.invalidateNativeRandomHistory();
-    impl->engine.prepareToPlay(rate,frames);impl->engine.setOversamplingFactor(impl->requestedOversampling.load());
+    impl->engine.prepareToPlay(static_cast<float>(rate),frames);impl->engine.setOversamplingFactor(impl->requestedOversampling.load());
     impl->fadeOut=impl->fadeIn=0;impl->fadeGain=1;
     impl->editorMidi.resetAudio();impl->capacity=frames;
 }

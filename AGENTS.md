@@ -243,10 +243,10 @@ See [source strategies](docs/architecture/source-conversion.md),
 
 ## Compatibility and real-time behavior
 
-- Prefer double precision for continuous internal arithmetic and signal storage.
-  Keep precision through intermediate buffers; converting back to float at every
-  stage discards it. Treat each remaining narrowing as an explicit boundary and
-  measure compatibility and CPU cost rather than assuming double is faster.
+- Use float for internal audio, continuous controls, arithmetic and signal history.
+  Keep one Float32 DSP path; double host buffers are widened at the output boundary.
+  Do not reintroduce a double renderer or sub-float control interpolation. Preserve
+  compatible integer words explicitly and measure audio compatibility and CPU cost.
 - Precision changes must preserve DLL-compatible legacy loading: resolve the
   integer parameter state first, then promote those exact words to floating point
   and apply fractional edits afterward. The compatibility boundary is loaded

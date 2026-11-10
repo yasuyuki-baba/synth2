@@ -12,17 +12,17 @@ namespace synth2::dsp
     class EffectPair
     {
     public:
-        void prepare(double rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0,384000.0));reset();}
+        void prepare(float rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0f,384000.0f));reset();}
         void reset() noexcept {delay->reset();chorus.reset();initialized=false;}
         template<class DelaySettings,class ChorusSettings>
-        void setParams(const DelaySettings& d,const ChorusSettings& c,double bpm) noexcept
+        void setParams(const DelaySettings& d,const ChorusSettings& c,float bpm) noexcept
         {
-            std::array<double,12> next={fractionalDial(d.time),fractionalDial(d.feedback),fractionalDial(d.level),static_cast<double>(std::clamp(d.type,0,2)),fractionalDial(d.spread),fractionalDial(d.tone),
-                static_cast<double>(c.type==1 || c.type==4 ? c.type : 2),fractionalDial(c.time),fractionalDial(c.depth),fractionalDial(c.rate),fractionalDial(c.feedback),fractionalDial(c.level)};
+            std::array<float,12> next={fractionalDial(d.time),fractionalDial(d.feedback),fractionalDial(d.level),static_cast<float>(std::clamp(d.type,0,2)),fractionalDial(d.spread),fractionalDial(d.tone),
+                static_cast<float>(c.type==1 || c.type==4 ? c.type : 2),fractionalDial(c.time),fractionalDial(c.depth),fractionalDial(c.rate),fractionalDial(c.feedback),fractionalDial(c.level)};
             if(!std::isfinite(bpm) || bpm<=0)bpm=120;
             auto seconds=[&]{return interpolateDial(next[0],[&](int value){return EffectControls::delaySeconds(value,bpm);});};
             auto spread=[&]{return interpolateDial(next[4],[](int value){return EffectControls::spreadSeconds(value);});};
-            auto integer=[](double value){return static_cast<int>(std::round(value));};
+            auto integer=[](float value){return static_cast<int>(std::round(value));};
             if(!initialized)
             {
                 delay->configure(sampleRate,integer(next[3]),seconds(),spread(),integer(next[1]),integer(next[2]),integer(next[5]));
@@ -59,11 +59,11 @@ namespace synth2::dsp
             delay->setEnabled(d.enable);chorus.setEnabled(c.enabled);
             previous=next;tempo=bpm;initialized=true;
         }
-        void process(double* left,double* right,int frames) noexcept
+        void process(float* left,float* right,int frames) noexcept
         {
             processInternal(left,right,frames,nullptr);
         }
-        void process(double* left,double* right,int frames,bool& silent) noexcept
+        void process(float* left,float* right,int frames,bool& silent) noexcept
         {
             processInternal(left,right,frames,&silent);
         }
@@ -76,7 +76,7 @@ namespace synth2::dsp
             std::memcpy(&words[7],&sine,4);std::memcpy(&words[8],&cosine,4);return words;
         }
     private:
-        void processInternal(double* left,double* right,int frames,bool* silent) noexcept
+        void processInternal(float* left,float* right,int frames,bool* silent) noexcept
         {
             const bool inputSilent=silent && *silent;bool allSilent=true;
             for(int offset=0;offset<frames;)
@@ -89,14 +89,14 @@ namespace synth2::dsp
                 allSilent=allSilent && flag!=0;
                 for(int i=0;i<count;++i)
                 {
-                    left[offset+i]=right ? dry[2*i] : (dry[2*i]+dry[2*i+1])*.5;
+                    left[offset+i]=right ? dry[2*i] : (dry[2*i]+dry[2*i+1])*.5f;
                     if(right)right[offset+i]=dry[2*i+1];
                 }
                 offset+=count;
             }
             if(silent)*silent=allSilent;
         }
-        std::array<double,2> delayFrames(double time,double spread,double bpm) const noexcept
+        std::array<float,2> delayFrames(float time,float spread,float bpm) const noexcept
         {
             const int t0=static_cast<int>(time),t1=std::min(127,t0+1);
             const int s0=static_cast<int>(spread),s1=std::min(127,s0+1);
@@ -104,31 +104,29 @@ namespace synth2::dsp
                 const float offset=EffectControls::spreadSeconds(s);
                 const int left=offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0;
                 const int right=offset<0 ? static_cast<int>(static_cast<float>(sampleRate)*-offset) : 0;
-                const int minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
+                const int minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
                 const auto frames=[&](int extra) {
-                    return compatibleFloatCurve(bpm,[&](float word) {
-                        const float seconds=static_cast<float>(EffectControls::delaySeconds(t,word));
-                        const int nominal=static_cast<int>(static_cast<float>(sampleRate)*seconds);
-                        const int aligned=nominal-nominal%4;
-                        return std::clamp(aligned+extra,minimum,131072-256);
-                    });
+                    const float seconds=EffectControls::delaySeconds(t,bpm);
+                    const int nominal=static_cast<int>(static_cast<float>(sampleRate)*seconds);
+                    const int aligned=nominal-nominal%4;
+                    return std::clamp(aligned+extra,minimum,131072-256);
                 };
-                return std::array<double,2>{frames(left),frames(right)};
+                return std::array<float,2>{static_cast<float>(frames(left)),static_cast<float>(frames(right))};
             };
             const auto a=anchor(t0,s0),b=anchor(t0,s1),c=anchor(t1,s0),d=anchor(t1,s1);
-            std::array<double,2> result{};
+            std::array<float,2> result{};
             for(int channel=0;channel<2;++channel)
             {
-                const double low=a[channel]+(b[channel]-a[channel])*(spread-s0);
-                const double high=c[channel]+(d[channel]-c[channel])*(spread-s0);
+                const float low=a[channel]+(b[channel]-a[channel])*(spread-s0);
+                const float high=c[channel]+(d[channel]-c[channel])*(spread-s0);
                 result[channel]=low+(high-low)*(time-t0);
             }
             return result;
         }
         std::unique_ptr<DelayKernel> delay=std::make_unique<DelayKernel>();
         ChorusKernel chorus;
-        std::array<double,512> dry {},send {};
-        std::array<double,12> previous {};
-        int sampleRate{44100};double tempo{120};bool initialized{};
+        std::array<float,512> dry {},send {};
+        std::array<float,12> previous {};
+        int sampleRate{44100};float tempo{120};bool initialized{};
     };
 }

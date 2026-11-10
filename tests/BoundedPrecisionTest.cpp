@@ -40,7 +40,7 @@ TEST(BoundedPrecision, FractionalStackDetuneSurvivesLoadingAndFrequencyCacheUpda
     for(int pair=0;pair<4;++pair)
     {EXPECT_LT(first[pair*2],second[pair*2]);EXPECT_GT(first[pair*2+1],second[pair*2+1]);}
     synth2::ShapeTables tables;tables.infos.push_back({0,2048,100000});
-    for(int i=0;i<2048;++i)tables.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.0)*i/2048)));
+    for(int i=0;i<2048;++i)tables.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.0f)*i/2048)));
     synth2::WaveTableBank bank;bank.setShapeTables(0,std::move(tables));
     OscillatorSection section;section.prepare({44100,64,2});section.stackDial=mapped.osc1StackDial;
     const auto sample=[&] {return section.processSample(440,440,.5f,0,0,false,false,0,0,-1,&bank,false);};
@@ -91,12 +91,12 @@ TEST(BoundedPrecision, FractionalUnisonDetuneRetainsPitchAndFilterOffsets)
     using synth2::dsp::Unison;
     const auto low=Unison::layout(4,58),high=Unison::layout(4,59);
     const auto first=Unison::layout(4,58.25f),second=Unison::layout(4,58.375f);
-    EXPECT_EQ(first.filterIndex[0],-.25);EXPECT_EQ(second.filterIndex[0],-.375);
+    EXPECT_EQ(first.filterIndex[0],-.25f);EXPECT_EQ(second.filterIndex[0],-.375f);
     EXPECT_LT(high.pitchCents[0],second.pitchCents[0]);
     EXPECT_LT(second.pitchCents[0],first.pitchCents[0]);EXPECT_LT(first.pitchCents[0],low.pitchCents[0]);
     const auto single=Unison::layout(1,58.25f);
     for(size_t i=0;i<8;++i){EXPECT_EQ(single.pitchCents[i],0);EXPECT_EQ(single.filterIndex[i],0);}
-    synth2::RenderControls mapped;mapped.unisonVoices=4;mapped.unisonDetune=58.25/127;
+    synth2::RenderControls mapped;mapped.unisonVoices=4;mapped.unisonDetune=58.25f/127;
     const auto config=synth2::render::voiceTuning(mapped,false);
     EXPECT_EQ(config.unisonDetuneDial,58.25f);
     synth2::dsp::VoiceTuning tuning(config,60);
@@ -107,21 +107,21 @@ TEST(BoundedPrecision, FractionalUnisonDetuneRetainsPitchAndFilterOffsets)
 TEST(BoundedPrecision, FractionalUnisonFilterOffsetSurvivesHeadroomAndReceiverTransport)
 {
     using namespace synth2::dsp;
-    const double offset=Unison::layout(4,58.25f).filterIndex[0];
+    const float offset=Unison::layout(4,58.25f).filterIndex[0];
     FilterEnvelopeSettings settings;settings.cutoffIndex=512;settings.amount=1;settings.sustain=1;
-    FilterEnvelope envelope;double keyboard=0;
+    FilterEnvelope envelope;float keyboard=0;
     VoiceEnvelopeConfigurator::filter(envelope,keyboard,offset,settings,48,1,44100);
-    envelope.noteOn();envelope.render(1,[](double,int){});
-    EXPECT_EQ(envelope.getLevel(),512.25);
+    envelope.noteOn();envelope.render(1,[](float,int){});
+    EXPECT_EQ(envelope.getLevel(),512.25f);
     FilterEnvelope empty;CutoffControl cutoff;cutoff.prepare(44100);VoiceControlBuffer indices{};
     FilterControlRenderer::render({true,false,512},{},empty,cutoff,0,offset,64,indices);
-    for(int i=0;i<64;++i)EXPECT_EQ(indices[i],511.75);
+    for(int i=0;i<64;++i)EXPECT_EQ(indices[i],511.75f);
 }
 
 TEST(BoundedPrecision, FractionalUnisonPhaseSpreadPreservesTheSharedDrawStream)
 {
     using namespace synth2::dsp;
-    std::array<float,128> controls{};controls[75]=58.25/127;controls[92]=64.03125f/127;
+    std::array<float,128> controls{};controls[75]=58.25f/127;controls[92]=64.03125f/127;
     synth2::Synth1PatchMapper mapper(113);mapper.setContinuousControls(true);mapper.setDirectControls(true);
     synth2::RenderControls mapped;mapper.mapFromRawBuffer(controls.data(),mapped);
     EXPECT_EQ(mapped.unisonPhaseDial,64.03125f);
@@ -145,7 +145,7 @@ TEST(BoundedPrecision, FractionalCutoffReachesTheNativeReceiverAtCompatibleDialK
         RenderControls mapped;mapper.mapFromRawBuffer(controls.data(),mapped);
         const auto config=render::filterControls(mapped,false);
         ASSERT_TRUE(config.enabled);
-        const double expected=dial==64.03125f ? 515.25 : 515.5;
+        const float expected=dial==64.03125f ? 515.25f : 515.5f;
         EXPECT_EQ(config.cutoffIndex,expected);
         EXPECT_EQ(render::filterEnvelope(mapped).cutoffIndex,expected);
         dsp::FilterEnvelope envelope;dsp::CutoffControl cutoff;cutoff.prepare(44100);
@@ -164,7 +164,7 @@ TEST(BoundedPrecision, FractionalKeyTrackingSurvivesEnvelopeSetupAndReceiverTran
     using namespace synth2::dsp;
     FilterEnvelopeSettings first;first.cutoffIndex=515;first.tracking=64.03125f/127;
     auto second=first;second.tracking=64.0625f/127;
-    FilterEnvelope a,b;double x=0,y=0;
+    FilterEnvelope a,b;float x=0,y=0;
     VoiceEnvelopeConfigurator::filter(a,x,0,first,96,1,44100);
     VoiceEnvelopeConfigurator::filter(b,y,0,second,96,1,44100);
     ASSERT_NE(x,y);EXPECT_NE(x,std::trunc(x));EXPECT_NE(y,std::trunc(y));
@@ -176,17 +176,17 @@ TEST(BoundedPrecision, FractionalKeyTrackingSurvivesEnvelopeSetupAndReceiverTran
 TEST(BoundedPrecision, FractionalFilterHeadroomRetainsPeakSustainAndReleaseLevels)
 {
     using namespace synth2::dsp;
-    for(double base:{512.25,512.5})
+    for(float base:{512.25f,512.5f})
     {
         FilterEnvelopeSettings settings;settings.cutoffIndex=base;
         settings.amount=1;settings.sustain=1;settings.release=.25f;
-        FilterEnvelope envelope;double keyboard=0;
+        FilterEnvelope envelope;float keyboard=0;
         VoiceEnvelopeConfigurator::filter(envelope,keyboard,0,settings,48,1,44100);
-        envelope.noteOn();envelope.render(1,[](double,int){});
+        envelope.noteOn();envelope.render(1,[](float,int){});
         EXPECT_EQ(keyboard,0);EXPECT_EQ(envelope.getLevel(),1024-base);
         envelope.noteOff();EXPECT_EQ(envelope.getLevel(),1024-base);
         bool fractional=false;
-        envelope.render(64,[&](double level,int count) {
+        envelope.render(64,[&](float level,int count) {
             EXPECT_GT(count,0);EXPECT_GE(level,0);EXPECT_LE(level,1024-base);
             fractional|=level!=std::trunc(level);
         });
@@ -228,8 +228,8 @@ TEST(BoundedPrecision, FractionalModulationTimesReachEachEnvelopeDestination)
             settings.attackDial=mapped.modEnv.attackDial;settings.decayDial=mapped.modEnv.decayDial;
             settings.amountDial=mapped.modEnv.amountDial;settings.fm=destination==1;settings.pulseWidth=destination==2;
             FilterEnvelope envelope;VoiceEnvelopeConfigurator::modulation(envelope,settings,44100);envelope.noteOn();
-            std::vector<double> levels;levels.reserve(44100);
-            envelope.render(44100,[&](double value,int count) {
+            std::vector<float> levels;levels.reserve(44100);
+            envelope.render(44100,[&](float value,int count) {
                 EXPECT_TRUE(std::isfinite(value));EXPECT_GE(value,0);
                 levels.insert(levels.end(),count,value);
             });
@@ -260,26 +260,26 @@ TEST(BoundedPrecision, FractionalRandomTargetsUseOneSharedDrawAndRetainRealState
 {
     using synth2::dsp::RandomLfo;
     struct Draws {int calls=0;int next(){++calls;return 17;}} draws;
-    RandomLfo target;target.setWave(3,0,10.25,draws);
-    EXPECT_EQ(draws.calls,1);EXPECT_DOUBLE_EQ(target.current,6.75);
-    EXPECT_DOUBLE_EQ(target.query(3,0,10.25,0,1000,32).first,6.75);
+    RandomLfo target;target.setWave(3,0,10.25f,draws);
+    EXPECT_EQ(draws.calls,1);EXPECT_DOUBLE_EQ(target.current,6.75f);
+    EXPECT_DOUBLE_EQ(target.query(3,0,10.25f,0,1000,32).first,6.75f);
     int counter=0;
-    target.advance(999,counter,1000,3,0,10.25,draws);EXPECT_EQ(draws.calls,1);
-    target.advance(1,counter,1000,3,0,10.25,draws);EXPECT_EQ(draws.calls,2);
-    EXPECT_EQ(target.previous,6.75);EXPECT_EQ(target.current,6.75);
-    target.setWave(3,.25,.25,draws);EXPECT_EQ(draws.calls,2);
-    const auto fixed=target.query(3,.25,.25,7,1000,32);
-    EXPECT_EQ(fixed.first,.25);EXPECT_EQ(fixed.second,-1);
+    target.advance(999,counter,1000,3,0,10.25f,draws);EXPECT_EQ(draws.calls,1);
+    target.advance(1,counter,1000,3,0,10.25f,draws);EXPECT_EQ(draws.calls,2);
+    EXPECT_EQ(target.previous,6.75f);EXPECT_EQ(target.current,6.75f);
+    target.setWave(3,.25f,.25f,draws);EXPECT_EQ(draws.calls,2);
+    const auto fixed=target.query(3,.25f,.25f,7,1000,32);
+    EXPECT_EQ(fixed.first,.25f);EXPECT_EQ(fixed.second,-1);
 }
 
 TEST(BoundedPrecision, SmoothedRandomQueriesKeepFractionalEndpointsWithIntegerBounds)
 {
-    synth2::dsp::RandomLfo target{8.5,2.25};
+    synth2::dsp::RandomLfo target{8.5f,2.25f};
     const auto first=target.query(4,0,16,0,1000,32);
     const auto last=target.query(4,0,16,999,1000,32);
-    EXPECT_EQ(first.first,2.25);EXPECT_EQ(last.first,8.5);
+    EXPECT_EQ(first.first,2.25f);EXPECT_EQ(last.first,8.5f);
     EXPECT_GE(first.second,32);EXPECT_GE(last.second,32);
-    EXPECT_EQ(target.current,8.5);EXPECT_EQ(target.previous,2.25);
+    EXPECT_EQ(target.current,8.5f);EXPECT_EQ(target.previous,2.25f);
 }
 
 TEST(BoundedPrecision, FractionalRandomDepthDoesNotRedrawHeldHistory)
@@ -288,11 +288,11 @@ TEST(BoundedPrecision, FractionalRandomDepthDoesNotRedrawHeldHistory)
     RandomLfoRuntime state;
     std::array<RandomLfoRuntime::Control,2> controls{{{4,3,64},{1,0,0}}};
     state.load({},controls);
-    const auto seed=state.random.state;const double held=state.targets[0].current;
+    const auto seed=state.random.state;const float held=state.targets[0].current;
     const auto range=state.effectiveRange(0,64.03125f);
-    EXPECT_EQ(range.first,1032.5);EXPECT_EQ(range.second,0);
+    EXPECT_EQ(range.first,1032.5f);EXPECT_EQ(range.second,0);
     const auto query=state.query(0,0,1000,32,64.03125f);
-    EXPECT_EQ(query.first,1032.5-held);EXPECT_NE(query.first,std::trunc(query.first));
+    EXPECT_EQ(query.first,1032.5f-held);EXPECT_NE(query.first,std::trunc(query.first));
     EXPECT_EQ(state.random.state,seed);EXPECT_EQ(state.targets[0].current,held);
     auto expected=state.random;(void)expected.next();
     state.advance(0,1000,0,1000,64.03125f);EXPECT_EQ(state.random.state,expected.state);
@@ -302,28 +302,28 @@ TEST(BoundedPrecision, FractionalGlideHistorySurvivesRetriggerAndReceiverTranspo
 {
     using namespace synth2::dsp;
     Portamento state;state.setDuration(Portamento::timeSeconds(64),44100);
-    state.setNote(60,false);state.offset=.25;state.setNote(72,true);
-    EXPECT_EQ(state.offset,-127.75);EXPECT_EQ(state.delta,-127.75);
+    state.setNote(60,false);state.offset=.25f;state.setNote(72,true);
+    EXPECT_EQ(state.offset,-127.75f);EXPECT_EQ(state.delta,-127.75f);
     OscillatorControlSettings config;config.portamentoDial=64;config.applyPortamento=true;
     VoiceSpanBuffer spans{};for(int i=0;i<64;++i)spans[i]=64-i;
     VoiceControlBuffer pitch{};
     OscillatorControlRenderer::glide(config,{},state,64,spans,pitch);
-    EXPECT_EQ(pitch[0],-127.75);EXPECT_NE(state.offset,std::trunc(state.offset));
-    const double retained=state.offset;
+    EXPECT_EQ(pitch[0],-127.75f);EXPECT_NE(state.offset,std::trunc(state.offset));
+    const float retained=state.offset;
     state.setNote(76,true);EXPECT_EQ(state.delta,retained-42);
 }
 
 TEST(BoundedPrecision, LfoDepthCurvesKeepSubUnitValuesAcrossFourWaveforms)
 {
     using Curve=synth2::dsp::LfoShape::DepthCurve;
-    const auto sine=Curve(4,.125).query(0,250,1000,32);
-    EXPECT_DOUBLE_EQ(sine.first,.125);EXPECT_EQ(sine.second,32);
-    const auto triangle=Curve(5,64.125).query(1,333,1000,32);
-    EXPECT_DOUBLE_EQ(triangle.first,171.375);EXPECT_EQ(triangle.second,32);
-    const auto saw=Curve(2,64.125).query(2,1200,4096,32);
-    EXPECT_DOUBLE_EQ(saw.first,365.75);EXPECT_EQ(saw.second,32);
-    const auto square=Curve(3,.03125).query(3,750,1000,32);
-    EXPECT_DOUBLE_EQ(square.first,.5);EXPECT_EQ(square.second,250);
+    const auto sine=Curve(4,.125f).query(0,250,1000,32);
+    EXPECT_DOUBLE_EQ(sine.first,.125f);EXPECT_EQ(sine.second,32);
+    const auto triangle=Curve(5,64.125f).query(1,333,1000,32);
+    EXPECT_DOUBLE_EQ(triangle.first,171.375f);EXPECT_EQ(triangle.second,32);
+    const auto saw=Curve(2,64.125f).query(2,1200,4096,32);
+    EXPECT_DOUBLE_EQ(saw.first,365.75f);EXPECT_EQ(saw.second,32);
+    const auto square=Curve(3,.03125f).query(3,750,1000,32);
+    EXPECT_DOUBLE_EQ(square.first,.5f);EXPECT_EQ(square.second,250);
     for(int wave=0;wave<4;++wave)
     {
         const auto silent=Curve(2,0).query(wave,123,1000,32);
@@ -334,7 +334,7 @@ TEST(BoundedPrecision, LfoDepthCurvesKeepSubUnitValuesAcrossFourWaveforms)
 TEST(BoundedPrecision, FractionalPortamentoTimeReachesTheSampleClock)
 {
     using namespace synth2::dsp;
-    const double first=Portamento::timeSeconds(64.125f),second=Portamento::timeSeconds(64.375f);
+    const float first=Portamento::timeSeconds(64.125f),second=Portamento::timeSeconds(64.375f);
     EXPECT_GT(first,Portamento::timeSeconds(64));EXPECT_LT(first,second);
     std::array<float,128> controls{};controls[39]=64.125f/127;
     synth2::Synth1PatchMapper mapper(113);mapper.setContinuousControls(true);mapper.setDirectControls(true);
@@ -353,17 +353,17 @@ TEST(BoundedPrecision, FractionalEnvelopeLevelsReachTheVoiceControlBuffers)
 {
     using namespace synth2::dsp;
     FilterEnvelope envelope;
-    envelope.configure(0,0,512.25,256.125,1000);
+    envelope.configure(0,0,512.25f,256.125f,1000);
     envelope.noteOn();
     OscillatorControlSettings config;config.envelopeEnabled=true;
     VoiceControlBuffer signal{};VoiceSpanBuffer spans{};
     OscillatorControlRenderer::envelope(config,{},envelope,32,signal,spans);
-    for(int i=0;i<32;++i){EXPECT_EQ(signal[i],256.125);EXPECT_EQ(spans[i],32-i);}
-    EXPECT_EQ(envelope.getLevel(),256.125);
+    for(int i=0;i<32;++i){EXPECT_EQ(signal[i],256.125f);EXPECT_EQ(spans[i],32-i);}
+    EXPECT_EQ(envelope.getLevel(),256.125f);
     envelope.noteOff();
     bool fractional=false;
-    envelope.render(32,[&](double value,int count){
-        EXPECT_GE(value,0);EXPECT_LE(value,256.125);EXPECT_GT(count,0);
+    envelope.render(32,[&](float value,int count){
+        EXPECT_GE(value,0);EXPECT_LE(value,256.125f);EXPECT_GT(count,0);
         fractional=fractional || value!=std::trunc(value);
     });
     EXPECT_TRUE(fractional);
@@ -373,15 +373,15 @@ TEST(BoundedPrecision, AmplitudeSustainAndReleaseRetainSubLevelValues)
 {
     using namespace synth2::dsp;
     AmplitudeEnvelope amplitude;
-    amplitude.setParameters(0,0,1024.25,4096);amplitude.noteOn();
-    double gain=0;amplitude.render(&gain,1);
-    EXPECT_EQ(amplitude.getLevel(),1024.25);
-    EXPECT_EQ(amplitude.getCachedLevel(),1024.25);
+    amplitude.setParameters(0,0,1024.25f,4096);amplitude.noteOn();
+    float gain=0;amplitude.render(&gain,1);
+    EXPECT_EQ(amplitude.getLevel(),1024.25f);
+    EXPECT_EQ(amplitude.getCachedLevel(),1024.25f);
     EXPECT_EQ(gain,1024.25f/2048);
     amplitude.noteOff();amplitude.render(&gain,1);
     EXPECT_EQ(amplitude.getPhase(),AmplitudeEnvelope::Phase::Release);
     EXPECT_NE(amplitude.getLevel(),std::trunc(amplitude.getLevel()));
-    ReleaseRamp release;release.start(4096,1024.25);release.advance(1);
+    ReleaseRamp release;release.start(4096,1024.25f);release.advance(1);
     EXPECT_EQ(release.getLevel(),amplitude.getLevel());
     EXPECT_EQ(release.getCounter(),1);
 }
@@ -394,9 +394,9 @@ TEST(BoundedPrecision, FractionalModulationDepthSurvivesConfiguration)
     settings.attackDial=0;settings.decayDial=127;
     VoiceEnvelopeConfigurator::modulation(envelope,settings,44100);
     envelope.noteOn();
-    double maximum=0;bool fractional=false;
-    envelope.render(64,[&](double value,int){maximum=std::max(maximum,value);fractional|=value!=std::trunc(value);});
-    EXPECT_GT(maximum,0);EXPECT_LT(maximum,1.0);EXPECT_TRUE(fractional);
+    float maximum=0;bool fractional=false;
+    envelope.render(64,[&](float value,int){maximum=std::max(maximum,value);fractional|=value!=std::trunc(value);});
+    EXPECT_GT(maximum,0);EXPECT_LT(maximum,1.0f);EXPECT_TRUE(fractional);
     std::array<float,128> controls{};controls[11]=64.0625f/127;
     synth2::Synth1PatchMapper mapper(113);mapper.setContinuousControls(true);mapper.setDirectControls(true);
     synth2::RenderControls mapped;mapper.mapFromRawBuffer(controls.data(),mapped);
@@ -408,24 +408,24 @@ TEST(BoundedPrecision, FilterEnvelopeConfigurationKeepsFractionalDepthAndSustain
     using namespace synth2::dsp;
     FilterEnvelope envelope;FilterEnvelopeSettings settings;
     settings.cutoffIndex=512;settings.amount=(70.03125f-63)/64;
-    settings.sustain=64.125/127;
-    double keyboard=0;
+    settings.sustain=64.125f/127;
+    float keyboard=0;
     VoiceEnvelopeConfigurator::filter(envelope,keyboard,0,settings,60,1,44100);
     envelope.noteOn();
-    envelope.render(1,[](double value,int count){EXPECT_DOUBLE_EQ(value,56.375);EXPECT_EQ(count,1);});
-    EXPECT_DOUBLE_EQ(envelope.getLevel(),56.375);
+    envelope.render(1,[](float value,int count){EXPECT_DOUBLE_EQ(value,56.375f);EXPECT_EQ(count,1);});
+    EXPECT_DOUBLE_EQ(envelope.getLevel(),56.375f);
 }
 
 TEST(BoundedPrecision, LiveDepthChangesPreserveSubUnitEnvelopePosition)
 {
     using synth2::dsp::FilterEnvelope;
-    FilterEnvelope envelope;envelope.configure(1,1000,.5,0,1000);
-    envelope.noteOn();envelope.render(1,[](double,int){});
-    ASSERT_EQ(envelope.getLevel(),.5);
-    envelope.configure(1,1000,1.25,0,1000);
-    EXPECT_EQ(envelope.getLevel(),1.25);
-    envelope.configure(1,1000,.25,0,1000);
-    EXPECT_EQ(envelope.getLevel(),.25);
+    FilterEnvelope envelope;envelope.configure(1,1000,.5f,0,1000);
+    envelope.noteOn();envelope.render(1,[](float,int){});
+    ASSERT_EQ(envelope.getLevel(),.5f);
+    envelope.configure(1,1000,1.25f,0,1000);
+    EXPECT_EQ(envelope.getLevel(),1.25f);
+    envelope.configure(1,1000,.25f,0,1000);
+    EXPECT_EQ(envelope.getLevel(),.25f);
 }
 
 TEST(BoundedPrecision, SignalStorageKeepsFractionalPhaseUnitsAndDiscreteSpans)
@@ -433,12 +433,12 @@ TEST(BoundedPrecision, SignalStorageKeepsFractionalPhaseUnitsAndDiscreteSpans)
     using namespace synth2::dsp;
     static_assert(std::is_same_v<VoiceSpanBuffer::value_type,int>);
     VoiceControlBuffer values{};
-    values[0]=67108863.25;
-    values[1]=.125;
+    values[0]=67108863.25f;
+    values[1]=.125f;
     ReceiverLfoView view;
     view.values[0]=values.data();
-    EXPECT_DOUBLE_EQ(view.values[0][0],67108863.25);
-    EXPECT_DOUBLE_EQ(view.values[0][1],.125);
+    EXPECT_DOUBLE_EQ(view.values[0][0],67108863.25f);
+    EXPECT_DOUBLE_EQ(view.values[0][1],.125f);
 }
 
 TEST(BoundedPrecision, FmKeepsFractionalDepthThroughDispatchAndSlew)
@@ -446,14 +446,14 @@ TEST(BoundedPrecision, FmKeepsFractionalDepthThroughDispatchAndSlew)
     using synth2::dsp::FrequencyModulation;
     FrequencyModulation state;
     int samples=0;
-    state.render(1.25,64,44100,[&](double value){EXPECT_EQ(value,1.25);++samples;});
+    state.render(1.25f,64,44100,[&](float value){EXPECT_EQ(value,1.25f);++samples;});
     EXPECT_EQ(samples,64);
-    EXPECT_EQ(state.current,1.25);
-    state.render(12.75,64,44100,[](double){});
-    EXPECT_EQ(state.target,12.75);
-    EXPECT_EQ(state.anchor,1.25);
+    EXPECT_EQ(state.current,1.25f);
+    state.render(12.75f,64,44100,[](float){});
+    EXPECT_EQ(state.target,12.75f);
+    EXPECT_EQ(state.anchor,1.25f);
     EXPECT_NE(state.current,std::trunc(state.current));
-    const double depth=FrequencyModulation::depth(64.25,.125);
+    const float depth=FrequencyModulation::depth(64.25f,.125f);
     EXPECT_GT(depth,FrequencyModulation::depth(64,0));
     EXPECT_LT(depth,FrequencyModulation::depth(65,1));
 }
@@ -461,17 +461,17 @@ TEST(BoundedPrecision, FmKeepsFractionalDepthThroughDispatchAndSlew)
 TEST(BoundedPrecision, FractionalFilterModulationReachesCoefficients)
 {
     using namespace synth2::dsp;
-    EXPECT_EQ(CutoffControl::target(512.25,0,0,0,0,0),512.25);
-    EXPECT_EQ(CutoffControl::target(512,0,0,0,1.5,0),512.5);
+    EXPECT_EQ(CutoffControl::target(512.25f,0,0,0,0,0),512.25f);
+    EXPECT_EQ(CutoffControl::target(512,0,0,0,1.5f,0),512.5f);
     VoiceControlBuffer modulation{},indices{};
-    modulation.fill(1.5);
+    modulation.fill(1.5f);
     VoiceSpanBuffer spans{};
     for(int i=0;i<64;++i)spans[i]=64-i;
     ReceiverLfoView view;view.available=true;view.receivers[0]={true,2};
     view.values[0]=modulation.data();view.remaining[0]=spans.data();
     FilterEnvelope envelope;CutoffControl cutoff;cutoff.prepare(44100);
     FilterControlRenderer::render({true,true,512},view,envelope,cutoff,0,0,64,indices);
-    for(int i=0;i<64;++i)EXPECT_EQ(indices[i],512.5);
+    for(int i=0;i<64;++i)EXPECT_EQ(indices[i],512.5f);
     StateVariableFilter filter;
     filter.configure(44100,indices[0],.5f);
     const float fractional=filter.getCoefficient();
@@ -484,25 +484,25 @@ TEST(BoundedPrecision, FractionalFilterModulationReachesCoefficients)
 TEST(BoundedPrecision, FractionalAmplitudeModulationSurvivesTheReceiver)
 {
     using namespace synth2::dsp;
-    VoiceControlBuffer first{},second{};first.fill(.25);second.fill(.5);
+    VoiceControlBuffer first{},second{};first.fill(.25f);second.fill(.5f);
     VoiceSpanBuffer spans{};spans.fill(1);
     ReceiverLfoView view;view.available=true;
     view.receivers[0]={true,3};view.receivers[1]={true,3};
     view.values={first.data(),second.data()};view.remaining={spans.data(),spans.data()};
     AmplitudeEnvelope amplitude;amplitude.setParameters(0,0,2048,0);amplitude.noteOn();
-    double gain=0;
+    float gain=0;
     AmplitudeBlockSettings config;
     ASSERT_TRUE(AmplitudeBlockRenderer::render(config,view,amplitude,1,&gain));
-    const double expected=((2048-.25)*(2048-.5))/4194304.0;
+    const float expected=((2048-.25f)*(2048-.5f))/4194304.0f;
     EXPECT_EQ(gain,expected);EXPECT_LT(gain,1);
 }
 
 TEST(BoundedPrecision, PitchAndPulseModulationRetainFractionalCoordinates)
 {
     using synth2::dsp::ModulationEnvelope;
-    EXPECT_DOUBLE_EQ(ModulationEnvelope::pulseWidthBins(.5f,.125),513.5);
-    EXPECT_GT(ModulationEnvelope::pitchFrequency(440.0f,.125),440);
-    EXPECT_LT(ModulationEnvelope::pitchFrequency(440.0f,.125),ModulationEnvelope::pitchFrequency(440.0f,1));
+    EXPECT_DOUBLE_EQ(ModulationEnvelope::pulseWidthBins(.5f,.125f),513.5f);
+    EXPECT_GT(ModulationEnvelope::pitchFrequency(440.0f,.125f),440);
+    EXPECT_LT(ModulationEnvelope::pitchFrequency(440.0f,.125f),ModulationEnvelope::pitchFrequency(440.0f,1));
 }
 
 TEST(BoundedPrecision, GainAndVelocityInterpolateCompatibleIntegerAnchors)
@@ -511,9 +511,9 @@ TEST(BoundedPrecision, GainAndVelocityInterpolateCompatibleIntegerAnchors)
     for(int dial=0;dial<127;++dial)
     {
         EXPECT_EQ(Envelope::gainForDial(static_cast<float>(dial)),Envelope::gainForDial(dial));
-        const double a=Envelope::gainForDial(dial),b=Envelope::gainForDial(dial+1);
+        const float a=Envelope::gainForDial(dial),b=Envelope::gainForDial(dial+1);
         EXPECT_EQ(Envelope::gainForDial(dial+.25f),a+(b-a)*.25f);
-        const double first=Envelope::velocityForDials(100,dial),second=Envelope::velocityForDials(100,dial+1);
+        const float first=Envelope::velocityForDials(100,dial),second=Envelope::velocityForDials(100,dial+1);
         EXPECT_EQ(Envelope::velocityForDials(100,dial+.25f),first+(second-first)*.25f);
     }
     EXPECT_GT(Envelope::gainForDial(.25f),0);
@@ -524,9 +524,9 @@ TEST(BoundedPrecision, SaturationKeepsIntegerResponseAndFractionalDrive)
 {
     for(int dial=0;dial<=127;++dial)
     {
-        const double exponent=dial*(1.0/127.0)-1.0;
-        const double curve=std::exp(static_cast<double>(exponent)*5.8)*dial*(1.0/127.0);
-        const double expected=curve*100.0;
+        const float exponent=dial*(1.0f/127.0f)-1.0f;
+        const float curve=std::exp(static_cast<float>(exponent)*5.8f)*dial*(1.0f/127.0f);
+        const float expected=curve*100.0f;
         EXPECT_EQ(synth2::dsp::saturationStrength(dial/127.0f),expected);
     }
     EXPECT_LT(synth2::dsp::saturationStrength(64.125f/127),synth2::dsp::saturationStrength(64.375f/127));
@@ -538,13 +538,13 @@ TEST(BoundedPrecision, DelayRetainsFractionalFrameCoordinatesAcrossReset)
 {
     auto delay=std::make_unique<synth2::dsp::DelayKernel>();
     ASSERT_TRUE(delay->configure(44100,0,10.0f/44100,0,0,127,64));
-    ASSERT_TRUE(delay->setFrameTargets(10.25,10.25));delay->reset();
-    EXPECT_DOUBLE_EQ(delay->getCurrentLeft(),10.25);
-    EXPECT_DOUBLE_EQ(delay->getLeftFramesContinuous(),10.25);
-    std::array<double,32> result{};
+    ASSERT_TRUE(delay->setFrameTargets(10.25f,10.25f));delay->reset();
+    EXPECT_DOUBLE_EQ(delay->getCurrentLeft(),10.25f);
+    EXPECT_DOUBLE_EQ(delay->getLeftFramesContinuous(),10.25f);
+    std::array<float,32> result{};
     for(int i=0;i<32;++i)
     {
-        double dry[2]{i==0 ? 1.0f : 0,0},send[2]{};
+        float dry[2]{i==0 ? 1.0f : 0,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));result[i]=send[0];EXPECT_EQ(send[1],0);
     }
     EXPECT_EQ(result[10],.75f);EXPECT_EQ(result[11],.25f);
@@ -557,11 +557,11 @@ TEST(BoundedPrecision, ChorusInterpolatesTheCompatibleDelayFrameAnchors)
     ASSERT_TRUE(chorus->configure(44100,1,64,0,64,64,127));
     chorus->setTimeDial(64.125f);chorus->reset();
     // Native time dials64/65 resolve to666/677 frames at44.1kHz.
-    EXPECT_DOUBLE_EQ(chorus->getDelayFramesContinuous(),667.375);
-    std::array<double,700> result{};
+    EXPECT_DOUBLE_EQ(chorus->getDelayFramesContinuous(),667.375f);
+    std::array<float,700> result{};
     for(int i=0;i<700;++i)
     {
-        double dry[2]{i==0 ? 1.0f : 0,0};chorus->process(dry,nullptr,1);result[i]=dry[0];
+        float dry[2]{i==0 ? 1.0f : 0,0};chorus->process(dry,nullptr,1);result[i]=dry[0];
     }
     EXPECT_EQ(result[667],.625f);EXPECT_EQ(result[668],.375f);
     for(int i=1;i<700;++i)if(i!=667 && i!=668)EXPECT_EQ(result[i],0);
@@ -575,15 +575,15 @@ TEST(BoundedPrecision, PhaserAndEffectControlsRetainSubIntegerValues)
     EXPECT_NE(first[0],second[0]);EXPECT_NE(first[1],second[1]);
     EXPECT_NE(first[2],second[2]);EXPECT_NE(first[3],second[3]);
     synth2::dsp::MultiEffect effect;effect.prepare(44100);effect.setDials(64.125f,64.125f,64.125f);
-    EXPECT_EQ(effect.snapshot()[1],64.125f);EXPECT_EQ(effect.snapshot()[0],64.125*(1.0/127.0));
+    EXPECT_EQ(effect.snapshot()[1],64.125f);EXPECT_EQ(effect.snapshot()[0],64.125f*(1.0f/127.0f));
 }
 
 TEST(BoundedPrecision, FractionalDecimationPeriodKeepsItsSampleClockRemainder)
 {
     synth2::dsp::MultiEffect effect;effect.prepare(44100);effect.setDials(.5f,0,127);
-    std::array<double,8> audio{0,.25f,.5f,.75f,1,1.25f,1.5f,1.75f};
+    std::array<float,8> audio{0,.25f,.5f,.75f,1,1.25f,1.5f,1.75f};
     effect.process(3,audio.data(),nullptr,audio.size(),false);
-    const std::array<double,8> expected{0,0,.5f,.75f,.75f,1.25f,1.5f,1.5f};
+    const std::array<float,8> expected{0,0,.5f,.75f,.75f,1.25f,1.5f,1.5f};
     EXPECT_EQ(audio,expected);
 }
 
@@ -616,30 +616,30 @@ TEST(BoundedPrecision, TinySubLevelsKeepNativeScalingWithAndWithoutStack)
     }
 }
 
-TEST(BoundedPrecision, FilterRecurrenceRetainsInputDifferencesBelowFloatResolution)
+TEST(BoundedPrecision, FilterRecurrenceRetainsRepresentableFloatInputDifferences)
 {
     synth2::dsp::StateVariableFilter first,second;
-    first.configureCoefficients(.25,0);second.configureCoefficients(.25,0);
-    const double base=first.process(1.0);
-    const double changed=second.process(1.0+0x1p-40);
+    first.configureCoefficients(.25f,0);second.configureCoefficients(.25f,0);
+    const auto base=first.process(1.0f);
+    const auto changed=second.process(std::nextafter(1.0f,2.0f));
+    static_assert(std::is_same_v<decltype(first.process(0)),float>);
     EXPECT_GT(changed,base);
-    EXPECT_LT(changed-base,0x1p-35);
 }
 
-TEST(BoundedPrecision, DelayHistoryRetainsInputDifferencesBelowFloatResolution)
+TEST(BoundedPrecision, DelayHistoryRetainsRepresentableFloatInputDifferences)
 {
     auto first=std::make_unique<synth2::dsp::DelayKernel>();
     auto second=std::make_unique<synth2::dsp::DelayKernel>();
     for(auto* delay:{first.get(),second.get()})
     {
-        ASSERT_TRUE(delay->configure(44100,0,10.0/44100,0,0,127,64));
+        ASSERT_TRUE(delay->configure(44100,0,10.0f/44100,0,0,127,64));
         ASSERT_TRUE(delay->setFrameTargets(10,10));delay->reset();
     }
     bool retained=false;
     for(int frame=0;frame<32;++frame)
     {
-        double a[2]{frame==0 ? 1.0 : 0.0,0},b[2]{frame==0 ? 1.0+0x1p-40 : 0.0,0};
-        double sendA[2]{},sendB[2]{};
+        float a[2]{frame==0 ? 1.0f : 0.0f,0},b[2]{frame==0 ? std::nextafter(1.0f,2.0f) : 0.0f,0};
+        float sendA[2]{},sendB[2]{};
         ASSERT_TRUE(first->process(a,sendA,1));ASSERT_TRUE(second->process(b,sendB,1));
         if(frame>0)retained|=sendA[0]!=sendB[0];
     }
@@ -658,66 +658,56 @@ TEST(BoundedPrecision, TempoKnotsKeepDiscretePeriodsAndFractionalBpm)
     using synth2::dsp::LfoClock;
     LfoClock first,fractional,last;
     first.setSynchronizedRate(92,120);
-    fractional.setSynchronizedRate(92,120.125);
+    fractional.setSynchronizedRate(92,120.125f);
     last.setSynchronizedRate(92,121);
     first.advance(44100);
     EXPECT_EQ(first.period,14699);
     EXPECT_GT(fractional.targetHz,first.targetHz);
     EXPECT_LT(fractional.targetHz,last.targetHz);
-    EXPECT_DOUBLE_EQ(fractional.targetHz,first.targetHz+(last.targetHz-first.targetHz)*.125);
-    EXPECT_NE(fractional.targetHz,static_cast<double>(static_cast<float>(fractional.targetHz)));
+    EXPECT_DOUBLE_EQ(fractional.targetHz,first.targetHz+(last.targetHz-first.targetHz)*.125f);
+    static_assert(std::is_same_v<decltype(fractional.targetHz),float>);
 }
 
-TEST(BoundedPrecision, PitchModulationPreservesSubFloatBaseFrequency)
+TEST(BoundedPrecision, PitchModulationUsesFloatFrequencyWords)
 {
     using synth2::dsp::ModulationEnvelope;
-    constexpr double delta=0x1p-20;
-    const double frequency=440.0+delta;
-    ASSERT_EQ(static_cast<float>(frequency),440.0f);
-    EXPECT_DOUBLE_EQ(ModulationEnvelope::pitchFrequency(frequency,128),880.0+delta*2);
-    EXPECT_DOUBLE_EQ(ModulationEnvelope::pitchFrequency(frequency,-128),220.0+delta*.5);
-    EXPECT_EQ(ModulationEnvelope::pitchFrequency(440.0,128),880.0);
-    EXPECT_EQ(ModulationEnvelope::pitchFrequency(440.0,-128),220.0);
-    EXPECT_EQ(ModulationEnvelope::pitchFrequency(22000.0+delta,128),22000.0);
+    const float frequency=std::nextafter(440.0f,441.0f);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(frequency,128),frequency*2);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(frequency,-128),frequency*.5f);
+    EXPECT_EQ(ModulationEnvelope::pitchFrequency(22000,128),22000);
 }
 
-TEST(BoundedPrecision, FractionalDurationsDoNotSnapToTheNextFrameEarly)
+TEST(BoundedPrecision, DurationUsesFloatProductBeforeIntegerFrameConversion)
 {
     using synth2::dsp::ReleaseRamp;
     constexpr float anchor=.01f;
-    const double lower=std::nextafter(anchor,0.0f);
-    const double edited=lower+(static_cast<double>(anchor)-lower)*.75;
-    ASSERT_EQ(static_cast<float>(edited),anchor);
     EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100),441);
-    EXPECT_EQ(ReleaseRamp::durationFrames(edited,44100),440);
-    const double rate=44100.0-0x1p-10;
-    ASSERT_EQ(static_cast<float>(rate),44100.f);
-    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,rate),440);
-    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100),441);
+    EXPECT_EQ(ReleaseRamp::durationFrames(std::nextafter(anchor,0.0f),44100),440);
+    EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100.25f),441);
 }
 
-TEST(BoundedPrecision, SubFloatFixedPhaseEditsReachTheFinalPhaseWord)
+TEST(BoundedPrecision, AdjacentFloatPhaseEditsReachTheFinalPhaseWord)
 {
     using namespace synth2::dsp;
-    const double edited=64.0+0x1p-19;
-    ASSERT_EQ(static_cast<float>(edited),64.0f);
+    const float edited=std::nextafter(64.0f,65.0f);
+    ASSERT_GT(edited,64.0f);
     OscillatorPhaseState base,fine;base.setDial(64);fine.setDial(edited);
     EXPECT_EQ(fine.dial,edited);
     OscillatorPhaseRandom a,b,untouched;
     ASSERT_TRUE(base.start(a));ASSERT_TRUE(fine.start(b));
-    EXPECT_EQ(fine.osc2,base.osc2+1);
+    EXPECT_GT(fine.osc2,base.osc2);
     const auto next=untouched.nextPhase();EXPECT_EQ(a.nextPhase(),next);EXPECT_EQ(b.nextPhase(),next);
     // Selection is a discrete compatible word, separate from phase interpolation.
-    OscillatorPhaseState boundary;boundary.setDial(std::nextafter(.5,0.0));
+    OscillatorPhaseState boundary;boundary.setDial(.5f);
     OscillatorPhaseRandom random,expected;ASSERT_TRUE(boundary.start(random));
     EXPECT_EQ(boundary.osc1,0u);EXPECT_EQ(boundary.osc2,0u);
     EXPECT_EQ(random.nextPhase(),expected.nextPhase());
 }
 
-TEST(BoundedPrecision, SubFloatSpreadEditsRetainLocalDrawOrder)
+TEST(BoundedPrecision, AdjacentFloatSpreadEditsRetainLocalDrawOrder)
 {
     using namespace synth2::dsp;
-    const double edited=64.0+0x1p-19;ASSERT_EQ(static_cast<float>(edited),64.0f);
+    const float edited=std::nextafter(64.0f,65.0f);ASSERT_GT(edited,64.0f);
     bool changed=false;
     OscillatorPhaseRandom a,b,untouched;
     for(int slot=0;slot<8;++slot)
@@ -730,14 +720,13 @@ TEST(BoundedPrecision, SubFloatSpreadEditsRetainLocalDrawOrder)
     const auto next=untouched.nextPhase();EXPECT_EQ(a.nextPhase(),next);EXPECT_EQ(b.nextPhase(),next);
 }
 
-TEST(BoundedPrecision, DelayTempoRetainsSubFloatCoordinates)
+TEST(BoundedPrecision, DelayTempoRespondsToAdjacentFloatCoordinates)
 {
-    const double tempo=120.0+0x1p-20;
-    ASSERT_EQ(static_cast<float>(tempo),120.0f);
-    const double native=synth2::dsp::EffectControls::delaySeconds(7,120);
-    const double edited=synth2::dsp::EffectControls::delaySeconds(7,tempo);
-    EXPECT_EQ(native,.1875);EXPECT_LT(edited,native);
-    EXPECT_EQ(static_cast<float>(edited),static_cast<float>(native));
+    const float tempo=std::nextafter(120.0f,121.0f);
+    const auto native=synth2::dsp::EffectControls::delaySeconds(7,120);
+    const auto edited=synth2::dsp::EffectControls::delaySeconds(7,tempo);
+    static_assert(std::is_same_v<decltype(synth2::dsp::EffectControls::delaySeconds(7,tempo)),float>);
+    EXPECT_EQ(native,.1875f);EXPECT_LT(edited,native);
 }
 
 TEST(BoundedPrecision, LoadedFractionalPhaseInterpolatesCompatiblePhaseWords)
@@ -746,36 +735,36 @@ TEST(BoundedPrecision, LoadedFractionalPhaseInterpolatesCompatiblePhaseWords)
     std::array<float,128> controls{};controls[91]=64.125f/127;
     synth2::Synth1PatchMapper mapper(113);mapper.setContinuousControls(true);mapper.setDirectControls(true);
     synth2::RenderControls mapped;mapper.mapFromRawBuffer(controls.data(),mapped);
-    ASSERT_EQ(mapped.oscillatorPhaseDial,64.125);
+    ASSERT_EQ(mapped.oscillatorPhaseDial,64.125f);
     OscillatorPhaseState low,high,edited;low.setDial(64);high.setDial(65);edited.setDial(mapped.oscillatorPhaseDial);
     OscillatorPhaseRandom random;
     ASSERT_TRUE(low.start(random));ASSERT_TRUE(high.start(random));ASSERT_TRUE(edited.start(random));
-    const auto expected=[](uint32_t a,uint32_t b){return static_cast<uint32_t>(a+(static_cast<double>(b)-a)*.125);};
+    const auto expected=[](uint32_t a,uint32_t b){return static_cast<uint32_t>(a+(static_cast<float>(b)-a)*.125f);};
     EXPECT_EQ(edited.osc2,expected(low.osc2,high.osc2));
     for(size_t i=0;i<edited.lanes.size();++i)
         EXPECT_EQ(edited.lanes[i],expected(low.lanes[i],high.lanes[i]));
 }
 
-TEST(BoundedPrecision, FineTuningKeepsSubFloatInputsBetweenCompatibleFrequencyWords)
+TEST(BoundedPrecision, FineTuningUsesCompatibleFloatFrequencyWords)
 {
     using synth2::dsp::OscillatorTuning;
     // Adjacent cents coordinates straddle a compatible output-word transition.
-    constexpr double low=0x1.00000ep+6,high=0x1.000010p+6;
-    constexpr double first=0x1.c891fcp+8,last=0x1.c891fep+8;
-    const double edited=low+(high-low)*.25;
+    constexpr float low=0x1.00000ep+6f,high=0x1.000010p+6f;
+    constexpr float first=0x1.c891fcp+8f,last=0x1.c891fep+8f;
+    const float edited=low+(high-low)*.25f;
     ASSERT_EQ(static_cast<float>(edited),static_cast<float>(low));
     EXPECT_EQ(OscillatorTuning::oscillator1(69,0,low,0),first);
-    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,high,0),last);
-    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,edited,0),first+(last-first)*.25);
-    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,0,edited),first+(last-first)*.25);
+    EXPECT_NEAR(OscillatorTuning::oscillator1(69,0,high,0),last,std::nextafter(last,1000.f)-last);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,edited,0),first);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,0,edited),first);
     synth2::dsp::VoiceTuningSettings settings;settings.fine=edited;
     settings.secondTracksKeyboard=true;settings.secondPitch=12;
     const auto core=synth2::dsp::VoiceTuning(settings,69).prepareCore(0);
-    EXPECT_EQ(core.first,first+(last-first)*.25);EXPECT_EQ(core.second,core.first*2);
+    EXPECT_EQ(core.first,first);EXPECT_EQ(core.second,core.first*2);
     for(int input=0;input<3;++input)
     {
-        const double cents=input==0 ? edited : 0,master=input==1 ? edited : 0,unison=input==2 ? edited : 0;
-        EXPECT_EQ(OscillatorTuning::fixedOsc2(0,cents,master,unison),(first+(last-first)*.25)*.5);
+        const float cents=input==0 ? edited : 0,master=input==1 ? edited : 0,unison=input==2 ? edited : 0;
+        EXPECT_EQ(OscillatorTuning::fixedOsc2(0,cents,master,unison),(first)*.5f);
     }
 }
 
@@ -783,20 +772,20 @@ TEST(BoundedPrecision, UnisonGroupOffsetsResolveSourceWordsBeforeFractionalEdits
 {
     using synth2::dsp::Unison;
     const auto low=Unison::layout(8,58,25),high=Unison::layout(8,59,25);
-    const auto edited=Unison::layout(8,58.25,25);
+    const auto edited=Unison::layout(8,58.25f,25);
     for(size_t i=0;i<8;++i)
     {
-        EXPECT_EQ(low.pitchCents[i],static_cast<double>(static_cast<float>(low.pitchCents[i])));
-        EXPECT_EQ(high.pitchCents[i],static_cast<double>(static_cast<float>(high.pitchCents[i])));
-        EXPECT_EQ(edited.pitchCents[i],low.pitchCents[i]+(high.pitchCents[i]-low.pitchCents[i])*.25);
+        EXPECT_EQ(low.pitchCents[i],static_cast<float>(static_cast<float>(low.pitchCents[i])));
+        EXPECT_EQ(high.pitchCents[i],static_cast<float>(static_cast<float>(high.pitchCents[i])));
+        EXPECT_EQ(edited.pitchCents[i],low.pitchCents[i]+(high.pitchCents[i]-low.pitchCents[i])*.25f);
     }
 }
 
-TEST(BoundedPrecision, TrackedTuningRetainsTheRealFirstOscillatorFrequency)
+TEST(BoundedPrecision, TrackedTuningRetainsRepresentableFloatFrequency)
 {
     using namespace synth2::dsp;
-    const double base=440.0+0x1p-20;
-    ASSERT_EQ(static_cast<float>(base),440.0f);
+    const float base=std::nextafter(440.0f,441.0f);
+    ASSERT_GT(base,440.0f);
     EXPECT_EQ(OscillatorTuning::trackedOsc2(base,12,0),base*2);
     VoiceTuningSettings settings;settings.secondTracksKeyboard=true;settings.secondPitch=12;
     VoiceTuning tuning(settings,69);
@@ -805,37 +794,37 @@ TEST(BoundedPrecision, TrackedTuningRetainsTheRealFirstOscillatorFrequency)
     EXPECT_EQ(tuning.prepareCore(0).second,880);
 }
 
-TEST(BoundedPrecision, CoarseReceiverExponentDoesNotSnapBeforeFrequencyMapping)
+TEST(BoundedPrecision, CoarseReceiverUsesFloatExponentWords)
 {
     using namespace synth2::dsp;
     VoiceTuningSettings settings;settings.secondTracksKeyboard=true;
     VoiceTuning tuning(settings,69);
     const auto core=tuning.prepareCore(0);
-    const double low=1,high=std::nextafter(1.0f,2.0f),edited=low+(high-low)*.25;
+    const float low=1,high=std::nextafter(1.0f,2.0f),edited=low+(high-low)*.25f;
     ASSERT_EQ(static_cast<float>(edited),1.0f);
-    const double first=tuning.coarseSecond(core,low,0),last=tuning.coarseSecond(core,high,0);
+    const float first=tuning.coarseSecond(core,low,0),last=tuning.coarseSecond(core,high,0);
     ASSERT_GT(last,first);
-    EXPECT_EQ(tuning.coarseSecond(core,edited,0),first+(last-first)*.25);
+    EXPECT_EQ(tuning.coarseSecond(core,edited,0),first);
     settings.secondTracksKeyboard=false;VoiceTuning fixed(settings,69);
-    EXPECT_EQ(fixed.coarseSecond(core,edited,0),(first+(last-first)*.25)*.5);
+    EXPECT_EQ(fixed.coarseSecond(core,edited,0),(first)*.5f);
 }
 
-TEST(BoundedPrecision, StackFrequencyCacheRetainsSubFloatBaseEdits)
+TEST(BoundedPrecision, StackFrequencyCacheUsesFloatBaseWords)
 {
     using namespace synth2::dsp;
-    const double low=440,high=std::nextafter(440.0f,441.0f),edited=low+(high-low)*.25;
+    const float low=440,high=std::nextafter(440.0f,441.0f),edited=low+(high-low)*.25f;
     ASSERT_EQ(static_cast<float>(edited),440.0f);
-    const auto first=OscillatorStack::frequencies(low,64.25),last=OscillatorStack::frequencies(high,64.25);
-    const auto fractional=OscillatorStack::frequencies(edited,64.25);
+    const auto first=OscillatorStack::frequencies(low,64.25f),last=OscillatorStack::frequencies(high,64.25f);
+    const auto fractional=OscillatorStack::frequencies(edited,64.25f);
     for(size_t i=0;i<first.size();++i)
-        EXPECT_EQ(fractional[i],first[i]+(last[i]-first[i])*.25);
+        EXPECT_EQ(fractional[i],first[i]);
     synth2::ShapeTables tables;tables.infos.push_back({0,2048,100000});
     tables.data.resize(2048);
     synth2::WaveTableBank bank;bank.setShapeTables(0,std::move(tables));
-    OscillatorSection section;section.prepare({44100,64,2});section.stackDial=64.25;
-    const auto render=[&](double base) {section.processSample(base,440,.5,0,0,false,false,0,0,-1,&bank);};
+    OscillatorSection section;section.prepare({44100,64,2});section.stackDial=64.25f;
+    const auto render=[&](float base) {section.processSample(base,440,.5f,0,0,false,false,0,0,-1,&bank);};
     render(low);EXPECT_EQ(section.stackFrequencies,first);
-    render(edited);EXPECT_EQ(section.stackFrequencies,fractional);EXPECT_NE(first,fractional);
+    render(edited);EXPECT_EQ(section.stackFrequencies,fractional);EXPECT_EQ(first,fractional);
     render(high);EXPECT_EQ(section.stackFrequencies,last);
     render(edited);EXPECT_EQ(section.stackFrequencies,fractional);
 }

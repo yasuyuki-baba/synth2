@@ -45,3 +45,7 @@ identity across arbitrary callback partitions.
 
 Single-note results do not establish repeated-note, arbitrary live-edit or all
 controller behavior. See [voice lifecycle](../architecture/voice-lifecycle.md) for ownership.
+
+ARP absolute sample positions use integer frame counters, independently of the
+Float32 sample-rate and tempo inputs. Very slow tempos saturate period/gate frame
+counts before conversion, and long-running clocks must retain sub-block offsets.

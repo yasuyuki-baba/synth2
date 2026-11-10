@@ -12,9 +12,9 @@ namespace synth2::dsp
     struct OscillatorControlSettings
     {
         bool envelopeEnabled {},oscillatorLfo {},applyPortamento {},envelopeFm {},fmLfo {};
-        double portamentoDial {-1};
-        double sampleRate {44100.0};
-        double fmAmount {};
+        float portamentoDial {-1};
+        float sampleRate {44100.0f};
+        float fmAmount {};
         bool ringMod {};
     };
     // Caller-owned buffers and state; no global clocks, RNG or voice lifecycle.
@@ -31,7 +31,7 @@ namespace synth2::dsp
             {
                 int frames=count-position;
                 if(config.oscillatorLfo)frames=lfos.oscillatorFrames(position,frames);
-                state.render(frames,[&](double target,int size) {
+                state.render(frames,[&](float target,int size) {
                     std::fill_n(pitch.data()+position,size,target);
                     for(int i=0;i<size;++i)remaining[position+i]=size-i;
                     position+=size;
@@ -43,15 +43,15 @@ namespace synth2::dsp
         {
             std::fill_n(pitch.data(),count,0);
             if(config.portamentoDial<0)return;
-            const double seconds=Portamento::timeSeconds(config.portamentoDial);
-            if(state.seconds!=seconds || state.duration!=static_cast<int>(static_cast<double>(config.sampleRate)*seconds))
+            const float seconds=Portamento::timeSeconds(config.portamentoDial);
+            if(state.seconds!=seconds || state.duration!=static_cast<int>(static_cast<float>(config.sampleRate)*seconds))
                 state.setDuration(seconds,static_cast<int>(config.sampleRate));
             int position=0;
             while(position<count)
             {
                 int frames=remaining[position];
                 if(config.oscillatorLfo)frames=lfos.oscillatorFrames(position,frames);
-                state.render(frames,[&](double control,int size) {
+                state.render(frames,[&](float control,int size) {
                     if(config.applyPortamento)std::fill_n(pitch.data()+position,size,control);
                     // FM dispatch is nested inside each glide region, even
                     // when consecutive pitch values happen to be equal.
@@ -63,12 +63,12 @@ namespace synth2::dsp
         static void fm(const OscillatorControlSettings& config,const ReceiverLfoView& lfos,
             FrequencyModulation& state,int count,const VoiceControlBuffer& envelopePitch,
             const VoiceSpanBuffer& remaining,VoiceControlBuffer& depth,
-            OscillatorCoarsePitch* coarse=nullptr,std::array<double,256>* exponents=nullptr)
+            OscillatorCoarsePitch* coarse=nullptr,std::array<float,256>* exponents=nullptr)
         {
             int position=0;
             while(position<count)
             {
-                double control=config.envelopeFm ? envelopePitch[position] : 0;
+                float control=config.envelopeFm ? envelopePitch[position] : 0;
                 int frames=remaining[position];
                 if(config.fmLfo && lfos.available)
                     for(size_t slot=0;slot<2;++slot)if(ReceiverLfoView::reachesOscillator(lfos.receivers[slot]))
@@ -78,9 +78,9 @@ namespace synth2::dsp
                     }
                 if(coarse!=nullptr)frames=coarse->span(frames,static_cast<int>(config.sampleRate));
                 const int start=position;
-                state.render(FrequencyModulation::depth(static_cast<double>(fractionalDial(config.fmAmount)),control),
+                state.render(FrequencyModulation::depth(static_cast<float>(fractionalDial(config.fmAmount)),control),
                     frames,static_cast<int>(config.sampleRate),
-                    [&](double value){depth[position++]=value;},coarse!=nullptr,!config.ringMod);
+                    [&](float value){depth[position++]=value;},coarse!=nullptr,!config.ringMod);
                 if(coarse!=nullptr)
                 {
                     std::fill(exponents->begin()+start,exponents->begin()+position,coarse->cached);

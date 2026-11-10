@@ -10,7 +10,7 @@ references rather than importing SynthVoice or SynthEngine.
 
 Voice owns note/core lifecycle and physical slot selection. `VoiceTuning` receives
 value-only settings and caller-supplied note and per-slot detune values.
-Preserve native shifted-note, tracked/fixed-frequency, float/double conversion and
+Preserve native shifted-note, tracked/fixed-frequency, source-word conversion and
 multiply order for every caller, independently of source or receiver admission.
 Physical-core Portamento supplies glide at the control stage; do not add a second
 Voice frequency glide. Tuning owns no note or shared random history.
@@ -23,8 +23,8 @@ Ordinary bend advancement does not depend on an LFO provider. Keep it separate
 from routed MIDI pitch and CC121 routing/sustain state.
 
 Voice audio and gain buffers, physical filter state and Engine accumulation use
-double precision. Output effects and resampler histories keep that precision;
-only the host adapter converts final samples to float when requested. Compatible
+Float32. Output effects and resampler histories use the same representation;
+the host adapter widens final samples when double output is requested. Compatible
 source/tuning/event words and compact offline snapshots retain their own formats.
 
 Voice borrows read-only LfoBlock receiver values and spans. Engine alone prepares

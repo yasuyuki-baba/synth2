@@ -16,7 +16,7 @@ namespace
                      float amount = 0.0f, float envelope = 0.0f, float tracking = 0.0f)
     {
         synth2::dsp::Filter filter;
-        filter.prepare ({rate, 64, 1});
+        filter.prepare ({static_cast<float>(rate), 64, 1});
         filter.setParams (mode, cutoff, 0.0f, amount, tracking);
         double energy = 0.0;
         const int frames = static_cast<int> (rate / 2);
@@ -101,7 +101,7 @@ TEST(FilterResponse, SweepsRemainFiniteAndResetClearsHistory)
     for (float resonance : {0.0f, 0.5f, 1.0f})
     {
         synth2::dsp::Filter filter;
-        filter.prepare ({rate, 127, 1});
+        filter.prepare ({static_cast<float>(rate), 127, 1});
         for (int frame = 0; frame < 12000; ++frame)
         {
             const float sweep = static_cast<float> (frame % 2048) / 2047.0f;
@@ -124,7 +124,7 @@ TEST(FilterResponse, IndexedSpansPreserveFixedSettingsBypassAndRetainedHistory)
         SCOPED_TRACE(rate);
         SCOPED_TRACE(mode);
         Filter reference,candidate;
-        reference.prepare({rate,64,1});candidate.prepare({rate,64,1});
+        reference.prepare({static_cast<float>(rate),64,1});candidate.prepare({static_cast<float>(rate),64,1});
         for(int span=0;span<4;++span)
         {
             const FilterAudioSettings config{(mode+span)%5,span%2 ? .6f : .1f,span%2 ? .4f : 0.f,span==2};
@@ -135,7 +135,7 @@ TEST(FilterResponse, IndexedSpansPreserveFixedSettingsBypassAndRetainedHistory)
                 const int index=800-sample*7;
                 const int expectedIndex=span==1 ? 0 : span==3 ? 1023 : index;
                 const float expected=config.bypass ? signal : reference.processNativeIndex(signal,expectedIndex);
-                const float actual=FilterAudioRenderer::process(candidate,config,{signal,static_cast<double>(expectedIndex)});
+                const float actual=FilterAudioRenderer::process(candidate,config,{signal,static_cast<float>(expectedIndex)});
                 EXPECT_EQ(std::memcmp(&actual,&expected,sizeof(float)),0)<<span<<" "<<sample;
             }
             EXPECT_EQ(candidate.readNativeMemory(),reference.readNativeMemory());
@@ -170,7 +170,7 @@ TEST(FilterResponse, SampleAndIndexInterfacesUseExactlyTheSameKernels)
     for(int index:{0,511,1023})for(float resonance:{0.f,112.f/127.f,1.f})
     {
         synth2::dsp::Filter sampled,indexed;
-        sampled.prepare({rate,64,1});indexed.prepare({rate,64,1});
+        sampled.prepare({static_cast<float>(rate),64,1});indexed.prepare({static_cast<float>(rate),64,1});
         sampled.setParams(mode,static_cast<float>(index),resonance,0,0);
         indexed.setParams(mode,static_cast<float>(index),resonance,0,0);
         for(int frame=0;frame<256;++frame)

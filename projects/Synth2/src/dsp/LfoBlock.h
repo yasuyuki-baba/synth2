@@ -8,7 +8,7 @@ namespace synth2::dsp
     {
         int frameCapacity {256};
         int startSample = 0;
-        std::array<std::array<double,256>,2> controls {};
+        std::array<std::array<float,256>,2> controls {};
         std::array<std::array<int,256>,2> controlRemaining {};
     };
 
