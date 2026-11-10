@@ -755,3 +755,87 @@ TEST(BoundedPrecision, LoadedFractionalPhaseInterpolatesCompatiblePhaseWords)
     for(size_t i=0;i<edited.lanes.size();++i)
         EXPECT_EQ(edited.lanes[i],expected(low.lanes[i],high.lanes[i]));
 }
+
+TEST(BoundedPrecision, FineTuningKeepsSubFloatInputsBetweenCompatibleFrequencyWords)
+{
+    using synth2::dsp::OscillatorTuning;
+    // Adjacent cents coordinates straddle a compatible output-word transition.
+    constexpr double low=0x1.00000ep+6,high=0x1.000010p+6;
+    constexpr double first=0x1.c891fcp+8,last=0x1.c891fep+8;
+    const double edited=low+(high-low)*.25;
+    ASSERT_EQ(static_cast<float>(edited),static_cast<float>(low));
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,low,0),first);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,high,0),last);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,edited,0),first+(last-first)*.25);
+    EXPECT_EQ(OscillatorTuning::oscillator1(69,0,0,edited),first+(last-first)*.25);
+    synth2::dsp::VoiceTuningSettings settings;settings.fine=edited;
+    settings.secondTracksKeyboard=true;settings.secondPitch=12;
+    const auto core=synth2::dsp::VoiceTuning(settings,69).prepareCore(0);
+    EXPECT_EQ(core.first,first+(last-first)*.25);EXPECT_EQ(core.second,core.first*2);
+    for(int input=0;input<3;++input)
+    {
+        const double cents=input==0 ? edited : 0,master=input==1 ? edited : 0,unison=input==2 ? edited : 0;
+        EXPECT_EQ(OscillatorTuning::fixedOsc2(0,cents,master,unison),(first+(last-first)*.25)*.5);
+    }
+}
+
+TEST(BoundedPrecision, UnisonGroupOffsetsResolveSourceWordsBeforeFractionalEdits)
+{
+    using synth2::dsp::Unison;
+    const auto low=Unison::layout(8,58,25),high=Unison::layout(8,59,25);
+    const auto edited=Unison::layout(8,58.25,25);
+    for(size_t i=0;i<8;++i)
+    {
+        EXPECT_EQ(low.pitchCents[i],static_cast<double>(static_cast<float>(low.pitchCents[i])));
+        EXPECT_EQ(high.pitchCents[i],static_cast<double>(static_cast<float>(high.pitchCents[i])));
+        EXPECT_EQ(edited.pitchCents[i],low.pitchCents[i]+(high.pitchCents[i]-low.pitchCents[i])*.25);
+    }
+}
+
+TEST(BoundedPrecision, TrackedTuningRetainsTheRealFirstOscillatorFrequency)
+{
+    using namespace synth2::dsp;
+    const double base=440.0+0x1p-20;
+    ASSERT_EQ(static_cast<float>(base),440.0f);
+    EXPECT_EQ(OscillatorTuning::trackedOsc2(base,12,0),base*2);
+    VoiceTuningSettings settings;settings.secondTracksKeyboard=true;settings.secondPitch=12;
+    VoiceTuning tuning(settings,69);
+    EXPECT_EQ(tuning.coarseSecond({base,0},1,0),base*2);
+    EXPECT_EQ(tuning.prepareCore(0).first,440);
+    EXPECT_EQ(tuning.prepareCore(0).second,880);
+}
+
+TEST(BoundedPrecision, CoarseReceiverExponentDoesNotSnapBeforeFrequencyMapping)
+{
+    using namespace synth2::dsp;
+    VoiceTuningSettings settings;settings.secondTracksKeyboard=true;
+    VoiceTuning tuning(settings,69);
+    const auto core=tuning.prepareCore(0);
+    const double low=1,high=std::nextafter(1.0f,2.0f),edited=low+(high-low)*.25;
+    ASSERT_EQ(static_cast<float>(edited),1.0f);
+    const double first=tuning.coarseSecond(core,low,0),last=tuning.coarseSecond(core,high,0);
+    ASSERT_GT(last,first);
+    EXPECT_EQ(tuning.coarseSecond(core,edited,0),first+(last-first)*.25);
+    settings.secondTracksKeyboard=false;VoiceTuning fixed(settings,69);
+    EXPECT_EQ(fixed.coarseSecond(core,edited,0),(first+(last-first)*.25)*.5);
+}
+
+TEST(BoundedPrecision, StackFrequencyCacheRetainsSubFloatBaseEdits)
+{
+    using namespace synth2::dsp;
+    const double low=440,high=std::nextafter(440.0f,441.0f),edited=low+(high-low)*.25;
+    ASSERT_EQ(static_cast<float>(edited),440.0f);
+    const auto first=OscillatorStack::frequencies(low,64.25),last=OscillatorStack::frequencies(high,64.25);
+    const auto fractional=OscillatorStack::frequencies(edited,64.25);
+    for(size_t i=0;i<first.size();++i)
+        EXPECT_EQ(fractional[i],first[i]+(last[i]-first[i])*.25);
+    synth2::ShapeTables tables;tables.infos.push_back({0,2048,100000});
+    tables.data.resize(2048);
+    synth2::WaveTableBank bank;bank.setShapeTables(0,std::move(tables));
+    OscillatorSection section;section.prepare({44100,64,2});section.stackDial=64.25;
+    const auto render=[&](double base) {section.processSample(base,440,.5,0,0,false,false,0,0,-1,&bank);};
+    render(low);EXPECT_EQ(section.stackFrequencies,first);
+    render(edited);EXPECT_EQ(section.stackFrequencies,fractional);EXPECT_NE(first,fractional);
+    render(high);EXPECT_EQ(section.stackFrequencies,last);
+    render(edited);EXPECT_EQ(section.stackFrequencies,fractional);
+}

@@ -299,6 +299,15 @@ retain their compatible word values at FP32 inputs and interpolate real coordina
 between them; converting those coordinates to float before multiplication loses
 fractional timing. Only the final frame count is quantized to an integer. These
 extensions do not change the definition of the compatible control knots.
+Basic and fixed-OSC2 tuning retain real fine/unison coordinates between compatible
+FP32 input words, including their summed-control operation order at the knots.
+Tracked OSC2 retains the cached compatible ratio and interpolates its rounded
+frequency product over the real OSC1 base. Stack lane tuning likewise retains
+real base frequencies, and the moving coarse receiver retains real exponents
+until compatible frequency-word interpolation. Adjacent compatible output words
+can coincide; these extensions do not promise a nonzero response to every edit
+or change the final phase-word resolution. Tracked ratio controls and discrete
+note/coarse selection retain their existing word definitions.
 
 Legacy loading resolves the compatible integer parameters before promoting those
 exact values to floating-point dials. Fractional edits follow promotion; source

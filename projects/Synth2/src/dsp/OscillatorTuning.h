@@ -1,4 +1,5 @@
 #pragma once
+#include "FloatControlCurve.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -11,11 +12,15 @@ namespace synth2::dsp
     {
         // CVCO 0x3bb00 clamps the shifted integer note before reading the
         // float MIDI table, then applies the summed fine controls in double.
-        static float oscillator1(int note,int keyShift,float fine,float masterFine) noexcept
+        static double oscillator1(int note,int keyShift,double fine,double masterFine) noexcept
         {
-            const float exponent=(fine+masterFine)*(1.0f/1200.0f);
-            return static_cast<float>(std::pow(2.0,static_cast<double>(exponent))
-                *static_cast<double>(noteFrequencies()[static_cast<size_t>(std::clamp(note+keyShift,0,128))]));
+            const double base=noteFrequencies()[static_cast<size_t>(std::clamp(note+keyShift,0,128))];
+            return compatibleFloatCurve(fine,[&](float local) {
+                return compatibleFloatCurve(masterFine,[&](float master) {
+                    const float exponent=(local+master)*(1.0f/1200.0f);
+                    return static_cast<float>(std::pow(2.0,static_cast<double>(exponent))*base);
+                });
+            });
         }
         static void prepare() noexcept { (void)noteFrequencies(); }
         static float coarseExponent(float semitones) noexcept
@@ -29,17 +34,34 @@ namespace synth2::dsp
             const float exponent=fine+coarseExponent(semitones);
             return std::pow(2.0,static_cast<double>(exponent));
         }
-        static float trackedOsc2(float oscillator1,float semitones,float cents) noexcept
+        static double applyTrackedRatio(double oscillator1,double ratio) noexcept
         {
-            return static_cast<float>(trackedRatio(semitones,cents)*static_cast<double>(oscillator1));
+            return compatibleFloatCurve(oscillator1,[&](float base) {
+                return static_cast<float>(ratio*static_cast<double>(base));
+            });
         }
-        static float fixedOsc2(float semitones,float cents,float masterFine,float unisonFine=0) noexcept
+        static double trackedOsc2(double oscillator1,float semitones,float cents) noexcept
+        {return applyTrackedRatio(oscillator1,trackedRatio(semitones,cents));}
+        static double fixedOsc2(float semitones,double cents,double masterFine,double unisonFine=0) noexcept
         {
             // The track-off branch sums all fine controls before its one
             // exponentiation; there is no rounded, separately tuned220Hz base.
-            float fine=masterFine+cents;fine+=unisonFine;
-            const float exponent=fine*(1.0f/1200.0f)+coarseExponent(semitones);
-            return static_cast<float>(std::pow(2.0,static_cast<double>(exponent))*220.0);
+            return compatibleFloatCurve(cents,[&](float second) {
+                return compatibleFloatCurve(masterFine,[&](float master) {
+                    return compatibleFloatCurve(unisonFine,[&](float local) {
+                        float fine=master+second;fine+=local;
+                        return coarseFrequency(220.0,fine,coarseExponent(semitones));
+                    });
+                });
+            });
+        }
+        static double coarseFrequency(double base,float fine,double exponent) noexcept
+        {
+            return compatibleFloatCurve(exponent,[&](float coarse) {
+                const float octave=fine*(1.0f/1200.0f)+coarse;
+                const double ratio=std::pow(2.0,static_cast<double>(octave));
+                return applyTrackedRatio(base,ratio);
+            });
         }
     private:
         static const std::array<float,129>& noteFrequencies() noexcept
