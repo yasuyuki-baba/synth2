@@ -47,3 +47,11 @@ Every nonlegato core start invalidates the FM target/elapsed clock. Idle starts
 settle; sounding retriggers retain current/anchor and pending slew length. Static
 FM uses that same state. Logical note assignment must not reset FM to a separate
 Voice-level target. Base-dial MIDI setters preserve their receiver restart horizon.
+
+Host Coarse, OSC2 Fine/Keyboard, Master Fine, FM and filter receiver edits share
+one bounded, generation-tagged queue and apply in setter order before MIDI.
+OSC2 Fine/Keyboard republishes the current physical Coarse frequency. Master
+Fine republishes only when its resolved fine value changes; edits within its
+zero band remain neutral. The FM base setter invalidates its target and starts
+the full sample-rate/10 slew horizon. Do not replace these notifications with
+comparisons of the final mapped controls alone.

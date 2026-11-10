@@ -364,3 +364,66 @@ TEST(PerformanceBehavior, PedalHeldPendingKeyReleasesAfterPedalUp)
     EXPECT_GT(energy(audio,512,1024),0.01);
     EXPECT_LT(std::sqrt(energy(audio,8192,16384)/(2*8192)),1e-5);
 }
+
+TEST(PerformanceBehavior, FineSettersPreserveTheirDistinctFrequencyRefreshRules)
+{
+    const auto patch=hostvalidation::patch()+"9,1\n11,64\n12,127\n13,127\n";
+    auto edited=hostvalidation::processor(),target=hostvalidation::processor();
+    hostvalidation::load(*edited,patch);hostvalidation::load(*target,patch+"2,68\n");
+    std::array<float,64> left{},right{};
+    for(auto* processor:{edited.get(),target.get()})
+    {
+        processor->prepare(48000,64);ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    }
+    edited->setNormalizedValue(2,68.0f/127.0f);
+    for(int block=0;block<64;++block)ASSERT_TRUE(edited->process(left.data(),right.data(),64,120));
+    std::array<uint32_t,9> held{},unchanged{},refreshed{},expected{};
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*edited,0,held));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*target,0,expected));
+    ASSERT_NE(held[3],expected[3]);
+    // A master-fine edit inside the zero band does not refresh the frequency.
+    edited->setNormalizedValue(72,65.0f/127.0f);
+    ASSERT_TRUE(edited->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*edited,0,unchanged));
+    EXPECT_EQ(unchanged[3],held[3]);
+    // OSC2 Fine republishes even when its resolved fine value is still zero.
+    edited->setNormalizedValue(3,65.0f/127.0f);
+    ASSERT_TRUE(edited->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*edited,0,refreshed));
+    EXPECT_EQ(refreshed[3],expected[3]);
+}
+
+TEST(PerformanceBehavior, LiveFmBaseSetterStartsTheFullSlewHorizon)
+{
+    auto processor=hostvalidation::processor();
+    hostvalidation::load(*processor,hostvalidation::patch()+"45,40\n");
+    processor->prepare(48000,64);ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+    std::array<float,64> left{},right{};
+    for(int block=0;block<8;++block)ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    processor->setNormalizedValue(45,56.0f/127.0f);
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    std::array<uint32_t,7> words{};ASSERT_TRUE(synth2::readPhysicalFmWords(*processor,0,words));
+    EXPECT_EQ(words[2],4800u-64u);EXPECT_EQ(words[5],4800u);
+}
+
+TEST(PerformanceBehavior, KeyboardToggleRefreshesTheCurrentCoarseFrequency)
+{
+    const auto patch=hostvalidation::patch()+"9,1\n11,64\n12,127\n13,127\n";
+    auto edited=hostvalidation::processor(),fixed=hostvalidation::processor();
+    hostvalidation::load(*edited,patch);hostvalidation::load(*fixed,patch+"2,68\n4,0\n");
+    std::array<float,64> left{},right{};
+    for(auto* processor:{edited.get(),fixed.get()})
+    {
+        processor->prepare(48000,64);ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    }
+    edited->setNormalizedValue(2,68.0f/127.0f);
+    for(int block=0;block<64;++block)ASSERT_TRUE(edited->process(left.data(),right.data(),64,120));
+    edited->setNormalizedValue(4,0);
+    ASSERT_TRUE(edited->process(left.data(),right.data(),64,120));
+    std::array<uint32_t,9> actual{},expected{};
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*edited,0,actual));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*fixed,0,expected));
+    EXPECT_EQ(actual[3],expected[3]);
+}

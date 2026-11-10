@@ -22,6 +22,8 @@ namespace synth2
         SynthVoice* primaryOwner() const noexcept {return owners[0];}
         void setOsc2Coarse(float exponent,bool refreshFrequency) noexcept
         {for(auto& core:slots){core.coarse.set(exponent,core.modulationEnvelope.isActive());if(refreshFrequency)core.coarse.refresh();}}
+        void refreshOsc2Frequency() noexcept
+        {for(auto& core:slots)core.coarse.refresh();}
         void restartFilterCutoff() noexcept
         {for(auto& core:slots)core.cutoff.restart();}
         void setControllerDial(int destination,int rate) noexcept

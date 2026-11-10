@@ -9,7 +9,7 @@
 #include "render/RandomArpAdmission.h"
 #include "CoreResources.h"
 #include "dsp/LfoHistory.h"
-#include "render/FilterParameterMapping.h"
+#include "render/ReceiverParameterMapping.h"
 #include <Synth1NativeLoading.h>
 #include <Synth1PatchNativeControls.h>
 #include <atomic>
@@ -84,11 +84,11 @@ struct ProcessorBridge::Impl
     std::atomic<int> nativeSourceVersion{0};
     std::atomic<uint64_t> lastNativeParameterPair{~uint64_t{0}};
     std::atomic<uint64_t> lastReceiverParameterPair{~uint64_t{0}};
-    struct FilterEdit {int index{};float before{},after{};uint64_t generation{};};
-    dsp::HistoryQueue<FilterEdit> filterEdits;
-    std::array<FilterEdit,decltype(filterEdits)::capacity> pendingFilterEdits{};
-    std::atomic<uint64_t> filterGeneration{0};
-    uint64_t appliedFilterDrops=0;
+    struct ReceiverEdit {int index{};float before{},after{};uint64_t generation{};};
+    dsp::HistoryQueue<ReceiverEdit> receiverEdits;
+    std::array<ReceiverEdit,decltype(receiverEdits)::capacity> pendingReceiverEdits{};
+    std::atomic<uint64_t> receiverGeneration{0};
+    uint64_t appliedReceiverDrops=0;
     dsp::LfoHistory<> lfoHistory;
     std::string lastLoadedPreset;
     std::string patchName = "Init";
@@ -168,11 +168,11 @@ struct ProcessorBridge::Impl
             uint32_t bits;std::memcpy(&bits,&value,sizeof(bits));
             const uint64_t receiverPair=(static_cast<uint64_t>(index)<<32)|bits;
             const bool repeatedReceiver=lastReceiverParameterPair.exchange(receiverPair)==receiverPair;
-            if(!repeatedReceiver && render::filterParameter(index))
+            if(!repeatedReceiver && render::receiverParameter(index))
             {
                 const auto& info= this->info[index];
                 const float next=static_cast<float>(info.minimum)+static_cast<float>(info.maximum-info.minimum)*value;
-                filterEdits.push({index,previous/127.0f,next/127.0f,filterGeneration.load()});
+                receiverEdits.push({index,previous/127.0f,next/127.0f,receiverGeneration.load()});
             }
             if(!repeated && nativeRandomArpSeen.load())lfoHistory.push({4,-1,0,{}});
             if(!repeated && (index==43 || index==48))
@@ -251,35 +251,35 @@ struct ProcessorBridge::Impl
             synthParams.masterVolume = rawMasterVolume->load();
             if (phaseResetRequested.exchange (false)) engine.requestPhaseReset();
             // Restore the state before the pending edits from their recorded
-            // source values, then apply every edit before MIDI can sample an
-            // envelope's release level. No samples or shared clocks advance.
-            const auto generation=filterGeneration.load();
-            FilterEdit event;size_t count=0;
-            for(size_t read=0;read<decltype(filterEdits)::capacity && filterEdits.pop(event);++read)
-                if(event.generation==generation)pendingFilterEdits[count++]=event;
+            // source values, then apply every edit before MIDI can sample a
+            // receiver state. No samples or shared clocks advance.
+            const auto generation=receiverGeneration.load();
+            ReceiverEdit event;size_t count=0;
+            for(size_t read=0;read<decltype(receiverEdits)::capacity && receiverEdits.pop(event);++read)
+                if(event.generation==generation)pendingReceiverEdits[count++]=event;
             if(count!=0)
             {
                 const auto final=synthParams;
                 for(size_t i=count;i>0;--i)
                 {
-                    const auto& edit=pendingFilterEdits[i-1];
-                    render::applyFilterParameter(synthParams,edit.index,edit.before,engine.getRenderHistory().nativeMidiRoutingLoadHistory);
+                    const auto& edit=pendingReceiverEdits[i-1];
+                    render::applyReceiverParameter(synthParams,edit.index,edit.before,engine.getRenderHistory().nativeMidiRoutingLoadHistory);
                 }
                 for(size_t i=0;i<count;++i)
                 {
-                    const auto& edit=pendingFilterEdits[i];engine.applyFilterParameter(edit.index,edit.after);
+                    const auto& edit=pendingReceiverEdits[i];engine.applyReceiverParameter(edit.index,edit.after);
                 }
                 synthParams=final;
                 engine.updateFilterEnvelopeConfiguration();
             }
-            const auto drops=filterEdits.droppedEvents();
-            if(drops!=appliedFilterDrops)
+            const auto drops=receiverEdits.droppedEvents();
+            if(drops!=appliedReceiverDrops)
             {
                 // Lost intermediate edits cannot be reconstructed. Publish the
                 // final controls before MIDI, report every drop and recover on
                 // the next accepted edit without inventing missing history.
                 engine.updateFilterEnvelopeConfiguration();engine.restartFilterCutoff();
-                appliedFilterDrops=drops;
+                appliedReceiverDrops=drops;
             }
         }
     }
@@ -298,7 +298,7 @@ struct ProcessorBridge::Impl
                 parameterMapper->setContinuousControls(true);
                 lastLoadedPreset=text;patchName=patch.name;
                 missingEnvelopeFields.store(0);storeSourcePresence({});storeNativeContext({}, {},113);
-                nativeSourceLoading.store(false);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
+                nativeSourceLoading.store(false);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});receiverGeneration.fetch_add(1);
                 queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);
                 error.clear();return true;
             }
@@ -324,7 +324,7 @@ struct ProcessorBridge::Impl
             setNormalized(126,version/127.f);
             for(const auto& e:document.entries)setSource(e.index,static_cast<float>(std::clamp(e.rawValue,sourceMinimum(e.index),sourceMaximum(e.index))));
             lastLoadedPreset=text;patchName=hasPatchTitle(text) ? document.name : "Untitled";missingEnvelopeFields.store(missing);storeSourcePresence(presence);
-            storeNativeContext(initial,{},version);nativeSourceLoading.store(native);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);
+            storeNativeContext(initial,{},version);nativeSourceLoading.store(native);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});receiverGeneration.fetch_add(1);
             queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);error.clear();return true;
         }
         catch(const std::exception& e){parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);error=e.what();return false;}
@@ -371,7 +371,7 @@ struct ProcessorBridge::Impl
         patchName=std::move(state->patchName);program=state->program;lastLoadedPreset=std::move(state->presetText);
         missingEnvelopeFields.store(state->missingEnvelopeFields);storeSourcePresence(state->sourcePresence);
         storeNativeContext(state->initialControls,state->runtimeEdits,static_cast<int>(std::lround(state->values[126])));
-        nativeSourceLoading.store(state->nativeSource);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});filterGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);
+        nativeSourceLoading.store(state->nativeSource);lastNativeParameterPair.store(~uint64_t{0});lastReceiverParameterPair.store(~uint64_t{0});receiverGeneration.fetch_add(1);queueNativeLfoLoad();phaseResetRequested.store(true);parameterRevision.fetch_add(1,std::memory_order_release);replacingParameters.store(false);
         continuousControls=state->version==3;
         parameterMapper->setContinuousControls(continuousControls);return true;
     }
@@ -460,7 +460,7 @@ bool ProcessorBridge::enqueueMidi(int offset,uint8_t status,uint8_t first,uint8_
 bool ProcessorBridge::process(float* l,float* r,int n,double bpm){return impl->render(l,r,n,bpm);}
 bool ProcessorBridge::process(double* l,double* r,int n,double bpm){return impl->render(l,r,n,bpm);}
 uint64_t ProcessorBridge::droppedMidiMessages()const noexcept{return impl->drops;}
-uint64_t ProcessorBridge::droppedFilterControlEdits()const noexcept{return impl->filterEdits.droppedEvents();}
+uint64_t ProcessorBridge::droppedFilterControlEdits()const noexcept{return impl->receiverEdits.droppedEvents();}
 bool ProcessorBridge::loadPatch(const std::string& text,std::string& error){return impl->load(text,error);}
 std::string ProcessorBridge::savePatch()const{return impl->savePatch();}
 bool ProcessorBridge::loadProgram(const std::string& text,int index,std::string& error,const std::string& displayName)

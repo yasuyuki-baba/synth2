@@ -139,6 +139,11 @@
   oscillator/FM/Sync and noise state on the base-frame trajectory; reconstruct
   signed intermediate phases for fine waveform reads. Report
   the actual resampling latency and retain prepared, allocation-free callbacks.
+- Preserve ordered Coarse/Fine/Keyboard/FM and filter receiver notifications
+  before MIDI in the shared bounded, generation-tagged queue. Final mapped
+  values alone cannot reproduce equal-value setters or cached frequencies.
+- Keep Float32 delay-time progress relative to its target so long delays do not
+  stall at the precision of their absolute frame coordinate.
 - Preserve real-valued VCA Attack targets. Do not restore integer Attack
   truncation to reduce distortion-sensitive reference errors; keep audio
   comparisons and their unresolved bounds separate from the precision choice.

@@ -67,3 +67,9 @@ using the native endpoint rule, then reaches the exact target. Delay Tone maps
 integer coefficient knots and fractional interpolation to one three-coefficient
 recurrence, with a neutral bypass that retains filter history. Algebraic
 reassociation can change float rounding; record those differences separately.
+
+Delay-time slews retain Float32 distance from each target. Updating the remaining
+distance avoids stalls when the next change is smaller than one Float32 step at
+a long absolute delay length. Reconstruct the current tap coordinate in Float32
+and retain the shared settling rule for integer and fractional targets. Compute
+the decay coefficient without subtracting nearly equal values.

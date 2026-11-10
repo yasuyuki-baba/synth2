@@ -20,7 +20,7 @@ namespace synth2::dsp
                 || !std::isfinite(spread) || seconds<0 || seconds>100 || std::abs(spread)>1)return false;
             kind=type;
             sampleRate=rate;timeSeconds=seconds;spreadSeconds=spread;
-            slewCoefficient=1.0f-std::pow(.5f,1.0f/(static_cast<float>(rate)*.15f));
+            slewCoefficient=-std::expm1(-0.6931471805599453f/(static_cast<float>(rate)*.15f));
             updateTargets();
             feedbackGain=std::min(.999f,std::max(0.0f,feedback*(1.0f/127.0f)));
             mix=std::clamp(mix,0,127);
@@ -33,7 +33,7 @@ namespace synth2::dsp
         void reset() noexcept
         {
             ring.fill(0);write=0;previousInput.fill(0);previousOutput.fill(0);
-            currentLeft=targetLeft;currentRight=targetRight;slewing=false;silentFrames=wrap32(static_cast<uint32_t>(tailFrames)+1u);
+            currentLeft=targetLeft;currentRight=targetRight;distanceLeft=distanceRight=0;slewing=false;silentFrames=wrap32(static_cast<uint32_t>(tailFrames)+1u);
         }
         bool setTimeSeconds(float seconds) noexcept
         {
@@ -54,8 +54,7 @@ namespace synth2::dsp
             targetLeft=std::clamp(leftFrames,minimum,131072.0f-256.0f);
             targetRight=std::clamp(rightFrames,minimum,131072.0f-256.0f);
             left=static_cast<int>(targetLeft);right=static_cast<int>(targetRight);
-            if(silentFrames<=tailFrames && enabled)slewing=true;
-            else {currentLeft=targetLeft;currentRight=targetRight;}
+            updateSlew();
             updateTail();return true;
         }
         float getLeftFramesContinuous() const noexcept {return targetLeft;}
@@ -92,7 +91,7 @@ namespace synth2::dsp
         {
             if(value && !enabled)
             {
-                ring.fill(0);write=0;slewing=false;currentLeft=targetLeft;currentRight=targetRight;
+                ring.fill(0);write=0;slewing=false;currentLeft=targetLeft;currentRight=targetRight;distanceLeft=distanceRight=0;
             }
             enabled=value;
         }
@@ -138,8 +137,18 @@ namespace synth2::dsp
             const int minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
             left=std::clamp(left,minimum,131072-256);right=std::clamp(right,minimum,131072-256);
             targetLeft=left;targetRight=right;
-            if(silentFrames<=tailFrames && enabled)slewing=true;
-            else {currentLeft=left;currentRight=right;}
+            updateSlew();
+        }
+        void updateSlew() noexcept
+        {
+            if(silentFrames<=tailFrames && enabled)
+            {
+                distanceLeft=currentLeft-targetLeft;distanceRight=currentRight-targetRight;slewing=true;
+            }
+            else
+            {
+                currentLeft=targetLeft;currentRight=targetRight;distanceLeft=distanceRight=0;
+            }
         }
         float continuousTap(float position,int channel) const noexcept
         {
@@ -157,11 +166,14 @@ namespace synth2::dsp
             {
                 if(slewing)
                 {
-                    currentLeft+=(targetLeft-currentLeft)*static_cast<float>(slewCoefficient);
-                    currentRight+=(targetRight-currentRight)*static_cast<float>(slewCoefficient);
-                    if(std::abs(currentLeft-targetLeft)<.1f)currentLeft=targetLeft;
-                    if(std::abs(currentRight-targetRight)<.1f)currentRight=targetRight;
-                    if(currentLeft==targetLeft && currentRight==targetRight)slewing=false;
+                    // The target-relative state keeps shrinking even when an
+                    // absolute-frame increment would round back to itself.
+                    distanceLeft-=distanceLeft*slewCoefficient;
+                    distanceRight-=distanceRight*slewCoefficient;
+                    if(std::abs(distanceLeft)<.1f)distanceLeft=0;
+                    if(std::abs(distanceRight)<.1f)distanceRight=0;
+                    currentLeft=targetLeft+distanceLeft;currentRight=targetRight+distanceRight;
+                    if(distanceLeft==0 && distanceRight==0)slewing=false;
                 }
                 float taps[]{continuousTap(write-currentLeft,0),continuousTap(write-currentRight,1)};
                 if(!toneBypassed)for(int channel=0;channel<2;++channel)
@@ -229,6 +241,7 @@ namespace synth2::dsp
         int sampleRate{44100};
         float timeSeconds{},spreadSeconds{},slewCoefficient{};
         float currentLeft{256},currentRight{256};
+        float distanceLeft{},distanceRight{};
         bool enabled{true},slewing{};
         float targetLeft{256},targetRight{256};
         int tailFrames{1},silentFrames{99999999};
