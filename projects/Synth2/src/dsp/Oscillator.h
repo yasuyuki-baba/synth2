@@ -23,6 +23,12 @@ namespace synth2::dsp {
         return static_cast<uint32_t>(static_cast<float>(increment))&kPhaseMask27;
     }
 
+    struct OscillatorSample
+    {
+        double value{};
+        float referenceWord{};
+    };
+
     class Oscillator {
     public:
         Oscillator() { reset(); }
@@ -36,41 +42,36 @@ namespace synth2::dsp {
         uint32_t getPhaseIncFixed27() const noexcept { return phaseIncFixed27; }
         void synchronizeNoise(uint32_t master,uint32_t nextMaster) noexcept { noise.synchronize(master,nextMaster); }
 
-        double renderSample(int waveIndex, double pulseWidth, uint32_t phaseOffset27 = 0, const WaveTableBank* bank = nullptr, double nativePulseWidthBins = -1) noexcept {
-            if (waveIndex == 4) {
-                return noise.sample();
-            }
-            const uint32_t p = (phaseAcc32 + phaseOffset27) & kPhaseMask27;
+        double renderSample(int waveIndex,double pulseWidth,uint32_t phaseOffset27=0,
+            const WaveTableBank* bank=nullptr,double nativePulseWidthBins=-1) noexcept
+        {return readSample(waveIndex,pulseWidth,phaseOffset27,bank,nativePulseWidthBins).value;}
 
-            if (bank != nullptr) {
-                if (waveIndex == 1 && bank->hasShape (5)) {
-                    const double bins=nativePulseWidthBins>=0 ? nativePulseWidthBins
-                        : ModulationEnvelope::pulseWidthForDial(fractionalDial(pulseWidth),0.0);
-                    const auto saw=bank->getNativeTableFor(5,static_cast<float>(frequencyHz));
-                    if(saw.first==nullptr)return 0.0;
-                    const auto read=[&](uint32_t phase) {
-                        const auto index=(phase>>16)&2047u;
-                        const double fraction=static_cast<double>(phase&65535u)*(1.0/65536.0);
-                        return saw.first[index]+fraction*(saw.first[(index+1)&2047u]-saw.first[index]);
-                    };
-                    const double origin=read(p);
-                    return PulseWidthRead::interpolate(bins,[&](uint32_t offset) {
-                        return .5*(origin-read((p+(offset<<16))&kPhaseMask27));
-                    });
-                }
-                double freqHz = (double)((double)phaseIncFixed27 * sampleRate / (double)kPhaseScale27);
-                auto tbl = (waveIndex == 0 || waveIndex == 2) ? bank->getNativeTableFor (waveIndex,static_cast<float>(frequencyHz)) : bank->getTableFor(waveIndex, freqHz);
-                if (tbl.first != nullptr) {
-                    const double* data = tbl.first;
-                    const size_t len = tbl.second;
-
-                    uint32_t i0 = (uint32_t)((p >> 16) & 0x7ffu);
-                    double frac = (double)(p & 0xffffu) / 65536.0;
-                    uint32_t i1 = (i0 + 1) % 2048;
-                    return data[i0] + frac * (data[i1] - data[i0]);
-                }
+        OscillatorSample readSample(int waveIndex,double pulseWidth,uint32_t phaseOffset27=0,
+            const WaveTableBank* bank=nullptr,double nativePulseWidthBins=-1) noexcept
+        {
+            if(waveIndex==4) {
+                const double value=noise.sample();return {value,static_cast<float>(value)};
             }
-            return 0.0;
+            if(bank==nullptr)return {};
+            const uint32_t phase=(phaseAcc32+phaseOffset27)&kPhaseMask27;
+            if(waveIndex==1 && bank->hasShape(5))
+            {
+                const double bins=std::clamp(nativePulseWidthBins>=0 ? nativePulseWidthBins
+                    : ModulationEnvelope::pulseWidthForDial(fractionalDial(pulseWidth),0.0),10.0,2037.0);
+                const auto table=bank->getNativeTableFor(5,static_cast<float>(frequencyHz));
+                if(table.first==nullptr)return {};
+                const auto origin=readTable(table.first,phase);
+                const auto shifted=[&](uint32_t offset) {
+                    const auto next=readTable(table.first,(phase+(offset<<16))&kPhaseMask27);
+                    return OscillatorSample{.5*(origin.value-next.value),.5f*(origin.referenceWord-next.referenceWord)};
+                };
+                const auto low=static_cast<uint32_t>(bins);
+                return interpolate(shifted(low),shifted(low+1),bins-low);
+            }
+            const double frequency=phaseIncFixed27*sampleRate/kPhaseScale27;
+            const auto table=waveIndex==0 || waveIndex==2
+                ? bank->getNativeTableFor(waveIndex,static_cast<float>(frequencyHz)) : bank->getTableFor(waveIndex,frequency);
+            return table.first!=nullptr ? readTable(table.first,phase) : OscillatorSample{};
         }
 
         double renderPhaseDiffSawNoAdvance(uint32_t offsetFixed27, const WaveTableBank* bank,
@@ -117,6 +118,20 @@ namespace synth2::dsp {
         }
 
     private:
+        static OscillatorSample interpolate(OscillatorSample first,OscillatorSample second,double fraction) noexcept
+        {
+            // One table read feeds double audio and its compatible phase-word
+            // projection. The word never replaces an audio sample or buffer.
+            return {first.value+(second.value-first.value)*fraction,
+                first.referenceWord+(second.referenceWord-first.referenceWord)*static_cast<float>(fraction)};
+        }
+        static OscillatorSample readTable(const double* data,uint32_t phase) noexcept
+        {
+            const uint32_t index=(phase>>16)&2047u;
+            const double first=data[index],second=data[(index+1)&2047u];
+            return interpolate({first,static_cast<float>(first)},{second,static_cast<float>(second)},
+                static_cast<double>(phase&65535u)*(1.0/65536.0));
+        }
         uint32_t phaseAcc32{0}, phaseIncFixed27{1};
         NoiseGenerator noise;
         double sampleRate{44100.0};

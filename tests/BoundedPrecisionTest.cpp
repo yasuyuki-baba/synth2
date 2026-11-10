@@ -644,3 +644,10 @@ TEST(BoundedPrecision, DelayHistoryRetainsInputDifferencesBelowFloatResolution)
     }
     EXPECT_TRUE(retained);
 }
+
+TEST(BoundedPrecision, DurationWordsRetainTheCompatibleSampleCount)
+{
+    EXPECT_EQ(synth2::dsp::ReleaseRamp::durationFrames(.01f,44100),441);
+    EXPECT_EQ(synth2::dsp::ReleaseRamp::durationFrames(.0005f,44100),22);
+    EXPECT_EQ(synth2::dsp::ReleaseRamp::durationFrames(0,44100),0);
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReleaseRamp.h"
+#include "EnvelopeCurve.h"
 #include "FractionalDial.h"
 #include <algorithm>
 #include <array>
@@ -152,10 +153,8 @@ namespace synth2::dsp
                     while (offset < frames && counter < decay && level > sustain)
                     {
                         const int count = std::min ({frames-offset,step,decay-counter});
-                        const double remaining = static_cast<double>(decay-counter-count)*(1.0/static_cast<double>(decay));
-                        const double curve = std::exp ((remaining-1.0)*8.0)*remaining;
                         level = compatibleControlCurve(2048-sustain,[&](int range) {
-                            return std::trunc(curve*static_cast<double>(range));
+                            return exponentialEnvelopeKnot(range,decay-counter-count,decay);
                         })+sustain;
                         segment (gains+offset,count,level);
                         offset += count; counter += count;

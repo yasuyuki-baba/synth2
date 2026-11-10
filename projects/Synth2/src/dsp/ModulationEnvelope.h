@@ -46,11 +46,11 @@ namespace synth2::dsp
         static double pitchFrequency(double frequency,double control) noexcept
         {
             control=std::clamp(control,-1280.0,1280.0);
-            const double ratio=compatibleControlCurve(control,[](int value) {
+            return compatibleControlCurve(control,[&](int value) {
                 const int quotient=value/128,remainder=value%128;
-                return fineTable()[static_cast<std::size_t>(remainder+128)]*std::ldexp(1.0f,quotient);
+                const float ratio=fineTable()[static_cast<std::size_t>(remainder+128)]*std::ldexp(1.0f,quotient);
+                return std::min(static_cast<float>(frequency)*ratio,22000.0f);
             });
-            return std::min(frequency*ratio,22000.0);
         }
         static double pulseWidthBins(float base,double control) noexcept
         {return compatibleControlCurve(control,[&](int value){return pulseWidthBins(base,value);});}

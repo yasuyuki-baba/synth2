@@ -10,15 +10,16 @@ namespace synth2::dsp
     // CVcf note control, Win64 RVAs 0x38070 and 0x3a780.
     struct FilterPerformance
     {
-        static int keyboardOffset (int baseIndex,double tracking,int note) noexcept
+        static int keyboardOffset (int baseIndex,double coordinate,int note) noexcept
         {
+            const float tracking=static_cast<float>(coordinate);
             if(tracking<=0)return 0;
-            const double exponent=static_cast<double>(note-48)*(1.0/12.0);
-            const double frequency=static_cast<double>(std::exp(std::log(1066.6666666666667)
-                *static_cast<double>(static_cast<double>(baseIndex)*(1.0/1024.0)))*15.0);
-            const double scaled=std::pow(static_cast<double>(tracking+1.0),static_cast<double>(exponent))*static_cast<double>(frequency);
-            const double relative=static_cast<double>(scaled)*0.06666667014360428;
-            const double index=std::log(relative)*1024.0/std::log(1066.6666259765625);
+            const float exponent=static_cast<float>(note-48)*(1.0f/12.0f);
+            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)
+                *static_cast<double>(static_cast<float>(baseIndex)*(1.0f/1024.0f)))*15.0);
+            const double scaled=std::pow(static_cast<double>(tracking+1.0f),static_cast<double>(exponent))*static_cast<double>(frequency);
+            const float relative=static_cast<float>(scaled)*0.06666667014360428f;
+            const float index=std::log(relative)*1024.0f/std::log(1066.6666259765625f);
             return std::clamp(static_cast<int>(index),0,1024)-baseIndex;
         }
         static double keyboardOffset(double baseIndex,double tracking,int note) noexcept
@@ -34,15 +35,16 @@ namespace synth2::dsp
         }
         static int velocityLevel (int velocity) noexcept
         {
-            const double normalized=static_cast<double>(velocity)*(1.0/127.0);
-            const double numerator=static_cast<double>(1.0-std::exp(static_cast<double>(-normalized)*1.1));
-            const double denominator=static_cast<double>(1.0-std::exp(-1.3));
-            return static_cast<int>((numerator/denominator)*127.0);
+            const float normalized=static_cast<float>(velocity)*(1.0f/127.0f);
+            const float numerator=static_cast<float>(1.0-std::exp(static_cast<double>(-normalized)*1.1));
+            const float denominator=static_cast<float>(1.0-std::exp(-1.3));
+            return static_cast<int>((numerator/denominator)*127.0f);
         }
-        static double amount (int baseIndex,int keyboard,double depth,bool velocityEnabled,int velocity,int externalOffset=0) noexcept
+        static double amount (int baseIndex,int keyboard,double coordinate,bool velocityEnabled,int velocity,int externalOffset=0) noexcept
         {
+            float depth=static_cast<float>(coordinate);
             if(velocityEnabled)
-                depth=(static_cast<double>(velocityLevel(velocity))*depth)*(1.0/127.0);
+                depth=(static_cast<float>(velocityLevel(velocity))*depth)*(1.0f/127.0f);
             return FilterEnvelope::boundedAmount(baseIndex+keyboard+externalOffset,depth);
         }
         static double amount(double baseIndex,double keyboard,double depth,bool velocityEnabled,int velocity,double externalOffset=0) noexcept

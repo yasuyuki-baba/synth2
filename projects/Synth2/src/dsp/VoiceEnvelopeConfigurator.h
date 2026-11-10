@@ -63,12 +63,12 @@ namespace synth2::dsp
                     return compatibleControlCurve(keyboardOffset,[&](int keyboard) {
                         return compatibleControlCurve(unisonOffset,[&](int offset) {
                             return compatibleControlCurve(amountDial,[&](int dial) {
-                                const double depth=std::abs(FilterPerformance::amount(base,keyboard,
-                                    (dial-63.0)/64.0,settings.velocity,velocity,offset))*1024.0;
+                                const float depth=static_cast<float>(std::abs(FilterPerformance::amount(base,keyboard,
+                                    (dial-63.0)/64.0,settings.velocity,velocity,offset)))*1024.0f;
                                 if(!sustainLevel)return std::trunc(static_cast<double>(depth));
                                 return compatibleControlCurve(sustainDial,[&](int value) {
                                     // Keep the original normalized source word at exact knots.
-                                    const double unit=value==sustainDial ? settings.sustain : static_cast<double>(value)/127.0;
+                                    const float unit=value==sustainDial ? static_cast<float>(settings.sustain) : static_cast<float>(value)/127.0f;
                                     return std::trunc(depth*unit);
                                 });
                             });

@@ -51,17 +51,18 @@ namespace synth2::dsp {
             uint32_t p1Old = osc1.getPhaseFixed27();
             osc1.updatePhaseIncrement(f1);
             osc2.updatePhaseIncrement(f2);
-            double s2=osc2.renderSample(params.osc2Wave,pw,0,bank,pulseBins);
+            auto second=osc2.readSample(params.osc2Wave,pw,0,bank,pulseBins);
+            double s2=second.value;
 
             // FM amount is in 27-bit phase-increment units.
             // The native dispatcher scales noise by .65 only without FM.
             // FM kernels apply it internally; Ring wins dispatch but retains
             // the unscaled noise gain when FM is selected.
-            if (params.osc2Wave == 4 && !(ring && fmAmt!=0)) s2 *= .65;
+            if (params.osc2Wave == 4 && !(ring && fmAmt!=0)) {s2 *= .65;second.referenceWord*=.65f;}
             // Ring wins FM dispatch, but selecting FM also bypasses the
             // pulse modulator's wrapper half-gain (as for noise above).
-            if (params.osc2Wave == 1 && ring && fmAmt!=0) s2 *= 2.0;
-            const double fmSource = s2;
+            if (params.osc2Wave == 1 && ring && fmAmt!=0) {s2 *= 2.0;second.referenceWord*=2.0f;}
+            const double fmSource=second.referenceWord;
 
             // Native isolated two-tone/noise captures use a linear crossfade.
             double vol1 = 1.0 - mix;

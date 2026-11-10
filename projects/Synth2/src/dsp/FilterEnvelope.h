@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CompatibleControlCurve.h"
+#include "EnvelopeCurve.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -96,23 +97,19 @@ namespace synth2::dsp
                 const int duration=releasing ? release : decay;
                 const double end=releasing ? 0 : sustain;
                 const double start=releasing ? initial : peak;
-                const double reciprocal=1.0/static_cast<double>(duration);
                 while(frames>0 && counter<duration && level>end)
                 {
                     const int count=std::min({frames,step,duration-counter});
-                    const double remaining=static_cast<double>(duration-counter-count)*reciprocal;
                     if(linearDecay && !releasing)
                     {
                         level=std::max(end,start-compatibleControlCurve(start-end,[&](int range) {
-                            const double slope=static_cast<double>(range)*reciprocal;
-                            return std::trunc(static_cast<double>(counter+count)*slope);
+                            return linearEnvelopeKnot(range,counter+count,duration);
                         }));
                     }
                     else
                     {
-                        const double curve=std::exp((remaining-1.0)*8.0)*remaining;
                         level=compatibleControlCurve(start-end,[&](int range) {
-                            return std::trunc(curve*static_cast<double>(range));
+                            return exponentialEnvelopeKnot(range,duration-counter-count,duration);
                         })+end;
                     }
                     segment(inverted ? -level : level,count);

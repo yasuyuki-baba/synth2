@@ -309,3 +309,17 @@ TEST(OscillatorRead, FineFmTrajectorySuppressesAnAboveNyquistCarrierWithoutRetun
         else EXPECT_LT(magnitude,reference*.02);
     }
 }
+
+TEST(OscillatorRead, DoubleAudioAndCompatiblePhaseWordShareOneTableRead)
+{
+    synth2::ShapeTables table;table.infos.push_back({0,2048,100000});table.data.assign(2048,0);
+    table.data[0]=1.0;table.data[1]=std::nextafter(-1.0f,0.0f);
+    synth2::WaveTableBank bank;bank.setShapeTables(3,std::move(table));
+    synth2::dsp::Oscillator oscillator;oscillator.setSampleRate(44100);oscillator.updatePhaseIncrement(220);
+    oscillator.setPhaseFixed27(1u<<15);
+    const auto sample=oscillator.readSample(3,.5,0,&bank);
+    EXPECT_EQ(sample.value,0x1p-25);
+    EXPECT_EQ(sample.referenceWord,0.0f);
+    EXPECT_EQ(oscillator.renderSample(3,.5,0,&bank),sample.value);
+    EXPECT_EQ(oscillator.getPhaseFixed27(),1u<<15);
+}

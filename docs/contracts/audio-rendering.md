@@ -270,7 +270,8 @@ boundary. The internal audio graph uses double sample/state storage through wave
 physical filters, VCA/pan, voice accumulation, oversampling and output effects.
 The bridge retains double scratch storage and applies transition gains before its
 single conversion to the requested host sample type. Float source parameters,
-compatible tuning/event knots and 32-bit diagnostic words are explicit boundaries;
+calibrated lookup values, compatible tuning/event knots and 32-bit diagnostic words
+are explicit boundaries;
 they must not become intermediate audio buffers.
 Oscillator phase increments are cached by effective frequency and invalidated by
 sample-rate changes. Their rate calculation uses double precision, retaining the
@@ -332,10 +333,15 @@ filter. Integer coefficient steps, turns and intentional jumps remain intact whe
 their products are integral. The physical FM receiver owns coefficient slewing independently of the
 downstream phase correction.
 
-FmPhaseCorrection receives double depth and oscillator source without
-narrowing the depth in the audio adapter. The audible product is evaluated in
-double precision while the compatible Sync/noise reference offset remains
-`int32(float(depth) * float(source))`. Accumulated
+OscillatorSection reads one double audio sample and its compatible reference word
+from the same phase and table entries. Table values keep their calibrated source
+word definition and are widened into prepared double storage. Double interpolation
+feeds the audio graph; the FP32 reference projection feeds only FM/Sync phase-word
+conversion. It never replaces an audio sample or an intermediate signal buffer.
+FmPhaseCorrection receives double depth and that decoded reference word without
+narrowing the depth in the audio adapter. Fractional depth interpolates compatible
+phase-product knots in double precision. The compatible Sync/noise reference offset
+remains `int32(float(depth) * referenceWord)`. Accumulated
 product error feeds back toward that compatible trajectory over the native
 32-frame coefficient interval; a fractional carry retains the remainder when
 converting the corrected audible offset to a phase word. This feedback deliberately
