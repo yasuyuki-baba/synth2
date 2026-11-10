@@ -651,3 +651,18 @@ TEST(BoundedPrecision, DurationWordsRetainTheCompatibleSampleCount)
     EXPECT_EQ(synth2::dsp::ReleaseRamp::durationFrames(.0005f,44100),22);
     EXPECT_EQ(synth2::dsp::ReleaseRamp::durationFrames(0,44100),0);
 }
+
+TEST(BoundedPrecision, TempoKnotsKeepDiscretePeriodsAndFractionalBpm)
+{
+    using synth2::dsp::LfoClock;
+    LfoClock first,fractional,last;
+    first.setSynchronizedRate(92,120);
+    fractional.setSynchronizedRate(92,120.125);
+    last.setSynchronizedRate(92,121);
+    first.advance(44100);
+    EXPECT_EQ(first.period,14699);
+    EXPECT_GT(fractional.targetHz,first.targetHz);
+    EXPECT_LT(fractional.targetHz,last.targetHz);
+    EXPECT_DOUBLE_EQ(fractional.targetHz,first.targetHz+(last.targetHz-first.targetHz)*.125);
+    EXPECT_NE(fractional.targetHz,static_cast<double>(static_cast<float>(fractional.targetHz)));
+}

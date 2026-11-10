@@ -24,7 +24,7 @@ namespace synth2::dsp
             first=std::clamp(first,0.0,127.0);second=std::clamp(second,0.0,127.0);third=std::clamp(third,0.0,127.0);
             if(previous==std::array<double,3>{first,second,third})return;
             overdrive.setDials(first,second,third);
-            if(first!=previous[0]){downsample=first;updateFrequency(static_cast<double>(std::pow(8000.0,static_cast<double>(first*(1.0/127.0)))));}
+            if(first!=previous[0]){downsample=first;updateFrequency(interpolateDial(first,[](int value){return static_cast<float>(std::pow(8000.0,static_cast<double>(value*(1.0f/127.0f))));}));}
             bits=static_cast<int>(second/8);mix=third*(1.0/127.0);
             const double thresholdDb=-20.0-(first*(1.0/127.0))*40.0;
             threshold=std::exp(thresholdDb*0.115129254758358);
@@ -92,7 +92,7 @@ namespace synth2::dsp
         }
         void updateFrequency(double value) noexcept
         {
-            frequency=value;step=static_cast<double>(std::sin(static_cast<double>(value)*3.141592653589793/sampleRate)*2.0);
+            frequency=value;step=static_cast<float>(std::sin(value*3.141592653589793/sampleRate)*2.0);
             cosine=std::clamp(cosine,-1.0,1.0);
             const double next=std::sin(std::acos(cosine));sine=sine<0 ? -next : next;
         }

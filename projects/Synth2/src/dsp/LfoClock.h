@@ -32,9 +32,14 @@ namespace synth2::dsp
             // Tempo divisions are discrete choices, separate from free-rate Hz.
             rate=static_cast<int>(std::lround(rateDial));
             const int division=divisions[(rate*30)>>7];
-            const double pulses=bpm*48.0;
-            const double divided=pulses/static_cast<double>(division);
-            targetHz=divided*(1.0/120.0);
+            // Tempo knots define discrete periods: the compatible 3 Hz word
+            // is just above 3, so its period is 14699, not 14700 frames.
+            // Interpolate fractional BPM in double after resolving those words.
+            targetHz=compatibleControlCurve(bpm,[division](int tempo) {
+                const float pulses=static_cast<float>(tempo)*48.0f;
+                const float divided=pulses/static_cast<float>(division);
+                return divided*(1.0f/120.0f);
+            });
             slew(1);
             step=targetHz > 10.0 ? 32 : 64;
         }
