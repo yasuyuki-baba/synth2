@@ -75,3 +75,6 @@ limit is applied. Restart that workspace budget at each input region while
 keeping equal-timestamp event groups intact. Bend advances once per root span
 of at most 32 frames; a large callback must not add an extra step by carrying
 a workspace boundary across an intervening MIDI event.
+
+A MIDI event at the workspace end remains owned by the next region. Its known
+position still caps the preceding projected ARP amplitude-gain horizon.

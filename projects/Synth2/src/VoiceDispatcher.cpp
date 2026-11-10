@@ -412,7 +412,11 @@ namespace synth2
             }
         },nativeOmniInput);
         flushPolyOns();flushLegatoOff();
-        if (cursor < endSample) renderVoicesWithLfos (output, cursor, endSample - cursor);
+        // The next MIDI region can begin exactly at this workspace end.
+        // Its known boundary also caps projected ARP amplitude gain spans.
+        const auto nextInput=midi.findNextSamplePosition(endSample);
+        const bool inputAtEnd=nextInput!=midi.cend() && nextInput->samplePosition==endSample;
+        if (cursor < endSample) renderVoicesWithLfos (output, cursor, endSample - cursor,inputAtEnd);
     }
 
 }
