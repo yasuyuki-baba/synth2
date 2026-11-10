@@ -205,3 +205,8 @@ permuted simultaneous chords, repeated/cancelled pending keys, capacity limits
 and a pending key released under sustain in `PerformanceBehaviorTest.cpp`.
 Physical frequency words and paired generated-input audio establish admission
 order and absence of extra starts without captured original outputs.
+
+`PerformanceBehaviorTest.cpp` checks actual-bridge Fine refresh/zero-band rules
+and the FM base setter's full slew horizon. `DelayPathTest.cpp` checks completion
+of long integer/fractional delay-time slews without rounding stalls, alongside
+partition invariance, reset history and impulse endpoint properties.

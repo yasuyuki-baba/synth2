@@ -1,5 +1,5 @@
 #include "offline/RenderDiagnostics.h"
-#include "render/FilterParameterMapping.h"
+#include "render/ReceiverParameterMapping.h"
 #if defined(SYNTH2_HOST_PROFILING)
 #include "HostCallbackProfile.h"
 #endif
@@ -30,6 +30,18 @@ namespace synth2
         }
             
         synth.addSound (new SynthSound());
+    }
+
+    void SynthEngine::applyReceiverParameter(int index,float normalized) noexcept
+    {
+        if(render::filterParameter(index)){applyFilterParameter(index,normalized);return;}
+        const float previousFine=params.globalFineTune;
+        render::applyReceiverParameter(params,index,promoteNormalizedSource(normalized),renderHistory.nativeMidiRoutingLoadHistory);
+        if(index==2)corePool.setOsc2Coarse(dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis),false);
+        if(index==45)corePool.setControllerDial(45,static_cast<int>(currentSampleRate));
+        // OSC2 Fine/tracking republishes the current coarse frequency; master
+        // Fine does so only when its resolved fine value actually changes.
+        if(index==3 || index==4 || (index==72 && params.globalFineTune!=previousFine))corePool.refreshOsc2Frequency();
     }
 
     void SynthEngine::applyFilterParameter(int index,float normalized) noexcept

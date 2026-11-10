@@ -31,6 +31,7 @@ namespace synth2
         int getOversamplingFactor() const noexcept {return audioFactor;}
         void requestPhaseReset();
         void restartFilterCutoff() noexcept;
+        void applyReceiverParameter(int index,float normalized) noexcept;
         void applyFilterParameter(int index,float normalized) noexcept;
         void updateFilterEnvelopeConfiguration() noexcept;
         void requestNativeLfoRateUpdate(size_t index) noexcept { sharedModulation.touchRate(index); }

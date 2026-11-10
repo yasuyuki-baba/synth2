@@ -124,3 +124,21 @@ TEST(DelayPath, AdjacentFloatTempoUsesAlignedFrameWords)
         EXPECT_EQ(right,0.0f);
     }
 }
+
+TEST(DelayPath, LongDelaySlewsReachTheirTargetWithoutRoundingStalls)
+{
+    for(int rate:{44100,48000})for(float target:{24000.25f,60000.75f})
+    {
+        auto delay=std::make_unique<DelayKernel>();
+        ASSERT_TRUE(delay->configure(rate,0,1,0,0,64));delay->reset();delay->setEnabled(true);
+        std::array<float,512> dry{},send{};
+        delay->process(dry.data(),send.data(),256);
+        ASSERT_TRUE(delay->setFrameTargets(target,target));ASSERT_TRUE(delay->isSlewing());
+        for(int frame=0;frame<rate*6;frame+=256)
+        {
+            dry.fill(0);delay->process(dry.data(),send.data(),std::min(256,rate*6-frame));
+        }
+        EXPECT_FALSE(delay->isSlewing());
+        EXPECT_EQ(delay->getCurrentLeft(),target);EXPECT_EQ(delay->getCurrentRight(),target);
+    }
+}
