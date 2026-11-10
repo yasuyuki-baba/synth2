@@ -17,7 +17,7 @@ namespace synth2::dsp
             const float normalized=static_cast<float>(depth)*(1.0f/127.0f);
             amount=static_cast<float>((std::pow(10.0f,static_cast<float>(normalized))-1.0f)*(1.0f/9.0f));
         }
-        else amount=static_cast<float>(static_cast<float>(depth)*(1.0f/127.0f));
+        else amount=static_cast<float>(depth)*(1.0f/127.0f);
         switch(destination)
         {
             case 1:case 2:

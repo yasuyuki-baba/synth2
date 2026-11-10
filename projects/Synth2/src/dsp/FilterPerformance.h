@@ -16,7 +16,7 @@ namespace synth2::dsp
             if(tracking<=0)return 0;
             const float exponent=static_cast<float>(note-48)*(1.0f/12.0f);
             const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667f)
-                *static_cast<float>(static_cast<float>(baseIndex)*(1.0f/1024.0f)))*15.0f);
+                *(static_cast<float>(baseIndex)*(1.0f/1024.0f)))*15.0f);
             const float scaled=std::pow(static_cast<float>(tracking+1.0f),static_cast<float>(exponent))*static_cast<float>(frequency);
             const float relative=static_cast<float>(scaled)*0.06666667014360428f;
             const float index=std::log(relative)*1024.0f/std::log(1066.6666259765625f);

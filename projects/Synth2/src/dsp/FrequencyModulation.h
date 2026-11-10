@@ -67,7 +67,7 @@ namespace synth2::dsp
                             // Keep the measured slew knots at whole phase-unit deltas.
                             // Interpolate fractional deltas without narrowing the state.
                             current=anchor+compatibleControlCurve(target-anchor,[&](int delta){
-                                return std::trunc(static_cast<float>(static_cast<float>(delta))*weight);
+                                return std::trunc(static_cast<float>(delta)*weight);
                             });
                         }
                         --remaining;

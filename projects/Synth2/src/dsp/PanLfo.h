@@ -19,7 +19,7 @@ namespace synth2::dsp
         {
             const float x=value+(value<0 ? 1.0f : -1.0f);
             const float cubic=(x*x)*x;
-            return value<0 ? cubic : static_cast<float>(static_cast<float>(cubic)*0.5f+1.5f);
+            return value<0 ? cubic : cubic*0.5f+1.5f;
         }
         void process(float& l,float& r,float control,float pan) noexcept
         {
