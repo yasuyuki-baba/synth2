@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "dsp/DelayKernel.h"
+#include "dsp/EffectPair.h"
+#include "dsp/EffectSettings.h"
 #include <array>
 #include <cmath>
 #include <memory>
@@ -95,5 +97,30 @@ TEST(DelayPath, IntegralFrameTargetsPreserveTheExactImpulseEndpoint)
         double dry[2]{frame==0 ? 1.f : 0.f,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));
         EXPECT_EQ(send[0],frame==endpoint ? 1.f : 0.f);EXPECT_EQ(send[1],0);
+    }
+}
+
+TEST(DelayPath, SubFloatTempoChangesReachFractionalAlignedTaps)
+{
+    synth2::DelaySettings settings;
+    settings.enable=true;settings.time=7.0/127;settings.spread=settings.tone=64.0/127;
+    settings.feedback=0;settings.level=1;settings.type=0;
+    synth2::ChorusSettings chorus;chorus.enabled=false;
+    const double tempo=120.0+0x1p-20;
+    ASSERT_EQ(static_cast<float>(tempo),120.0f);
+    auto cold=std::make_unique<synth2::dsp::EffectPair>();
+    auto changed=std::make_unique<synth2::dsp::EffectPair>();
+    cold->prepare(48000);changed->prepare(48000);
+    cold->setParams(settings,chorus,tempo);
+    changed->setParams(settings,chorus,120);changed->setParams(settings,chorus,tempo);
+    // Native adjacent tempo words give aligned endpoints 9000 and 8996.
+    // One eighth of that interval must therefore produce a 8999.5-frame tap.
+    for(int frame=0;frame<=9001;++frame)
+    {
+        double left=frame==0 ? 1.0 : 0.0,right=0,editedLeft=left,editedRight=right;
+        cold->process(&left,&right,1);changed->process(&editedLeft,&editedRight,1);
+        EXPECT_EQ(left,editedLeft);EXPECT_EQ(right,editedRight);
+        EXPECT_EQ(left,frame==8999 || frame==9000 ? .5 : 0.0);
+        EXPECT_EQ(right,0.0);
     }
 }

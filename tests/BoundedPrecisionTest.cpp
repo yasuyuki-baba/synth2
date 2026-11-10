@@ -2,6 +2,7 @@
 #include "dsp/AmplitudeEnvelope.h"
 #include "dsp/ChorusKernel.h"
 #include "dsp/DelayKernel.h"
+#include "dsp/EffectControls.h"
 #include "dsp/MultiEffect.h"
 #include "dsp/Phaser.h"
 #include "dsp/Saturation.h"
@@ -693,4 +694,64 @@ TEST(BoundedPrecision, FractionalDurationsDoNotSnapToTheNextFrameEarly)
     ASSERT_EQ(static_cast<float>(rate),44100.f);
     EXPECT_EQ(ReleaseRamp::durationFrames(anchor,rate),440);
     EXPECT_EQ(ReleaseRamp::durationFrames(anchor,44100),441);
+}
+
+TEST(BoundedPrecision, SubFloatFixedPhaseEditsReachTheFinalPhaseWord)
+{
+    using namespace synth2::dsp;
+    const double edited=64.0+0x1p-19;
+    ASSERT_EQ(static_cast<float>(edited),64.0f);
+    OscillatorPhaseState base,fine;base.setDial(64);fine.setDial(edited);
+    EXPECT_EQ(fine.dial,edited);
+    OscillatorPhaseRandom a,b,untouched;
+    ASSERT_TRUE(base.start(a));ASSERT_TRUE(fine.start(b));
+    EXPECT_EQ(fine.osc2,base.osc2+1);
+    const auto next=untouched.nextPhase();EXPECT_EQ(a.nextPhase(),next);EXPECT_EQ(b.nextPhase(),next);
+    // Selection is a discrete compatible word, separate from phase interpolation.
+    OscillatorPhaseState boundary;boundary.setDial(std::nextafter(.5,0.0));
+    OscillatorPhaseRandom random,expected;ASSERT_TRUE(boundary.start(random));
+    EXPECT_EQ(boundary.osc1,0u);EXPECT_EQ(boundary.osc2,0u);
+    EXPECT_EQ(random.nextPhase(),expected.nextPhase());
+}
+
+TEST(BoundedPrecision, SubFloatSpreadEditsRetainLocalDrawOrder)
+{
+    using namespace synth2::dsp;
+    const double edited=64.0+0x1p-19;ASSERT_EQ(static_cast<float>(edited),64.0f);
+    bool changed=false;
+    OscillatorPhaseRandom a,b,untouched;
+    for(int slot=0;slot<8;++slot)
+    {
+        OscillatorPhaseState base,fine;base.setDial(64);fine.setDial(64);
+        ASSERT_TRUE(base.start(a,8,slot,64));ASSERT_TRUE(fine.start(b,8,slot,edited));
+        changed=changed || base.osc1!=fine.osc1 || base.osc2!=fine.osc2 || base.lanes!=fine.lanes;
+    }
+    EXPECT_TRUE(changed);
+    const auto next=untouched.nextPhase();EXPECT_EQ(a.nextPhase(),next);EXPECT_EQ(b.nextPhase(),next);
+}
+
+TEST(BoundedPrecision, DelayTempoRetainsSubFloatCoordinates)
+{
+    const double tempo=120.0+0x1p-20;
+    ASSERT_EQ(static_cast<float>(tempo),120.0f);
+    const double native=synth2::dsp::EffectControls::delaySeconds(7,120);
+    const double edited=synth2::dsp::EffectControls::delaySeconds(7,tempo);
+    EXPECT_EQ(native,.1875);EXPECT_LT(edited,native);
+    EXPECT_EQ(static_cast<float>(edited),static_cast<float>(native));
+}
+
+TEST(BoundedPrecision, LoadedFractionalPhaseInterpolatesCompatiblePhaseWords)
+{
+    using namespace synth2::dsp;
+    std::array<float,128> controls{};controls[91]=64.125f/127;
+    synth2::Synth1PatchMapper mapper(113);mapper.setContinuousControls(true);mapper.setDirectControls(true);
+    synth2::RenderControls mapped;mapper.mapFromRawBuffer(controls.data(),mapped);
+    ASSERT_EQ(mapped.oscillatorPhaseDial,64.125);
+    OscillatorPhaseState low,high,edited;low.setDial(64);high.setDial(65);edited.setDial(mapped.oscillatorPhaseDial);
+    OscillatorPhaseRandom random;
+    ASSERT_TRUE(low.start(random));ASSERT_TRUE(high.start(random));ASSERT_TRUE(edited.start(random));
+    const auto expected=[](uint32_t a,uint32_t b){return static_cast<uint32_t>(a+(static_cast<double>(b)-a)*.125);};
+    EXPECT_EQ(edited.osc2,expected(low.osc2,high.osc2));
+    for(size_t i=0;i<edited.lanes.size();++i)
+        EXPECT_EQ(edited.lanes[i],expected(low.lanes[i],high.lanes[i]));
 }

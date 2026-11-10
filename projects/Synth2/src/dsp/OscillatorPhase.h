@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include "CompatibleControlCurve.h"
 
 namespace synth2::dsp
 {
@@ -29,28 +30,36 @@ namespace synth2::dsp
         uint32_t osc1 {},osc2 {};
         std::array<uint32_t,8> lanes {};
         bool pending {true};
-        float dial {-1};
+        double dial {-1};
 
-        void setDial (float value) noexcept
+        void setDial (double value) noexcept
         {
-            value = std::clamp (value,0.0f,127.0f);
-            // Preserve the native random/fixed selection boundary. Fractional
+            value = std::clamp (value,0.0,127.0);
+            // Preserve the compatible selection word at the random/fixed boundary. Fractional
             // edits inside random mode do not publish a new pending draw.
-            if (std::lround(value)==0 && std::lround(dial)!=0) pending = true;
+            if (std::lround(static_cast<float>(value))==0 && std::lround(static_cast<float>(dial))!=0) pending = true;
             dial = value;
         }
 
         // DLL random branch consumes two scalar and eight lane draws once per
         // pending request. Fixed mode restarts the two scalars on every note.
-        bool start (OscillatorPhaseRandom& random, int count = 1, int slot = 0, float spreadDial = 0) noexcept
+        bool start (OscillatorPhaseRandom& random, int count = 1, int slot = 0, double spreadDial = 0) noexcept
         {
-            if (std::lround(dial) > 0)
+            if (std::lround(static_cast<float>(dial)) > 0)
             {
-                const float amount = (std::max(dial,1.0f)-1.0f) * (1.0f/126.0f);
-                osc1 = 0; osc2 = static_cast<uint32_t> (amount * 67108864.0f);
+                const auto fixedPhase=[&](float random,float scale) {
+                    return static_cast<uint32_t>(compatibleControlCurve(dial,[&](int source) {
+                        const float amount=(std::max(static_cast<float>(source),1.0f)-1.0f)*(1.0f/126.0f);
+                        return static_cast<uint32_t>((amount*random)*scale);
+                    }));
+                };
+                osc1=0;osc2=fixedPhase(1.0f,67108864.0f);
                 OscillatorPhaseRandom pattern;
-                for (auto& phase : lanes)
-                    phase = static_cast<uint32_t> ((amount * pattern.nextFraction()) * 134217728.0f) & 0x07ffffffu;
+                for(auto& phase:lanes)
+                {
+                    const float random=pattern.nextFraction();
+                    phase=fixedPhase(random,134217728.0f)&0x07ffffffu;
+                }
                 // DLL reset0x3e6d1: fixed multi-slot groups add ten offsets
                 // from the seed-1 table, starting at slot*10. This consumes no
                 // process/global random state. Preserve unsigned addition here;
@@ -59,8 +68,14 @@ namespace synth2::dsp
                 {
                     OscillatorPhaseRandom offsets;
                     for (int draw = 0; draw < std::clamp(slot,0,7)*10; ++draw) offsets.nextFraction();
-                    const float spread = std::clamp(spreadDial,0.0f,127.0f) * (1.0f/127.0f);
-                    auto offset = [&] { return static_cast<uint32_t> ((spread * offsets.nextFraction()) * 134217728.0f) & 0x07ffffffu; };
+                    const double spread=std::clamp(spreadDial,0.0,127.0);
+                    auto offset=[&] {
+                        // Draw once; interpolation must not advance the local table.
+                        const float random=offsets.nextFraction();
+                        return static_cast<uint32_t>(compatibleControlCurve(spread,[&](int source) {
+                            return static_cast<uint32_t>(((static_cast<float>(source)*(1.0f/127.0f))*random)*134217728.0f);
+                        }))&0x07ffffffu;
+                    };
                     osc1 += offset(); osc2 += offset();
                     for (auto& phase : lanes) phase += offset();
                 }
