@@ -159,6 +159,31 @@ TEST(BoundedPrecision, FractionalCutoffReachesTheNativeReceiverAtCompatibleDialK
     }
 }
 
+TEST(BoundedPrecision, FilterSustainUsesTheSameTransferThroughLoadingAndEdits)
+{
+    using namespace synth2;
+    for(int dial=0;dial<=127;++dial)
+    {
+        const float expected=static_cast<float>(dial)*(1.0f/127.0f);
+        for(bool continuous:{false,true})
+        {
+            std::array<float,128> controls{};controls[17]=static_cast<float>(dial)/127.0f;
+            Synth1PatchMapper mapper(113);mapper.setContinuousControls(continuous);mapper.setDirectControls(true);
+            RenderControls loaded;mapper.mapFromRawBuffer(controls.data(),loaded);
+            EXPECT_EQ(loaded.filterEnv.sustain,expected);
+        }
+        RenderControls edited;render::applyFilterParameter(edited,17,static_cast<float>(dial)/127.0f,true);
+        EXPECT_EQ(edited.filterEnv.sustain,expected);
+        ASSERT_TRUE(render::applyControllerDial(edited,17,dial));
+        EXPECT_EQ(edited.filterEnv.sustain,expected);
+    }
+    for(float dial:{25.25f,25.5f,25.75f})
+    {
+        RenderControls edited;render::applyFilterParameter(edited,17,dial/127.0f,true);
+        EXPECT_EQ(edited.filterEnv.sustain,dial*(1.0f/127.0f));
+    }
+}
+
 TEST(BoundedPrecision, FractionalKeyTrackingSurvivesEnvelopeSetupAndReceiverTransport)
 {
     using namespace synth2::dsp;

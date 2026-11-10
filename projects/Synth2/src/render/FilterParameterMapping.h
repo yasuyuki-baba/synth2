@@ -6,6 +6,12 @@
 #include <cmath>
 namespace synth2::render
 {
+    inline float filterSustainForDial(float dial) noexcept
+    {
+        // Preserve the receiver's reciprocal multiplication before its envelope
+        // knots truncate the scaled sustain. Division can cross an integer knot.
+        return std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f);
+    }
     inline bool filterParameter(int index) noexcept
     {return index==17 || index==19 || index==21 || index==22;}
     inline void applyFilterParameter(RenderControls& target,int index,float normalized,bool compatibleCutoff) noexcept
@@ -14,7 +20,7 @@ namespace synth2::render
         const float unit=dial/127.0f;
         switch(index)
         {
-            case 17:target.filterEnv.sustain=unit;break;
+            case 17:target.filterEnv.sustain=filterSustainForDial(dial);break;
             case 19:
             {
                 target.cutoffIndex=unit*1023.0f;target.filterCutoffAdjustment=0;

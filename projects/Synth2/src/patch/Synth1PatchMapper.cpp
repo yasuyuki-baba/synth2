@@ -203,7 +203,7 @@ namespace synth2
         target.filterVelocity = patch.filter.velocitySwitch.value_or (false) ? 1.0f : 0.0f;
         target.filterEnv = {envelopeAttackSeconds (patch.filter.attack.value_or (0)),
                             envelopeDecayReleaseSeconds (patch.filter.decay.value_or (0)),
-                            unit (patch.filter.sustain, 127),
+                            render::filterSustainForDial(static_cast<float>(patch.filter.sustain.value_or(127))),
                             envelopeDecayReleaseSeconds (patch.filter.release.value_or (0))};
         target.ampAttackSec = envelopeAttackSeconds (patch.amplifier.attack.value_or (0));
         target.ampDecaySec = envelopeDecayReleaseSeconds (patch.amplifier.decay.value_or (0));
@@ -318,7 +318,7 @@ namespace synth2
             for(int index:{19,21,22})render::applyFilterParameter(target,index,controls[index],native);
             target.resonanceNorm=normalized(20);
             target.filterSaturation=dsp::fractionalDial(controls[23])/127.0f;
-            target.filterEnv={attack(15),decay(16),normalized(17),decay(18)};
+            target.filterEnv={attack(15),decay(16),render::filterSustainForDial(dial(17)),decay(18)};
             target.ampAttackSec=attack(25);
             target.ampDecaySec=decay(26);
             const float sustain=dial(27);
