@@ -427,3 +427,31 @@ TEST(PerformanceBehavior, KeyboardToggleRefreshesTheCurrentCoarseFrequency)
     ASSERT_TRUE(synth2::readPhysicalCoreWords(*fixed,0,expected));
     EXPECT_EQ(actual[3],expected[3]);
 }
+
+TEST(PerformanceBehavior, MidiRegionsDefinePitchBendStepsBeforeWorkspaceLimits)
+{
+    for(int rate:{44100,48000})for(int frames:{257,513})for(int position:{1,13,60,128,255,256})
+    {
+        auto processor=hostvalidation::processor();
+        hostvalidation::load(*processor,hostvalidation::patch()+"40,12\n");
+        processor->prepare(rate,frames);
+        ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));
+        std::vector<float> left(frames),right(frames);
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        ASSERT_TRUE(processor->enqueueMidi(position,224,127,127));
+        ASSERT_TRUE(processor->process(left.data(),right.data(),frames,120));
+        const auto bend=processor->engineForInspection().nativeBendWords();
+        const int steps=(frames-position+31)/32;
+        EXPECT_EQ(bend[0],steps);EXPECT_EQ(bend[1],63);EXPECT_EQ(bend[2],1);
+        EXPECT_EQ(bend[3],(steps*12*128)/63/12);
+    }
+}
+
+TEST(PerformanceBehavior, LargeBendCallbackMatchesItsExplicitMidiRegions)
+{
+    const std::vector<Event> events{{0,144,60,100},{60,224,127,127}};
+    // These schedules have the same internal MIDI/workspace/receiver spans;
+    // this does not assert arbitrary callback partition invariance.
+    const auto patch=hostvalidation::patch()+"40,12\n";
+    EXPECT_EQ(render(events,{257},patch,257),render(events,{60,197},patch,257));
+}
