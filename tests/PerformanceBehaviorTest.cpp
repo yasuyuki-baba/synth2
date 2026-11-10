@@ -455,3 +455,14 @@ TEST(PerformanceBehavior, LargeBendCallbackMatchesItsExplicitMidiRegions)
     const auto patch=hostvalidation::patch()+"40,12\n";
     EXPECT_EQ(render(events,{257},patch,257),render(events,{60,197},patch,257));
 }
+
+TEST(PerformanceBehavior, UpcomingMidiBoundsProjectedArpeggioGainAtRegionEnd)
+{
+    const auto plain=hostvalidation::patch();
+    const auto arpeggio=plain+"59,1\n31,2\n32,0\n33,11\n34,127\n";
+    const auto actual=render({{0,144,60,100},{31,176,7,0}},{64},arpeggio,64);
+    const auto expected=render({{0,144,60,100}},{31,33},plain,64);
+    // Before the no-op input, one held ARP note and one ordinary note share
+    // the same 31-frame gain horizon and physical synthesis trajectory.
+    for(size_t sample=0;sample<31u*2;++sample)EXPECT_EQ(actual[sample],expected[sample])<<sample;
+}
