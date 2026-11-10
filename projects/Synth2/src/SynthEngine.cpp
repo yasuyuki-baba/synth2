@@ -139,16 +139,16 @@ namespace synth2
         constexpr int N = 2048;
         constexpr int halfN = N / 2;
 
-        std::vector<double> sinTable (N);
+        std::vector<float> sinTable (N);
         for (int n = 0; n < N; ++n)
-            sinTable[n] = (double) std::sin (::synth2::audio::MathConstants<double>::twoPi * (double) n / (double) N);
+            sinTable[n] = (float) std::sin (::synth2::audio::MathConstants<double>::twoPi * (double) n / (double) N);
 
         const auto nativeSaw = dsp::buildNativeSaw (sinTable);
         auto square = nativeSaw;
         for (const auto& info : square.infos)
             for (int n = 0; n < N; ++n)
-                square.data[info.offset+n] = .5 * (nativeSaw.data[info.offset+n]
-                    - nativeSaw.data[info.offset+((n+halfN)&(N-1))]);
+                square.data[info.offset+n] = .5f * (static_cast<float>(nativeSaw.data[info.offset+n])
+                    - static_cast<float>(nativeSaw.data[info.offset+((n+halfN)&(N-1))]));
         waveTableBank->setShapeTables (1,std::move (square));
         waveTableBank->setShapeTables (5,nativeSaw);
         waveTableBank->setShapeTables (0,nativeSaw);

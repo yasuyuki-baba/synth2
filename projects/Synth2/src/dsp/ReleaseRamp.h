@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CompatibleControlCurve.h"
+#include "EnvelopeCurve.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -16,7 +17,8 @@ namespace synth2::dsp
     public:
         static int durationFrames (double seconds,double sampleRate) noexcept
         {
-            const double frames = seconds * static_cast<double> (sampleRate);
+            // Frame counts retain their compatible source-word rounding.
+            const double frames = static_cast<float>(static_cast<float>(seconds)*static_cast<float>(sampleRate));
             if (!std::isfinite (frames) || frames <= 0) return 0;
             if (frames >= static_cast<double> (std::numeric_limits<int>::max()))
                 return std::numeric_limits<int>::max();
@@ -58,16 +60,13 @@ namespace synth2::dsp
         void advance (int frames,Segment&& segment,int horizon = 0) noexcept
         {
             if (!active) return;
-            const double reciprocal = 1.0 / static_cast<double> (std::max (1,duration));
             while (frames > 0 && counter < duration && (level > 0 || pending > 0))
             {
                 if(pending==0)
                 {
                     pending=std::min({std::max(frames,horizon),step,duration-counter});
-                    const double remaining = static_cast<double> (duration-counter-pending) * reciprocal;
-                    const double curve = std::exp ((remaining-1.0)*8.0)*remaining;
                     level = compatibleControlCurve(initial,[&](int start) {
-                        return std::trunc(curve*static_cast<double>(start));
+                        return exponentialEnvelopeKnot(start,duration-counter-pending,duration);
                     });
                 }
                 const int count=std::min(frames,pending);
@@ -79,7 +78,7 @@ namespace synth2::dsp
                 if (pending==0 && counter >= boundary) updateResolution();
             }
             if (pending==0 && (counter >= duration || level <= 0
-                || counter >= static_cast<int> (static_cast<double> (duration)*0.9)))
+                || counter >= static_cast<int> (static_cast<float> (duration)*0.9f)))
             {
                 level = 0;
                 active = false;
