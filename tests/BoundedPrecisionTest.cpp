@@ -828,3 +828,16 @@ TEST(BoundedPrecision, StackFrequencyCacheUsesFloatBaseWords)
     render(high);EXPECT_EQ(section.stackFrequencies,last);
     render(edited);EXPECT_EQ(section.stackFrequencies,fractional);
 }
+
+TEST(BoundedPrecision, ModulationStepsRetainCompatibleFloatWordsAcrossRates)
+{
+    static_assert(std::is_same_v<decltype(synth2::dsp::modulationStep(1.0f,44100.0f)),float>);
+    for(float rate:{2000.f,8000.f,22050.f,44100.f,48000.25f,96000.f,192000.f})
+        for(int dial=0;dial<128;++dial)
+            for(float frequency:{synth2::dsp::ringFrequencyWords[dial],synth2::dsp::chorusRateWords[dial]})
+            {
+                const float expected=static_cast<float>(std::sin(static_cast<double>(frequency)
+                    *3.141592653589793/static_cast<double>(rate))*2.0);
+                EXPECT_EQ(synth2::dsp::modulationStep(frequency,rate),expected)<<rate<<" "<<dial;
+            }
+}

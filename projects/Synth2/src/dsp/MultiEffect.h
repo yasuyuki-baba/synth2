@@ -5,6 +5,7 @@
 #include <cstdint>
 #include "OverdriveKernel.h"
 #include "ControlTables.h"
+#include "ModulationStep.h"
 namespace synth2::dsp
 {
     // Native MultiFX children: overdrive1/2, decimator, Ring and compressor.
@@ -93,7 +94,7 @@ namespace synth2::dsp
         }
         void updateFrequency(float value) noexcept
         {
-            frequency=value;step=static_cast<float>(std::sin(value*3.141592653589793f/sampleRate)*2.0f);
+            frequency=value;step=modulationStep(value,sampleRate);
             cosine=std::clamp(cosine,-1.0f,1.0f);
             const float next=std::sin(std::acos(cosine));sine=sine<0 ? -next : next;
         }

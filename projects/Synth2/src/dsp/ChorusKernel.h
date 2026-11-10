@@ -6,6 +6,7 @@
 #include <cstdint>
 #include "FractionalDial.h"
 #include "ControlTables.h"
+#include "ModulationStep.h"
 
 namespace synth2::dsp
 {
@@ -34,7 +35,7 @@ namespace synth2::dsp
             delayFrames=static_cast<int>(timeSeconds(time)*static_cast<float>(rate));
             depthFrames=static_cast<int>(static_cast<float>(delayFrames)*depthRatio(depth));
             period=static_cast<int>(static_cast<float>(rate)/rateHz(speed));
-            coefficient=static_cast<float>(std::sin(static_cast<float>(rateHz(speed))*pi/static_cast<float>(rate))*2.0f);
+            coefficient=modulationStep(rateHz(speed),static_cast<float>(rate));
             amplitudeScale=period>=2.0f*depthFrames*pi ? 1.0f : static_cast<float>(period/(2.0f*depthFrames*pi));
             depthExtent=static_cast<float>(depthFrames);
             updateContinuousCoordinates();
@@ -66,7 +67,7 @@ namespace synth2::dsp
             rateDial=std::clamp(dial,0.0f,127.0f);
             periodExtent=interpolateFrames(rateDial,[&](int value){return static_cast<int>(static_cast<float>(sampleRate)/rateHz(value));});
             period=static_cast<int>(periodExtent);
-            coefficient=interpolateDial(rateDial,[&](int value){return static_cast<float>(std::sin(static_cast<float>(rateHz(value))*pi/static_cast<float>(sampleRate))*2.0f);});
+            coefficient=interpolateDial(rateDial,[&](int value){return modulationStep(rateHz(value),static_cast<float>(sampleRate));});
             updateScale();updateContinuousCoordinates();
         }
         void setLevelDial(float dial) noexcept {wet=std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f);}
