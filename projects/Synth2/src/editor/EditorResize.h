@@ -8,8 +8,8 @@ namespace synth2::editor
 inline constexpr float editorMinimumScale=.5f,editorMaximumScale=4.f;
 
 // Parent sizes are platform pixels; the graphics canvas keeps logical bounds.
-// Standalone windows follow the dragged dimension and resize the other axis.
-// Hosts own their outer window, so plugin views fit within the supplied bounds.
+// Windows/macOS standalone windows follow the dragged dimension and resize the
+// other axis. Linux standalone and plugin views fit within parent-owned bounds.
 inline std::optional<float> editorResizeScale(int width,int height,float platformScale,
     float currentScale,bool keyboardVisible,bool followChangedAxis)
 {

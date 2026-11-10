@@ -44,6 +44,8 @@
   reserving room for labels and values rather than shrinking choice text.
   Window-frame dragging scales the complete GUI just like the corner handle;
   retain logical bounds and platform-scale handling without adding zoom menus.
+  Linux standalone resize notifications fit both parent bounds without requesting
+  a larger parent window; tiling window managers own that available area.
   Do not introduce unsupported instrument
   features merely to match a reference panel. Bundle the editor fonts rather than
   depending on installed system font families; see the
