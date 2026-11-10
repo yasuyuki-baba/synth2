@@ -25,6 +25,13 @@ binding changes and intervening same-time ordinary controllers. An unmatched
 Note Off is flushed before audio advances; panic messages still take effect.
 Deterministic LFO waveforms do not by themselves invalidate the running ARP clock.
 
+Polyphonic admission collects the keyboard state for one timestamp before
+starting voices. Admit new keys most-recent first, up to the effective physical
+voice count; older pending keys must not consume cores or phase draws. A repeated
+pending key retains its latest velocity/order, and a key cancelled before
+admission must not start a voice. Preserve a pending key released under sustain
+until pedal-up. Input traces and upstream keyboard order remain unchanged.
+
 Mono and poly modes share the 32-core physical pool. Unison consumes physical
 cores from that budget; logical note counts do not create an independent pool. Mono admission pauses higher
 core groups without destroying receiver history. A changed effective voice count

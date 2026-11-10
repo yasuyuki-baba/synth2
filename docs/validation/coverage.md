@@ -199,3 +199,9 @@ held-key press order, non-panic bypass and live gate edits have dedicated
 `PerformanceBehavior.SameTimeLegatoReplacementRetainsPhysicalAmplitudePhase`
 checks the actual bridge's physical VCA phase/level/counter through a same-time
 Off/controller/On replacement against the same partition without replacement.
+
+Polyphonic keyboard admission is exercised through the portable bridge with
+permuted simultaneous chords, repeated/cancelled pending keys, capacity limits
+and a pending key released under sustain in `PerformanceBehaviorTest.cpp`.
+Physical frequency words and paired generated-input audio establish admission
+order and absence of extra starts without captured original outputs.

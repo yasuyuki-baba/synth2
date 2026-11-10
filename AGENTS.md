@@ -105,6 +105,9 @@
   at root spans of at most32 frames, independently of LFO availability. Voice
   consumes the resolved offset and owns no local bend receiver or alternate slew.
   Keep ordinary bend separate from14-bit routed pitch and CC121 route state.
+- Polyphonic admission collects each timestamp before starting new keys in
+  most-recent order, bounded by the effective voice count. Preserve input/key
+  order separately; cancelled or excess pending keys must not draw phases.
 - Native mono and poly notes share physical core storage. Mono admission pauses
   higher groups; logical retirement must not erase their receiver histories.
   Keep OSC2 coarse exponent, cached frequency and pending-note reset distinct;

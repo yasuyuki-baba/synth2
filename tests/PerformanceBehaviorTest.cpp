@@ -316,3 +316,51 @@ TEST(PerformanceBehavior, SameTimeLegatoReplacementRetainsPhysicalAmplitudePhase
     ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*replacement,0,actual));
     EXPECT_EQ(actual[10],expected[10]);EXPECT_EQ(actual[11],expected[11]);EXPECT_EQ(actual[12],expected[12]);
 }
+
+TEST(PerformanceBehavior, PolyphonicChordAssignsRecentKeysToFirstPhysicalCores)
+{
+    for(const auto& keys:{std::array<int,3>{48,60,67},std::array<int,3>{67,48,60},std::array<int,3>{67,60,48}})
+    for(int frames:{64,127,257})
+    {
+        auto chord=hostvalidation::processor();
+        hostvalidation::load(*chord,hostvalidation::patch());chord->prepare(48000,frames);
+        for(int key:keys)ASSERT_TRUE(chord->enqueueMidi(13,144,key,100));
+        std::array<float,257> left{},right{};
+        ASSERT_TRUE(chord->process(left.data(),right.data(),frames,120));
+        for(size_t slot=0;slot<keys.size();++slot)
+        {
+            auto single=hostvalidation::processor();
+            hostvalidation::load(*single,hostvalidation::patch());single->prepare(48000,frames);
+            ASSERT_TRUE(single->enqueueMidi(13,144,keys[2-slot],100));
+            ASSERT_TRUE(single->process(left.data(),right.data(),frames,120));
+            std::array<uint32_t,9> actual{},expected{};
+            ASSERT_TRUE(synth2::readPhysicalCoreWords(*chord,slot,actual));
+            ASSERT_TRUE(synth2::readPhysicalCoreWords(*single,0,expected));
+            EXPECT_EQ(actual[2],expected[2]);EXPECT_EQ(actual[3],expected[3]);
+        }
+    }
+}
+
+TEST(PerformanceBehavior, CancelledAndRepeatedPendingKeysDoNotStartExtraVoices)
+{
+    const auto patch=hostvalidation::patch()+"90,0\n";
+    const auto expected=render({{13,144,67,100}}, {64},patch);
+    for(const auto& events:{std::vector<Event>{{13,144,60,75},{13,128,60,0},{13,144,67,100}},
+                             std::vector<Event>{{13,144,67,42},{13,144,67,100}}})
+        EXPECT_EQ(render(events,{64},patch),expected);
+}
+
+TEST(PerformanceBehavior, PolyphonicAdmissionIgnoresOlderPendingKeysBeyondCapacity)
+{
+    const auto patch=hostvalidation::patch()+"90,0\n94,2\n";
+    for(const auto& sizes:{std::vector<int>{64},std::vector<int>{1,17,64,127,63,32,257}})
+        EXPECT_EQ(render({{13,144,48,100},{13,144,60,100},{13,144,67,100}},sizes,patch),
+                  render({{13,144,60,100},{13,144,67,100}},sizes,patch));
+}
+
+TEST(PerformanceBehavior, PedalHeldPendingKeyReleasesAfterPedalUp)
+{
+    const auto audio=render({{0,176,64,127},{0,144,60,100},{0,128,60,0},{1024,176,64,0}}, {64});
+    EXPECT_GT(energy(audio,512,1024),0.01);
+    EXPECT_LT(std::sqrt(energy(audio,8192,16384)/(2*8192)),1e-5);
+}
