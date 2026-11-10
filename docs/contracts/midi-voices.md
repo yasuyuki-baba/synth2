@@ -69,3 +69,9 @@ Ordered ARP selection retains the last keyboard key, octave and direction across
 held-key membership edits. All generated notes retain the first-key trigger
 velocity until the keyboard is reset. Bypass restores held keys in physical
 press order; enabling releases bypassed keys through ordinary note events.
+
+MIDI timestamps define input regions before the prepared/256-frame workspace
+limit is applied. Restart that workspace budget at each input region while
+keeping equal-timestamp event groups intact. Bend advances once per root span
+of at most 32 frames; a large callback must not add an extra step by carrying
+a workspace boundary across an intervening MIDI event.

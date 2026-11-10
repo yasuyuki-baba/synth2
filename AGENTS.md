@@ -108,6 +108,8 @@
 - Polyphonic admission collects each timestamp before starting new keys in
   most-recent order, bounded by the effective voice count. Preserve input/key
   order separately; cancelled or excess pending keys must not draw phases.
+- Form MIDI input regions before applying the prepared/256-frame workspace
+  limit. Restart the workspace budget per region and retain same-time groups.
 - Native mono and poly notes share physical core storage. Mono admission pauses
   higher groups; logical retirement must not erase their receiver histories.
   Keep OSC2 coarse exponent, cached frequency and pending-note reset distinct;

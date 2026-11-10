@@ -244,11 +244,15 @@ namespace synth2
         const auto outputSink=[](void* context,int start,int count,bool silent) {
             (*static_cast<decltype(processOutput)*>(context))(start,count,silent);
         };
+        auto nextMidi=midiMessages.findNextSamplePosition(startSample);
         for (int offset = 0; offset < numSamples;)
         {
-            // Win64 processing bridge RVA 0x19e00 limits each synth call
-            // to 256 frames, including hosts that supply larger blocks.
-            const int size = std::min ({capacity,256,numSamples - offset});
+            // MIDI defines each input region before the workspace limit is
+            // applied. A MIDI event restarts that region's 256-frame budget.
+            const int position=startSample+offset;
+            while(nextMidi!=midiMessages.cend() && nextMidi->samplePosition<=position)++nextMidi;
+            int size = std::min ({capacity,256,numSamples - offset});
+            if(nextMidi!=midiMessages.cend())size=std::min(size,nextMidi->samplePosition-position);
             audioChunkStart=startSample+offset;
             if(audioFactor>1)
             {

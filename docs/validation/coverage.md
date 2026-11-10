@@ -210,3 +210,8 @@ order and absence of extra starts without captured original outputs.
 and the FM base setter's full slew horizon. `DelayPathTest.cpp` checks completion
 of long integer/fractional delay-time slews without rounding stalls, alongside
 partition invariance, reset history and impulse endpoint properties.
+
+`PerformanceBehaviorTest.cpp` checks bend state through the actual bridge for
+large callbacks and varied MIDI offsets, including positions around 256 frames.
+An explicit MIDI-region pair checks audio equality only when internal spans
+match; arbitrary callback partitions retain their documented DSP sensitivity.
