@@ -16,7 +16,7 @@ namespace synth2::dsp
         static void prepare() noexcept { (void)sine(); }
         static int amplitudeDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*2048.0f);
         }
         static int amplitude(int depth,int phaseIndex) noexcept
@@ -28,17 +28,17 @@ namespace synth2::dsp
         }
         static int panDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*64.0f);
         }
         static int pulseWidthDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*128.0f);
         }
         static int filterDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*1024.0f);
         }
         static int unipolarControl(int depth,float sample) noexcept

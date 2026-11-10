@@ -2,8 +2,6 @@
 #include "FloatExp2.h"
 #include "OscillatorConstants.h"
 #include <algorithm>
-#include <array>
-#include <cmath>
 
 namespace synth2::dsp
 {
@@ -15,11 +13,10 @@ namespace synth2::dsp
         // float MIDI table, then applies the summed fine controls in Float32.
         static float oscillator1(int note,int keyShift,float fine,float masterFine) noexcept
         {
-            const float base=noteFrequencies()[static_cast<size_t>(std::clamp(note+keyShift,0,128))];
+            const float base=midiFrequencyWords[static_cast<size_t>(std::clamp(note+keyShift,0,128))];
             const float exponent=(fine+masterFine)*(1.0f/1200.0f);
             return scaledExp2(exponent,base);
         }
-        static void prepare() noexcept { (void)noteFrequencies(); }
         static float coarseExponent(float semitones) noexcept
         {
             const float scaled=semitones*5.0f;
@@ -27,8 +24,6 @@ namespace synth2::dsp
         }
         static float trackedExponent(float semitones,float cents) noexcept
         {return cents*(1.0f/1200.0f)+coarseExponent(semitones);}
-        static float trackedOsc2(float oscillator1,float semitones,float cents) noexcept
-        {return scaledExp2(trackedExponent(semitones,cents),oscillator1);}
         static float fixedOsc2(float semitones,float cents,float masterFine,float unisonFine=0) noexcept
         {
             // The track-off branch sums all fine controls before its one
@@ -40,12 +35,6 @@ namespace synth2::dsp
         {
             const float octave=fine*(1.0f/1200.0f)+exponent;
             return scaledExp2(octave,base);
-        }
-
-    private:
-        static const std::array<float,129>& noteFrequencies() noexcept
-        {
-            return midiFrequencyWords;
         }
     };
 }

@@ -71,7 +71,6 @@ namespace synth2
             amplifier.prepare (spec);
             dsp::ModulationEnvelope::prepare();
             dsp::FrequencyModulation::prepare();
-            dsp::OscillatorTuning::prepare();
         }
 
     }

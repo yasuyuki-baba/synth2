@@ -786,12 +786,14 @@ TEST(BoundedPrecision, TrackedTuningRetainsRepresentableFloatFrequency)
     using namespace synth2::dsp;
     const float base=std::nextafter(440.0f,441.0f);
     ASSERT_GT(base,440.0f);
-    EXPECT_EQ(OscillatorTuning::trackedOsc2(base,12,0),base*2);
     VoiceTuningSettings settings;settings.secondTracksKeyboard=true;settings.secondPitch=12;
     VoiceTuning tuning(settings,69);
     EXPECT_EQ(tuning.coarseSecond({base,0},1,0),base*2);
     EXPECT_EQ(tuning.prepareCore(0).first,440);
     EXPECT_EQ(tuning.prepareCore(0).second,880);
+    const auto detuned=tuning.prepareCore(.125f);
+    EXPECT_GT(detuned.first,440.0f);
+    EXPECT_EQ(detuned.second,detuned.first*2);
 }
 
 TEST(BoundedPrecision, CoarseReceiverUsesFloatExponentWords)

@@ -47,7 +47,7 @@ namespace synth2::dsp
             hpB=(hpG*2.0f)*hpA;hpNegative=-hpA;
             k=static_cast<float>(resonance)*15.0f;
             feedback=hpA*k;denominator=1.0f/(1.0f+feedback*(f*e));
-            scale=static_cast<float>(static_cast<float>(oversampling)*0.6499999761581421f)*(1.0f+k*0.20000000298023224f);
+            scale=(static_cast<float>(oversampling)*0.6499999761581421f)*(1.0f+k*0.20000000298023224f);
         }
         float process(float input) noexcept
         {

@@ -20,7 +20,7 @@ namespace synth2::dsp
                 || !std::isfinite(spread) || seconds<0 || seconds>100 || std::abs(spread)>1)return false;
             kind=type;
             sampleRate=rate;timeSeconds=seconds;spreadSeconds=spread;
-            slewCoefficient=static_cast<float>(1.0f-std::pow(.5f,1.0f/static_cast<float>(static_cast<float>(rate)*.15f)));
+            slewCoefficient=1.0f-std::pow(.5f,1.0f/(static_cast<float>(rate)*.15f));
             updateTargets();
             feedbackGain=std::min(.999f,std::max(0.0f,feedback*(1.0f/127.0f)));
             mix=std::clamp(mix,0,127);
@@ -215,8 +215,8 @@ namespace synth2::dsp
             const float normalized=tone<64 ? tone*(1.0f/63.0f) : (tone-65)*(1.0f/62.0f);
             const float cutoff=static_cast<float>(tone<64 ? std::pow(110.0f,normalized)*200.0f
                 : std::pow(800.0f,normalized)*10.0f);
-            const float frequency=static_cast<float>(static_cast<float>(cutoff*2.0f)*3.14159265358979323846f);
-            const float twiceRate=static_cast<float>(static_cast<float>(rate)*2.0f);
+            const float frequency=(cutoff*2.0f)*3.14159265358979323846f;
+            const float twiceRate=static_cast<float>(rate)*2.0f;
             const float inverse=static_cast<float>(1.0f/static_cast<float>(frequency+twiceRate));
             toneB0=(tone<64 ? frequency : twiceRate)*inverse;
             toneB1=tone<64 ? toneB0 : -toneB0;

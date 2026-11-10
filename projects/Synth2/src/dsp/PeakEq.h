@@ -24,7 +24,7 @@ namespace synth2::dsp
             gainDb=static_cast<float>(levelDial-64)*inverse127*50.0f;
             quality=static_cast<float>(std::pow(10.0f,static_cast<float>(qDial*inverse127)));
             const float amplitude=static_cast<float>(std::pow(10.0f,static_cast<float>(gainDb*.05f)));
-            const float omega=static_cast<float>(static_cast<float>(frequencyHz)*6.283185307179586f);
+            const float omega=frequencyHz*6.283185307179586f;
             const float inverseRate=1.0f/static_cast<float>(sampleRate);
             float pole,zero;
             if(amplitude>=1.0f){pole=1.0f/(quality*2.0f);zero=pole*amplitude;}
