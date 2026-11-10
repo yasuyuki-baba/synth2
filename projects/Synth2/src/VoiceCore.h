@@ -38,6 +38,7 @@ namespace synth2
         dsp::OscillatorCoarsePitch coarse;
         float amplitudeReferenceVelocity {1.0f};
         float keyboardOffset {},unisonOffset {};
+        int filterMidiNote {60};
         int physicalSlot {-1};
         std::array<uint32_t,22> readFloatWords() const noexcept
         {

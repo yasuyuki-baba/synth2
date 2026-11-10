@@ -89,31 +89,15 @@ namespace synth2
         const auto transition=lifecycle.next();
         lifecycle.noteStarted();
         midiNote = midiNoteNumber;
-        if(!transition.legato())filterMidiNote=midiNoteNumber;
         level = velocity;
 
         const bool nativeGlide = !params.portamentoAuto || transition.glide;
 
-        if (transition.legato())
-        {
-            for(auto* core:cores) if(core != nullptr)
-            {
-                core->coarse.refresh();
-                core->portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
-                core->portamento.setNote(midiNoteNumber,nativeGlide,
-                    static_cast<int>(params.octaveBase*12+params.keyShift));
-            }
-            updateEnvelopeConfiguration();
-            lifecycle.consumeTransition();
-            return;
-        }
-        lifecycle.consumeTransition();
-
-        releaseCores();
         const int activeCores = std::clamp (params.unisonVoices, 1, 8);
         auto startCore = [&](int i)
         {
             auto& core = *cores[i];
+            core.filterMidiNote=midiNoteNumber;
             const bool wasActive=core.amplitude.isActive();
             const auto reuse=dsp::CoreReusePolicy::select(wasActive);
             core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
@@ -143,6 +127,38 @@ namespace synth2
             if(reuse.settleFm)core.fm.settle=true;
             core.fm.noteOn();
         };
+        if (transition.legato())
+        {
+            // Mono binds the first physical group. A larger group retains the
+            // continuing cores and admits its additional cores as new notes.
+            const auto previous=cores;
+            startingNote=true;
+            releaseCores();
+            assignedCount=activeCores;
+            for(int i=0;i<activeCores;++i)
+            {
+                cores[i]=pool.claim(*this,32,i);
+                const bool continuing=std::find(previous.begin(),previous.end(),cores[i])!=previous.end();
+                if(!continuing)startCore(i);
+                else
+                {
+                    auto& core=*cores[i];
+                    core.coarse.refresh();
+                    core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
+                    core.portamento.setNote(midiNoteNumber,nativeGlide,
+                        static_cast<int>(params.octaveBase*12+params.keyShift));
+                }
+            }
+            startingNote=false;
+            updateEnvelopeConfiguration();
+            for(int i=0;i<activeCores;++i)
+                if(std::find(previous.begin(),previous.end(),cores[i])==previous.end())
+                {cores[i]->filterEnvelope.noteOn();cores[i]->cutoff.settle();}
+            lifecycle.consumeTransition();
+            return;
+        }
+        lifecycle.consumeTransition();
+        releaseCores();
         startingNote = true;
         assignedCount = activeCores;
         for (int i = 0; i < activeCores; ++i)
@@ -443,7 +459,7 @@ namespace synth2
             auto& core = *cores[v];
             core.unisonOffset = layout.filterIndex[layoutSlot(v)];
             // CVcf keeps its note while a legato assignment retunes only CVCO.
-            const int filterNote=filterMidiNote;
+            const int filterNote=core.filterMidiNote;
             dsp::VoiceEnvelopeConfigurator::filter(core.filterEnvelope,core.keyboardOffset,core.unisonOffset,
                 filterSettings,filterNote,level,sampleRate);
         }

@@ -466,3 +466,71 @@ TEST(PerformanceBehavior, UpcomingMidiBoundsProjectedArpeggioGainAtRegionEnd)
     // the same 31-frame gain horizon and physical synthesis trajectory.
     for(size_t sample=0;sample<31u*2;++sample)EXPECT_EQ(actual[sample],expected[sample])<<sample;
 }
+
+TEST(PerformanceBehavior, LargerLegatoGroupAdmitsCoresWithoutRetriggeringContinuingCores)
+{
+    for(int initial:{1,2,4})
+    for(bool chord:{false,true})
+    {
+        auto processor=hostvalidation::processor();
+        hostvalidation::load(*processor,hostvalidation::patch(initial)+"25,90\n22,127\n19,64\n");
+        processor->prepare(48000,64);
+        if(chord){ASSERT_TRUE(processor->enqueueMidi(0,144,48,100));ASSERT_TRUE(processor->enqueueMidi(0,144,60,100));}
+        ASSERT_TRUE(processor->enqueueMidi(0,144,67,100));
+        std::array<float,64> left{},right{};
+        for(int block=0;block<8;++block)ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        std::array<int,13> held{};
+        ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,0,held));
+        ASSERT_GT(held[12],64);
+        std::string error;
+        ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(8,2)+"25,90\n22,127\n19,64\n",1,error))<<error;
+        ASSERT_TRUE(processor->enqueueMidi(0,144,72,110));
+        ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+        for(int slot=0;slot<8;++slot)
+        {
+            std::array<int,13> envelope{};
+            std::array<uint32_t,9> phase{};
+            ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,slot,envelope));
+            ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,slot,phase));
+            EXPECT_NE(phase[0],0u)<<slot;
+            if(slot<initial)
+            {
+                EXPECT_EQ(envelope[12],held[12]+64)<<slot;
+                EXPECT_EQ(envelope[8],held[8])<<slot;
+            }
+            else
+            {
+                if(chord && slot<initial*3)EXPECT_GE(envelope[12],64)<<slot;
+                else EXPECT_EQ(envelope[12],64)<<slot;
+                EXPECT_GT(envelope[8],held[8])<<slot;
+            }
+        }
+    }
+}
+
+TEST(PerformanceBehavior, ReturningFromMonoDoesNotResumeRelinquishedPolyphonicNotes)
+{
+    auto processor=hostvalidation::processor();
+    hostvalidation::load(*processor,hostvalidation::patch(4));processor->prepare(48000,64);
+    for(int note:{48,60,67})ASSERT_TRUE(processor->enqueueMidi(0,144,note,100));
+    std::array<float,64> left{},right{};
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    std::array<uint32_t,9> paused{},actual{};
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,8,paused));
+    std::string error;
+    ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(8,2),1,error))<<error;
+    ASSERT_TRUE(processor->enqueueMidi(0,144,72,110));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,8,actual));
+    EXPECT_EQ(actual,paused);
+    ASSERT_TRUE(processor->loadProgram(hostvalidation::patch(4),0,error))<<error;
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,8,actual));
+    EXPECT_EQ(actual,paused);
+    ASSERT_TRUE(processor->enqueueMidi(0,144,55,100));
+    ASSERT_TRUE(processor->process(left.data(),right.data(),64,120));
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,8,actual));
+    EXPECT_NE(actual[0],paused[0]);
+    ASSERT_TRUE(synth2::readPhysicalCoreWords(*processor,12,actual));
+    EXPECT_EQ(actual[0],0u);
+}

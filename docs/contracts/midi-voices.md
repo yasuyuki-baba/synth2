@@ -33,10 +33,16 @@ admission must not start a voice. Preserve a pending key released under sustain
 until pedal-up. Input traces and upstream keyboard order remain unchanged.
 
 Mono and poly modes share the 32-core physical pool. Unison consumes physical
-cores from that budget; logical note counts do not create an independent pool. Mono admission pauses higher
-core groups without destroying receiver history. A changed effective voice count
+cores from that budget; logical note counts do not create an independent pool. Mono admission relinquishes ownership of higher
+core groups without destroying receiver history. Returning to poly mode does not
+resume those retired notes; a later note may reuse their physical histories. A changed effective voice count
 resets the pool allocation cursor; an equal-count load preserves it. Neither
 operation implies erasing the retained physical state.
+
+A legato assignment binds the requested first physical Unison group. Continuing
+cores retain their envelopes and filter note; newly admitted cores receive an
+ordinary note start and their own filter note. A smaller group relinquishes its
+extra cores without erasing their retained physical histories.
 
 Logical note retirement is separate from VCA/filter/FM history. Reuse decisions
 inspect actual physical VCA activity. Consume pending Retrigger/Legato/Retained-

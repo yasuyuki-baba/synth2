@@ -110,12 +110,15 @@
   order separately; cancelled or excess pending keys must not draw phases.
 - Form MIDI input regions before applying the prepared/256-frame workspace
   limit. Restart the workspace budget per region and retain same-time groups.
-- Native mono and poly notes share physical core storage. Mono admission pauses
-  higher groups; logical retirement must not erase their receiver histories.
+- Native mono and poly notes share physical core storage. Mono admission relinquishes
+  higher groups without erasing receiver histories or resuming those notes on
+  return to poly mode.
   Keep OSC2 coarse exponent, cached frequency and pending-note reset distinct;
   its wrapper partitions FM calls and refreshes differently on legato assignment.
 - A changed effective voice count resets the physical pool allocation cursor;
   it does not erase retained receiver state. Equal-count loads preserve the cursor.
+- Legato group changes retain continuing physical cores and start only newly
+  admitted cores. Store the retained filter note with each physical core.
 - Native ARP stop messages clear held keys/pedal but restart an empty clock and
   consume its shared draw. Absent-key Note Off can also restart that clock; keep
   upstream LFO key/pedal tracking consistent with the ARP keyboard. Deterministic
