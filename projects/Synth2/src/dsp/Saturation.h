@@ -6,13 +6,12 @@
 namespace synth2::dsp
 {
     // Source23 dispatch0x298fb..0x29956 followed by CVcf0x3a920.
-    // The source dial selects the compatible drive curve. Keep its normalization,
-    // exponential and receiver scaling in Float32.
+    // Preserve double curve intermediates before rounding the receiver to Float32.
     inline float saturationForDial (int dial) noexcept
     {
         dial=std::clamp(dial,0,127);
         const float exponent=static_cast<float>(dial)*(1.0f/127.0f)-1.0f;
-        const float curve=(std::exp(static_cast<float>(exponent)*5.8f)*static_cast<float>(dial))*(1.0f/127.0f);
+        const double curve=(std::exp(static_cast<double>(exponent)*5.8)*static_cast<double>(dial))*(1.0/127.0);
         return static_cast<float>(curve)*100.0f;
     }
 

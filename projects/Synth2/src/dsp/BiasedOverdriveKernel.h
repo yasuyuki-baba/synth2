@@ -54,10 +54,10 @@ namespace synth2::dsp
     private:
         void configure(int rate) noexcept
         {
-            const float r=rate;
-            biasCoefficient={static_cast<float>(540.3539364174444f/r),static_cast<float>(829.3804605477054f/r),static_cast<float>(1218.9379495928397f/r)};
-            highCoefficient=static_cast<float>(1.0f/(194.77874452256717f/r+1.0f));
-            lowCoefficient=static_cast<float>(41035.483241189875f/r);
+            const double r=rate;
+            biasCoefficient={static_cast<float>(540.3539364174444/r),static_cast<float>(829.3804605477054/r),static_cast<float>(1218.9379495928397/r)};
+            highCoefficient=static_cast<float>(1.0/(194.77874452256717/r+1.0));
+            lowCoefficient=static_cast<float>(41035.483241189875/r);
         }
         std::array<std::array<Stage,3>,2> stages{};
         std::array<float,3> biasCoefficient{};

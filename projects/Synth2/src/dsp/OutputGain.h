@@ -11,8 +11,8 @@ namespace synth2::dsp
         static constexpr float defaultTarget=0x1.a696eep-1f;
         void prepare (float sampleRate, bool preserveCurrent = false) noexcept
         {
-            coefficient = static_cast<float> (1.0f - std::pow (0.5f,
-                1.0f / static_cast<float> (static_cast<float> (sampleRate) * 0.002f)));
+            coefficient = static_cast<float> (1.0 - std::pow (0.5,
+                1.0 / static_cast<float> (static_cast<float> (sampleRate) * 0.002f)));
             if (!preserveCurrent) current = 0.0f;
         }
         float next (float target) noexcept

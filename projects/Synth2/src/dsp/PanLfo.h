@@ -12,14 +12,14 @@ namespace synth2::dsp
         void prepare(float rate,bool preserve=false) noexcept
         {
             const float interval=static_cast<float>(static_cast<int>(rate))*0.0020000000949949026f;
-            coefficient=static_cast<float>(1.0f-std::pow(0.5f,1.0f/static_cast<float>(interval)));
+            coefficient=static_cast<float>(1.0-std::pow(0.5,1.0/static_cast<double>(interval)));
             if(!preserve)left=right=0;
         }
         static float curve(float value) noexcept
         {
             const float x=value+(value<0 ? 1.0f : -1.0f);
             const float cubic=(x*x)*x;
-            return value<0 ? cubic : cubic*0.5f+1.5f;
+            return value<0 ? cubic : static_cast<float>(static_cast<double>(cubic)*0.5+1.5);
         }
         void process(float& l,float& r,float control,float pan) noexcept
         {

@@ -20,40 +20,40 @@ namespace synth2::dsp
         {
             frequencyDial=std::clamp(frequency,0.0f,127.0f);levelDial=std::clamp(level,0.0f,127.0f);qDial=std::clamp(q,0.0f,127.0f);
             const float inverse127=1.0f/127.0f;
-            frequencyHz=static_cast<float>(std::pow(320.0f,static_cast<float>(frequencyDial*inverse127))*50.0f);
+            frequencyHz=static_cast<float>(std::pow(320.0,static_cast<double>(frequencyDial*inverse127))*50.0);
             gainDb=static_cast<float>(levelDial-64)*inverse127*50.0f;
-            quality=static_cast<float>(std::pow(10.0f,static_cast<float>(qDial*inverse127)));
-            const float amplitude=static_cast<float>(std::pow(10.0f,static_cast<float>(gainDb*.05f)));
-            const float omega=frequencyHz*6.283185307179586f;
+            quality=static_cast<float>(std::pow(10.0,static_cast<double>(qDial*inverse127)));
+            const float amplitude=static_cast<float>(std::pow(10.0,static_cast<double>(gainDb*.05f)));
+            const float omega=static_cast<float>(static_cast<double>(frequencyHz)*6.283185307179586);
             const float inverseRate=1.0f/static_cast<float>(sampleRate);
             float pole,zero;
             if(amplitude>=1.0f){pole=1.0f/(quality*2.0f);zero=pole*amplitude;}
             else {zero=1.0f/(quality*2.0f);pole=zero/amplitude;}
             // The DLL stores float(e) in a double constant, rather than using exp.
-            constexpr float exponentialBase=2.7182817459106445f;
-            const float rz=static_cast<float>(std::pow(exponentialBase,static_cast<float>(-((inverseRate*omega)*zero))));
-            const float rp=static_cast<float>(std::pow(exponentialBase,static_cast<float>(-((omega*inverseRate)*pole))));
+            constexpr double exponentialBase=2.7182817459106445;
+            const float rz=static_cast<float>(std::pow(exponentialBase,static_cast<double>(-((inverseRate*omega)*zero))));
+            const float rp=static_cast<float>(std::pow(exponentialBase,static_cast<double>(-((omega*inverseRate)*pole))));
             auto dampedAngular=[&](float damping,float radius,float decay) {
-                const float square=static_cast<float>(std::pow(static_cast<float>(damping),2.0f));
+                const float square=static_cast<float>(std::pow(static_cast<double>(damping),2.0));
                 float argument=std::sqrt(std::abs(1.0f-square));argument*=inverseRate;argument*=omega;
-                const float angular=std::abs(damping)>1.0f ? static_cast<float>(std::cosh(static_cast<float>(argument))) : static_cast<float>(std::cos(static_cast<float>(argument)));
+                const float angular=std::abs(damping)>1.0f ? static_cast<float>(std::cosh(static_cast<double>(argument))) : static_cast<float>(std::cos(static_cast<double>(argument)));
                 if(std::isfinite(angular))return angular*(radius*-2.0f);
                 // At low rates an overdamped section can form 0 * inf. Evaluate
                 // -2 * base^decay * cosh(argument) as a sum of decaying exponentials.
-                // Keep the factored expression whenever its intermediate is finite.
-                const float exponent=static_cast<float>(decay)*std::log(exponentialBase);
-                return static_cast<float>(-(std::exp(exponent+static_cast<float>(argument))
-                    +std::exp(exponent-static_cast<float>(argument))));
+                // Keep the original float arithmetic whenever its intermediate is finite.
+                const double exponent=static_cast<double>(decay)*std::log(exponentialBase);
+                return static_cast<float>(-(std::exp(exponent+static_cast<double>(argument))
+                    +std::exp(exponent-static_cast<double>(argument))));
             };
-            const float z1=dampedAngular(zero,rz,-((inverseRate*omega)*zero)),z2=static_cast<float>(std::pow(static_cast<float>(rz),2.0f));
-            a1=dampedAngular(pole,rp,-((omega*inverseRate)*pole));a2=static_cast<float>(std::pow(static_cast<float>(rp),2.0f));
-            const float angle=omega*inverseRate,c=static_cast<float>(std::cos(static_cast<float>(angle))),s=static_cast<float>(std::sin(static_cast<float>(angle)));
+            const float z1=dampedAngular(zero,rz,-((inverseRate*omega)*zero)),z2=static_cast<float>(std::pow(static_cast<double>(rz),2.0));
+            a1=dampedAngular(pole,rp,-((omega*inverseRate)*pole));a2=static_cast<float>(std::pow(static_cast<double>(rp),2.0));
+            const float angle=omega*inverseRate,c=static_cast<float>(std::cos(static_cast<double>(angle))),s=static_cast<float>(std::sin(static_cast<double>(angle)));
             const float poleReal=(a2+1.0f)*c+a1,poleImag=-((a2-1.0f)*s);
-            const float poleReal2=static_cast<float>(std::pow(static_cast<float>(poleReal),2.0f));
-            const float poleImag2=static_cast<float>(std::pow(static_cast<float>(poleImag),2.0f));
+            const float poleReal2=static_cast<float>(std::pow(static_cast<double>(poleReal),2.0));
+            const float poleImag2=static_cast<float>(std::pow(static_cast<double>(poleImag),2.0));
             const float zeroReal=(z2+1.0f)*c+z1,zeroImag=-((z2-1.0f)*s);
-            const float zeroReal2=static_cast<float>(std::pow(static_cast<float>(zeroReal),2.0f));
-            const float zeroImag2=static_cast<float>(std::pow(static_cast<float>(zeroImag),2.0f));
+            const float zeroReal2=static_cast<float>(std::pow(static_cast<double>(zeroReal),2.0));
+            const float zeroImag2=static_cast<float>(std::pow(static_cast<double>(zeroImag),2.0));
             b0=(std::sqrt(poleImag2+poleReal2)*amplitude)/std::sqrt(zeroImag2+zeroReal2);
             b1=b0*z1;b2=b0*z2;
         }

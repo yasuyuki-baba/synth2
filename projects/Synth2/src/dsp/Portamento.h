@@ -20,8 +20,8 @@ namespace synth2::dsp
         {
             dial=std::clamp(dial,0,127);
             const float exponent=(static_cast<float>(dial)*(1.0f/127.0f)-1.0f)*2.5f;
-            return static_cast<float>(std::exp(static_cast<float>(exponent))
-                *static_cast<float>(dial)*(1.0f/127.0f)*2.5f);
+            return static_cast<float>(std::exp(static_cast<double>(exponent))
+                *static_cast<double>(dial)*(1.0/127.0)*2.5);
         }
 
         static float timeSeconds(float dial) noexcept

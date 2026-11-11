@@ -23,7 +23,7 @@ namespace synth2::dsp
             excess=(excess-target)*coefficient+target;
             return (1.1f/(excess+1.1f))*input;
         }
-        void finish() noexcept { if(static_cast<float>(excess)<1e-5f) excess=0; }
+        void finish() noexcept { if(static_cast<double>(excess)<1e-5) excess=0; }
         float getCoefficient() const noexcept { return coefficient; }
         float value() const noexcept { return excess; }
     private:
