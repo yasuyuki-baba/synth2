@@ -23,9 +23,10 @@ namespace synth2::dsp
             }
             void configure(float frequency,float q,int rate,bool highPass) noexcept
             {
-                const float omega=static_cast<float>((static_cast<float>(frequency)*6.283185307179586f)/rate);
-                // Keep the coefficient and filter history in the same Float32 domain.
-                const float sine=std::sin(omega),cosine=static_cast<float>(std::cos(static_cast<float>(omega))),alpha=sine/(q*2.0f);
+                const float omega=static_cast<float>((static_cast<double>(frequency)*6.283185307179586)/rate);
+                // The DLL cosine path rounds its double result to float.
+                // Direct cosf differs near a dial boundary and excites this Q3 filter.
+                const float sine=std::sin(omega),cosine=static_cast<float>(std::cos(static_cast<double>(omega))),alpha=sine/(q*2.0f);
                 const float reciprocal=1.0f/(alpha+1.0f);
                 float numerator=highPass ? cosine+1.0f : 1.0f-cosine;
                 b0=(numerator*.5f)*reciprocal;b1=(highPass ? -numerator : numerator)*reciprocal;b2=b0;
@@ -42,7 +43,7 @@ namespace synth2::dsp
         {
             if(first!=previous[0])
             {
-                drive=static_cast<float>(std::pow(10.0f,((first*(1.0f/127.0f))*70.0f-10.0f)*.05f));
+                drive=static_cast<float>(std::pow(10.0,((first*(1.0/127.0))*70.0-10.0)*.05));
                 const float v=(drive+1.0f)*(drive+1.0f)*drive+1.0f;
                 normalization=1.0f/(-1.0f/v+1.0f);
                 normalizationOne=2.0f/BiasedOverdriveKernel::shape(drive);
@@ -90,7 +91,7 @@ namespace synth2::dsp
     private:
         void configureFilters() noexcept
         {
-            const float frequency=static_cast<float>(std::exp(std::log(40.0f)*(tone*(1.0f/127.0f)))*400.0f);
+            const float frequency=static_cast<float>(std::exp(std::log(40.0)*(tone*(1.0/127.0)))*400.0);
             filters[0].configure(frequency,3.0f,sampleRate,false);filters[1].configure(100.0f,2.3f,sampleRate,true);
         }
         int sampleRate=44100,silentFrames=0;float tone=64;

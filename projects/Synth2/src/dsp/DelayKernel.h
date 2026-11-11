@@ -20,7 +20,7 @@ namespace synth2::dsp
                 || !std::isfinite(spread) || seconds<0 || seconds>100 || std::abs(spread)>1)return false;
             kind=type;
             sampleRate=rate;timeSeconds=seconds;spreadSeconds=spread;
-            slewCoefficient=-std::expm1(-0.6931471805599453f/(static_cast<float>(rate)*.15f));
+            slewCoefficient=static_cast<float>(1.0-std::pow(.5,1.0/static_cast<double>(static_cast<float>(rate)*.15f)));
             updateTargets();
             feedbackGain=std::min(.999f,std::max(0.0f,feedback*(1.0f/127.0f)));
             mix=std::clamp(mix,0,127);
@@ -47,18 +47,18 @@ namespace synth2::dsp
         }
         // Control adapters interpolate compatible integer-setting frame targets
         // before entering this kernel. Keep their fractional coordinates intact.
-        bool setFrameTargets(float leftFrames,float rightFrames) noexcept
+        bool setFrameTargets(double leftFrames,double rightFrames) noexcept
         {
             if(!std::isfinite(leftFrames) || !std::isfinite(rightFrames))return false;
-            const float minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
-            targetLeft=std::clamp(leftFrames,minimum,131072.0f-256.0f);
-            targetRight=std::clamp(rightFrames,minimum,131072.0f-256.0f);
+            const double minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
+            targetLeft=std::clamp(leftFrames,minimum,131072.0-256.0);
+            targetRight=std::clamp(rightFrames,minimum,131072.0-256.0);
             left=static_cast<int>(targetLeft);right=static_cast<int>(targetRight);
             updateSlew();
             updateTail();return true;
         }
-        float getLeftFramesContinuous() const noexcept {return targetLeft;}
-        float getRightFramesContinuous() const noexcept {return targetRight;}
+        double getLeftFramesContinuous() const noexcept {return targetLeft;}
+        double getRightFramesContinuous() const noexcept {return targetRight;}
         void setFeedbackDial(float dial) noexcept
         {
             feedbackGain=std::min(.999f,std::clamp(dial,0.0f,127.0f)*(1.0f/127.0f));updateTail();
@@ -121,8 +121,8 @@ namespace synth2::dsp
         }
         int getLeftFrames() const noexcept {return left;}
         int getRightFrames() const noexcept {return right;}
-        float getCurrentLeft() const noexcept {return currentLeft;}
-        float getCurrentRight() const noexcept {return currentRight;}
+        double getCurrentLeft() const noexcept {return currentLeft;}
+        double getCurrentRight() const noexcept {return currentRight;}
         bool isSlewing() const noexcept {return slewing;}
         int getTailFrames() const noexcept {return tailFrames;}
         int getSilentFrames() const noexcept {return silentFrames;}
@@ -150,9 +150,9 @@ namespace synth2::dsp
                 currentLeft=targetLeft;currentRight=targetRight;distanceLeft=distanceRight=0;
             }
         }
-        float continuousTap(float position,int channel) const noexcept
+        float continuousTap(double position,int channel) const noexcept
         {
-            position=std::fmod(position,131072.0f);if(position<0)position+=131072.0f;
+            position=std::fmod(position,131072.0);if(position<0)position+=131072.0f;
             const int at=static_cast<int>(position),next=(at+1)&mask;
             const float fraction=static_cast<float>(position-at);
             const float a=kind==2 ? ring[(channel==0 ? 0 : second)+at] : ring[2*at+channel];
@@ -168,8 +168,8 @@ namespace synth2::dsp
                 {
                     // The target-relative state keeps shrinking even when an
                     // absolute-frame increment would round back to itself.
-                    distanceLeft-=distanceLeft*slewCoefficient;
-                    distanceRight-=distanceRight*slewCoefficient;
+                    distanceLeft-=distanceLeft*static_cast<double>(slewCoefficient);
+                    distanceRight-=distanceRight*static_cast<double>(slewCoefficient);
                     if(std::abs(distanceLeft)<.1f)distanceLeft=0;
                     if(std::abs(distanceRight)<.1f)distanceRight=0;
                     currentLeft=targetLeft+distanceLeft;currentRight=targetRight+distanceRight;
@@ -206,7 +206,7 @@ namespace synth2::dsp
         {
             const int old=tailFrames;
             const int repeats=feedbackGain==0 ? 0
-                : static_cast<int>(std::log(1.0f/32768.0f)/std::log(static_cast<float>(feedbackGain)));
+                : static_cast<int>(std::log(1.0/32768.0)/std::log(static_cast<double>(feedbackGain)));
             // Native imul keeps the low 32 bits, including overflow for a long
             // type-2 delay with high feedback. Avoid signed-overflow UB here.
             const uint32_t bits=static_cast<uint32_t>(repeats+2)*static_cast<uint32_t>(std::max(left,right))
@@ -225,11 +225,11 @@ namespace synth2::dsp
             toneBypassed=tone==64;
             if(toneBypassed){toneB0=1; toneB1=toneFeedback=0;return;}
             const float normalized=tone<64 ? tone*(1.0f/63.0f) : (tone-65)*(1.0f/62.0f);
-            const float cutoff=static_cast<float>(tone<64 ? std::pow(110.0f,normalized)*200.0f
-                : std::pow(800.0f,normalized)*10.0f);
-            const float frequency=(cutoff*2.0f)*3.14159265358979323846f;
-            const float twiceRate=static_cast<float>(rate)*2.0f;
-            const float inverse=static_cast<float>(1.0f/static_cast<float>(frequency+twiceRate));
+            const float cutoff=static_cast<float>(tone<64 ? std::pow(110.0,normalized)*200.0
+                : std::pow(800.0,normalized)*10.0);
+            const float frequency=static_cast<float>(static_cast<double>(cutoff*2.0f)*3.14159265358979323846);
+            const float twiceRate=static_cast<float>(static_cast<double>(rate)*2.0);
+            const float inverse=static_cast<float>(1.0/static_cast<double>(frequency+twiceRate));
             toneB0=(tone<64 ? frequency : twiceRate)*inverse;
             toneB1=tone<64 ? toneB0 : -toneB0;
             toneFeedback=(twiceRate-frequency)*inverse;
@@ -240,10 +240,10 @@ namespace synth2::dsp
         std::array<float,2> previousInput {},previousOutput {};
         int sampleRate{44100};
         float timeSeconds{},spreadSeconds{},slewCoefficient{};
-        float currentLeft{256},currentRight{256};
-        float distanceLeft{},distanceRight{};
+        double currentLeft{256},currentRight{256};
+        double distanceLeft{},distanceRight{};
         bool enabled{true},slewing{};
-        float targetLeft{256},targetRight{256};
+        double targetLeft{256},targetRight{256};
         int tailFrames{1},silentFrames{99999999};
         float toneFeedback{},toneB0{1},toneB1{};
         bool toneBypassed{true};

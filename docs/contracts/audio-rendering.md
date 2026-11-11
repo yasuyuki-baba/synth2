@@ -158,7 +158,7 @@ native frame anchors before interpolating fractional time/spread controls and
 processing taps, preserving the native four-frame alignment at those anchors.
 This does not introduce a new sync mode or beat table.
 Delay time/spread interpolate the compatible frame targets after native alignment
-and clamping. Fractional targets retain Float32 sample coordinates and use causal
+and clamping. Fractional targets retain real sample coordinates and use causal
 linear taps. Chorus base delay and period interpolate compatible sample-count
 anchors. All Chorus time/depth/rate settings use common real tap coordinates and
 modulation extent, including mirrored taps. Integer control knots retain their
@@ -166,7 +166,8 @@ compatible modulation amplitudes; sample processing does not quantize tap positi
 to 16 fractional bits. Integer settings retain the native oscillator recurrence,
 phase update and retirement timing. The Chorus recursive modulation clock retains
 its FP32 phase/coefficient words: its block reset comparison depends on those words.
-Audio delay lines, tap interpolation and feedback signal histories remain Float32.
+Audio delay-line samples and feedback audio histories remain Float32; moving
+delay coordinates retain double precision.
 Keep Chorus ring indices separate from fractional tap offsets so the integer
 cursor and ring wrapping do not reduce sub-sample interpolation precision.
 Ring frequency/phase-step knots and Phaser sweep-factor knots retain compatible
@@ -283,22 +284,26 @@ audio equivalence. See [validation](validation.md).
 
 ## Bounded precision improvements
 
-Internal audio, continuous controls, coefficients and signal histories use
-Float32 throughout waveform reads, physical filters, VCA/pan, voice accumulation,
-oversampling and output effects. The bridge uses Float32 scratch storage and
+Audio buses and most signal histories use Float32. Diode filter states and
+sample arithmetic, moving delay positions and coefficient-generation
+intermediates retain double precision where their numerical requirements demand
+it. Preserve the precision of the original calculation rather than imposing one
+scalar type throughout waveform reads, filters, VCA/pan and output effects. The bridge uses Float32 scratch storage and
 applies transition gains before copying to float host outputs or widening to
 double host outputs. Both host formats execute the same DSP path. UI geometry,
 host parameter APIs and serialized state/diagnostic formats remain separate
 boundaries; they cannot select another processing precision.
 
-Use float constants and float math overloads for sample processing. LP24/SVF
+Use the arithmetic precision required by each kernel. LP24/SVF
 coefficient preparation preserves double intermediates for frequency mapping,
 LP24 pole/feedback and smoothing expressions, and SVF sine/gain preparation.
-Round the resulting coefficients to Float32 before the common Float32 sample
-recurrence. This applies to integral and fractional controls without a precision
+Round the resulting ordinary-filter coefficients to Float32 before their sample
+recurrences. Tone/EQ and Overdrive coefficient calculations also preserve their
+double intermediates. The diode kernel retains double states and sample
+arithmetic before rounding its output to the Float32 audio bus. This applies to integral and fractional controls without a precision
 selector or a second renderer. Prepared waveform
 constants keep their calibrated Float32 definitions; offline generation of those
-constants does not introduce a runtime double path. Prepared time/rate/spread
+constants preserves their storage precision. Prepared time/rate/spread
 words preserve integer event/tap boundaries. Tuning uses Float32 table words and
 FMA compensation to avoid prematurely rounding the exponential ratio before its
 frequency product; control inputs and returned frequencies remain Float32. FM source/control integer

@@ -123,7 +123,7 @@ namespace synth2::dsp
         static int pitchDepth(int dial) noexcept
         {
             const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
-            const float curve=static_cast<float>((std::pow(10.0f,static_cast<float>(unit))-1.0f)*(1.0f/9.0f));
+            const float curve=static_cast<float>((std::pow(10.0,static_cast<double>(unit))-1.0)*(1.0/9.0));
             return static_cast<int>((curve*5.0f)*128.0f);
         }
         static int bipolarControl(int depth,float sample) noexcept
@@ -165,7 +165,7 @@ namespace synth2::dsp
         static int step(int rateDial) noexcept
         {
             const float unit=static_cast<float>(std::clamp(rateDial,0,127))*(1.0f/127.0f);
-            const float frequency=static_cast<float>(std::pow(1500.0f,static_cast<float>(unit))*(1.0f/12.0f));
+            const float frequency=static_cast<float>(std::pow(1500.0,static_cast<double>(unit))*(1.0/12.0));
             return frequency>10.0f ? 32 : 64;
         }
 

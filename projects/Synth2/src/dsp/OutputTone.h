@@ -20,11 +20,11 @@ namespace synth2::dsp
             dial = std::clamp (value,0,127);
             const bool high = dial > 64;
             const float exponent = static_cast<float> (high ? dial-64 : dial) * (1.0f/64.0f);
-            frequency = static_cast<float> (std::pow (high ? 800.0f : 110.0f,static_cast<float> (exponent)) * (high ? 10.0f : 200.0f));
+            frequency = static_cast<float> (std::pow (high ? 800.0 : 110.0,static_cast<double> (exponent)) * (high ? 10.0 : 200.0));
             bypass = high ? frequency <= 1.0f : frequency >= sampleRate/2;
-            const float rate2 = static_cast<float> (sampleRate*2.0f);
-            const float omega = static_cast<float> (static_cast<float> (frequency*2.0f) * 3.141592653589793f);
-            const float inverse = static_cast<float> (1.0f/static_cast<float> (rate2+omega));
+            const float rate2 = static_cast<float> (sampleRate*2.0);
+            const float omega = static_cast<float> (static_cast<double> (frequency*2.0f) * 3.141592653589793);
+            const float inverse = static_cast<float> (1.0/static_cast<double> (rate2+omega));
             b = (high ? rate2 : omega) * inverse;
             feedback = (rate2-omega) * inverse;
             b0=bypass ? 1.0f : b;

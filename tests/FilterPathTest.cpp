@@ -107,3 +107,18 @@ TEST(FilterPath, CoefficientPreparationPreservesAnalyticPrecisionBeforeFloatStor
         }
     }
 }
+
+TEST(FilterPath, DiodeRetainsTailStateBelowFloatSampleRange)
+{
+    synth2::dsp::DiodeKernel diode;
+    diode.configure(44100,128,.5f);
+    diode.process(1.e-30f);
+    for(int i=0;i<32768;++i)diode.process(0.f);
+    bool retained=false;
+    for(auto value:diode.readState())
+    {
+        EXPECT_TRUE(std::isfinite(value));
+        retained|=std::abs(value)>0 && std::abs(value)<static_cast<double>(std::numeric_limits<float>::denorm_min());
+    }
+    EXPECT_TRUE(retained);
+}
