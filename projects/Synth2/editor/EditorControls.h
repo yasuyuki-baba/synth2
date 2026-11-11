@@ -127,4 +127,23 @@ private:
     std::function<void(const char*)> onChange;
     std::string placeholder;
 };
+
+// Click the value to type a percentage; the arrow opens the preset menu.
+class DisplayScaleControl final : public IControl
+{
+public:
+    DisplayScaleControl(const IRECT& bounds,std::function<void(float)> change);
+    void Draw(IGraphics& graphics) override;
+    void OnMouseDown(float x,float y,const IMouseMod& mod) override;
+    void OnMouseDblClick(float x,float y,const IMouseMod& mod) override;
+    void OnTextEntryCompletion(const char* text,int value) override;
+    void OnPopupMenuSelection(IPopupMenu* selection,int value) override;
+    void setScale(float scale);
+private:
+    IRECT valueBounds() const;
+    std::function<void(float)> onChange;
+    IPopupMenu menu;
+    std::string text="100%";
+    float scale=1.f;
+};
 }

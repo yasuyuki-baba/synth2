@@ -1,4 +1,5 @@
 #include "editor/EditorResize.h"
+#include "editor/EditorDisplayScale.h"
 #include "editor/EditorLibraryScroll.h"
 #include "editor/EditorLibraryNavigation.h"
 #include <gtest/gtest.h>
@@ -194,4 +195,30 @@ TEST(EditorResize, ParentOwnedBoundsKeepTheEffectsAndFooterVisible)
             }
         }
     }
+}
+
+TEST(EditorDisplayScale, AcceptsPercentagesWithoutDependingOnLocale)
+{
+    EXPECT_FLOAT_EQ(*editorScaleFromText("50"),.5f);
+    EXPECT_FLOAT_EQ(*editorScaleFromText("400%"),4.f);
+    EXPECT_FLOAT_EQ(*editorScaleFromText(" 125.5 % "),1.255f);
+    EXPECT_EQ(editorScaleText(1.f),"100%");
+    EXPECT_EQ(editorScaleText(1.255f),"125.5%");
+    EXPECT_EQ(editorScaleText(990.f/840.f),"117.9%");
+    for(const auto* text:{"","%","49.9","400.1","0","-100","nan","inf",
+                          "1e100","125,5","100%%","100%garbage","100 200"})
+        EXPECT_FALSE(editorScaleFromText(text))<<text;
+    for(const int percent:editorScaleChoices)
+        EXPECT_FLOAT_EQ(*editorScaleFromText(std::to_string(percent)+"%"),percent/100.f);
+}
+
+TEST(EditorDisplayScale, ActualScaleCanDifferFromTheRequestedPercentage)
+{
+    // A host/WM may keep a 1280x840 parent after the user requests 150%.
+    const auto requested=*editorScaleFromText("150%");
+    const auto accepted=*editorResizeScale(1280,840,1,false);
+    EXPECT_GT(requested,accepted);
+    EXPECT_EQ(editorScaleText(accepted),"100%");
+    EXPECT_EQ(editorScaleText(*editorResizeScale(2560,1680,2,false)),"100%");
+    EXPECT_EQ(editorScaleText(*editorResizeScale(1280,936,1,true)),"100%");
 }

@@ -9,6 +9,7 @@
 #include "editor/EditorFonts.h"
 #include "editor/EditorKeyboardControl.h"
 #include "editor/EditorKeyboardFocus.h"
+#include "editor/EditorWindowBounds.h"
 #include <algorithm>
 
 using namespace iplug;
@@ -19,6 +20,7 @@ void Synth2::OnParentWindowResize(int width,int height)
 {
     auto* graphics=GetUI();
     if(!graphics || resizingParentWindow)return;
+    reconcileEditorScale=false;
     const auto scale=synth2::editor::editorResizeScale(width,height,
         graphics->GetPlatformWindowScale(),keyboardVisible);
     if(!scale)return;
@@ -30,6 +32,44 @@ void Synth2::OnParentWindowResize(int width,int height)
     const auto windowHeight=static_cast<int>(graphics->WindowHeight()*graphics->GetPlatformWindowScale());
     SetEditorSize(windowWidth,windowHeight);
     resizingParentWindow=false;
+    refreshEditorScale();
+}
+
+void Synth2::requestEditorScale(float scale)
+{
+    auto* graphics=GetUI();
+    if(!graphics || !std::isfinite(scale))return;
+    scale=std::clamp(scale,synth2::editor::editorMinimumScale,synth2::editor::editorMaximumScale);
+#if defined(APP_API)
+    if(const auto bounds=editorWindowBounds(graphics->GetWindow(),true))
+        if(const auto fit=synth2::editor::editorResizeScale(bounds->maximumWidth,bounds->maximumHeight,
+            graphics->GetPlatformWindowScale(),keyboardVisible))scale=std::min(scale,*fit);
+#endif
+    releaseComputerNotes();
+    reconcileEditorScale=true;
+#if defined(APP_API)
+    // Request an exact client size, including when the old parent contains
+    // unused space. The SDK's relative parent delta would retain that space.
+    graphics->Resize(PLUG_WIDTH,keyboardVisible ? 936 : PLUG_HEIGHT,scale,false);
+    requestStandaloneWindowSize(graphics->GetWindow(),
+        static_cast<int>(graphics->WindowWidth()*graphics->GetPlatformWindowScale()),
+        static_cast<int>(graphics->WindowHeight()*graphics->GetPlatformWindowScale()));
+#else
+    graphics->Resize(PLUG_WIDTH,keyboardVisible ? 936 : PLUG_HEIGHT,scale);
+#endif
+    // Hosts/WM may reject or adjust the request, or deliver their size later.
+    // Re-read the parent on the next UI tick rather than displaying a request
+    // as though it were the accepted scale.
+    refreshEditorScale();
+}
+
+void Synth2::refreshEditorScale()
+{
+    if(auto* graphics=GetUI()) {
+        editorScale=graphics->GetDrawScale();
+        if(auto* control=graphics->GetControlWithTag(displayScaleTag))
+            control->As<DisplayScaleControl>()->setScale(editorScale);
+    }
 }
 
 void Synth2::layoutEditor(IGraphics* graphics)
@@ -108,14 +148,17 @@ void Synth2::layoutEditor(IGraphics* graphics)
         }
     }
     graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near)),statusTag);
-    graphics->AttachControl(new ITextControl(IRECT(542,802,930,826),"Click a value to type  /  Drag corner to scale",
+    graphics->AttachControl(new ITextControl(IRECT(542,802,768,826),"Drag corner to scale",
         text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Far)));
-    auto* quality=new ActionButtonControl(IRECT(944,802,1088,830),[this](IControl* caller){showOversamplingMenu(caller);},
+    auto* quality=new ActionButtonControl(IRECT(780,802,928,830),[this](IControl* caller){showOversamplingMenu(caller);},
         ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),
         style.WithColor(kBG,background).WithColor(kFG,background).WithColor(kFR,background)
             .WithDrawFrame(false).WithLabelText(text.WithSize(Typography::auxiliary).WithFGColor(muted)));
     quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
     graphics->AttachControl(quality,oversamplingTag);
+    graphics->AttachControl(new DisplayScaleControl(IRECT(944,802,1088,830),
+        [this](float scale){requestEditorScale(scale);}),displayScaleTag);
+    refreshEditorScale();
     auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
     keyboard->SetText(text);
     graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
@@ -234,6 +277,17 @@ void Synth2::showOversamplingMenu(IControl* caller)
 }
 void Synth2::OnIdle()
 {
+    if(reconcileEditorScale && GetUI()) {
+        reconcileEditorScale=false;
+#if defined(APP_API)
+        constexpr bool standalone=true;
+#else
+        constexpr bool standalone=false;
+#endif
+        if(const auto bounds=editorWindowBounds(GetUI()->GetWindow(),standalone))
+            OnParentWindowResize(bounds->width,bounds->height);
+    }
+    refreshEditorScale();
     if(displayedOversampling!=processor.oversamplingFactor())refreshOversampling();
     updateKeyboardInput();
     if (importPrompt && !conflictShown && GetUI())
@@ -325,6 +379,8 @@ void Synth2::OnUIOpen()
 }
 void Synth2::OnUIClose()
 {
+    refreshEditorScale();
+    reconcileEditorScale=false;
     releaseKeyboardNotes();
     keyboardVisible=false;
     dialogLifetime.reset();
@@ -343,7 +399,7 @@ void Synth2::setKeyboardVisible(bool visible)
         if(auto* toggle=graphics->GetControlWithTag(keyboardToggleTag)) {
             toggle->SetValue(visible ? 1. : 0.);toggle->SetDirty(false);
         }
-        graphics->Resize(PLUG_WIDTH,visible ? 936 : PLUG_HEIGHT,graphics->GetDrawScale());
+        requestEditorScale(graphics->GetDrawScale());
         graphics->SetAllControlsDirty();
     }
 }

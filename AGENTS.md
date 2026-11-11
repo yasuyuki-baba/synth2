@@ -43,7 +43,9 @@
   beside Keyboard; use shared readable type sizes across Synth/MIDI/Library,
   reserving room for labels and values rather than shrinking choice text.
   Window-frame dragging scales the complete GUI just like the corner handle;
-  retain logical bounds and platform-scale handling without adding zoom menus.
+  retain logical bounds and platform-scale handling. The footer orders
+  Oversampling, editable display scale and Keyboard. Display scale is UI-only,
+  reflects accepted geometry and stays separate from sound/state automation.
   On every platform, parent resize notifications fit both bounds while preserving
   the canvas aspect ratio; do not resize the parent again from its notification.
   Do not introduce unsupported instrument

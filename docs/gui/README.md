@@ -38,13 +38,27 @@ ratios leave unused space rather than stretching or clipping the canvas. This
 policy applies equally to ordinary dragging, maximization and tiling layouts.
 The corner handle also scales the UI. Both paths retain the scale when the
 software keyboard changes the logical height. Platform pixel scaling is accounted
-for separately; there is no zoom selector. Bounds below the minimum scaled canvas
+for separately. Bounds below the minimum scaled canvas
 size cannot contain the full canvas at the supported minimum scale.
 
-The persistent footer places the oversampling selector just left of **Keyboard**.
+The persistent footer orders **Oversampling**, **Scale**, then **Keyboard**.
 It uses a small muted label without a button frame, keeps the current multiplier
 visible, and opens the existing quality menu on click. Quality remains available
 in every view; moving it does not change processing, latency or session recall.
+
+**Scale** is an editable percentage with a dropdown arrow. The arrow offers
+50/75/100/125/150/175/200%; clicking the numeric value accepts direct input from
+50 to 400%, including decimals and an optional percent sign. Enter commits and
+Escape cancels; invalid or out-of-range input preserves the current view.
+100% means the logical editor size before OS DPI scaling. Requests preserve the
+canvas aspect ratio. Standalone requests are limited to the desktop work area;
+the WM or plugin host owns the accepted parent bounds. If the requested size is
+adjusted or refused, the canvas fits the actual bounds and the field shows the
+accepted scale, rounded to one decimal place. Frame/corner resizing and keyboard
+height changes update that readout too. The scale remains available in every
+view and survives closing/reopening the editor within the same instance. It is
+not a sound parameter, an automation parameter or part of serialized patch/project
+state; a new instance requests 100% within its available bounds.
 
 The footer's **Keyboard** toggle opens/closes the software keyboard on every
 view. It starts closed; opening increases the logical editor height from 840 to

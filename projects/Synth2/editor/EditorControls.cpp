@@ -7,6 +7,7 @@
 #include "editor/EditorValueDisplay.h"
 #include "editor/EditorTextFit.h"
 #include "editor/EditorLibraryColumns.h"
+#include "editor/EditorDisplayScale.h"
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -340,5 +341,61 @@ void SearchControl::Draw(IGraphics& g) {
 void SearchControl::OnTextEntryCompletion(const char* text, int value) {
     IEditableTextControl::OnTextEntryCompletion(text,value);
     onChange(text);
+}
+
+DisplayScaleControl::DisplayScaleControl(const IRECT& bounds,std::function<void(float)> change)
+    : IControl(bounds),onChange(std::move(change))
+{
+    SetTooltip("Type a display percentage (50–400%), or click the arrow to choose. Shows the actual UI scale, excluding OS DPI scaling.");
+}
+
+IRECT DisplayScaleControl::valueBounds() const {
+    return IRECT(mRECT.L+42,mRECT.T,mRECT.R-22,mRECT.B);
+}
+
+void DisplayScaleControl::setScale(float next) {
+    if(next==scale)return;
+    scale=next;
+    auto label=synth2::editor::editorScaleText(next);
+    if(label==text)return;
+    text=std::move(label);SetDirty(false);
+}
+
+void DisplayScaleControl::Draw(IGraphics& g) {
+    const IText label{Typography::auxiliary,muted,"Synth2UI"};
+    g.DrawText(label,"Scale",IRECT(mRECT.L,mRECT.T,mRECT.L+40,mRECT.B));
+    const auto box=IRECT(mRECT.L+42,mRECT.T,mRECT.R,mRECT.B);
+    g.FillRoundRect(panel,box,3.f);
+    g.DrawRoundRect(color(appearance.controlEdge),box,3.f,nullptr,.5f);
+    g.DrawText(label.WithFGColor(ink),text.c_str(),valueBounds());
+    const float x=mRECT.R-11,y=mRECT.MH();
+    g.FillTriangle(muted,x-4,y-2,x+4,y-2,x,y+3);
+}
+
+void DisplayScaleControl::OnMouseDown(float x,float,const IMouseMod&) {
+    if(x>=valueBounds().L && x<valueBounds().R)
+        GetUI()->CreateTextEntry(*this,IText(Typography::auxiliary,ink,"Synth2UI"),valueBounds(),text.c_str());
+    else {
+        menu.Clear();
+        for(const int percent:synth2::editor::editorScaleChoices)
+            menu.AddItem((std::to_string(percent)+"%").c_str())->SetChecked(std::abs(scale*100.f-percent)<.05f);
+        GetUI()->CreatePopupMenu(*this,menu,mRECT);
+    }
+}
+
+void DisplayScaleControl::OnMouseDblClick(float x,float y,const IMouseMod& mod) {
+    OnMouseDown(x,y,mod);
+}
+
+void DisplayScaleControl::OnTextEntryCompletion(const char* value,int) {
+    if(const auto requested=synth2::editor::editorScaleFromText(value ? value : ""))onChange(*requested);
+    SetDirty(false);
+}
+
+void DisplayScaleControl::OnPopupMenuSelection(IPopupMenu* selection,int) {
+    if(!selection)return;
+    const int index=selection->GetChosenItemIdx();
+    if(index>=0 && index<static_cast<int>(synth2::editor::editorScaleChoices.size()))
+        onChange(synth2::editor::editorScaleChoices[index]/100.f);
 }
 }
