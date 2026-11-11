@@ -284,8 +284,13 @@ namespace synth2
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
         std::array<float,8> coarseFrequencies;
+        std::array<float,8> corePans;
         for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
+        {
             coreTuning[v]=tuning.prepareCore(unison.pitchCents[layoutSlot(v)]);
+            corePans[v]=dsp::Unison::panOffset(numUnison,layoutSlot(v),params.unisonPan);
+            dsp::FilterAudioRenderer::configure(cores[v]->filter,filterAudio);
+        }
 
         for (int v = 0; v < activeCoreCount(); ++v) {
             if (cores[v] == nullptr) continue;
@@ -322,7 +327,7 @@ namespace synth2
             for (int v = 0; v < activeCoreCount(); ++v)
             {
                 if (!renderCore[v]) continue;
-                const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
+                const float panAmt = corePans[v];
 
                 auto coreFrequency=coreTuning[v];
                 if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)

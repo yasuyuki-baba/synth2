@@ -249,3 +249,8 @@ Poly admission regressions cover newest-note identity for Unison groups within
 physical budgets, including non-divisible budgets and partial groups. Mono
 reselection covers first entry from Poly through program and state recall,
 Note Off and pedal-up, for Mono and Legato modes.
+
+`FilterResponse.IndexedSpansPreserveFixedSettingsBypassAndRetainedHistory`
+compares span configuration against repeated sample configuration bit for bit,
+including changing modes, resonance and saturation, bypass/resume and retained
+filter memory at integral and fractional sample rates.
