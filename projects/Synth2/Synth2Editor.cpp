@@ -22,7 +22,7 @@ void Synth2::OnParentWindowResize(int width,int height)
     if(!graphics || resizingParentWindow)return;
     reconcileEditorScale=false;
     const auto scale=synth2::editor::editorResizeScale(width,height,
-        graphics->GetPlatformWindowScale(),keyboardVisible);
+        graphics->GetPlatformWindowScale(),keyboardVisible,graphics->GetDrawScale());
     if(!scale)return;
     resizingParentWindow=true;
     // The parent already changed size. Suppress the SDK's relative parent
