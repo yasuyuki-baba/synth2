@@ -263,8 +263,10 @@ See [source strategies](docs/architecture/source-conversion.md),
 
 ## Compatibility and real-time behavior
 
-- Use float for internal audio, continuous controls, arithmetic and signal history.
-  Keep one Float32 DSP path; double host buffers are widened at the output boundary.
+- Use float for internal audio, continuous controls, sample arithmetic and signal history.
+  LP24/SVF coefficient preparation retains compatible double intermediates before
+  rounding coefficients to Float32; do not narrow those calculations.
+  Keep one Float32 signal path; double host buffers are widened at the output boundary.
   Do not reintroduce a double renderer or sub-float control interpolation. Preserve
   compatible integer words explicitly and measure audio compatibility and CPU cost.
 - Precision changes must preserve DLL-compatible legacy loading: resolve the

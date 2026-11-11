@@ -291,7 +291,12 @@ double host outputs. Both host formats execute the same DSP path. UI geometry,
 host parameter APIs and serialized state/diagnostic formats remain separate
 boundaries; they cannot select another processing precision.
 
-Use float constants and float math overloads in runtime DSP. Prepared waveform
+Use float constants and float math overloads for sample processing. LP24/SVF
+coefficient preparation preserves double intermediates for frequency mapping,
+LP24 pole/feedback and smoothing expressions, and SVF sine/gain preparation.
+Round the resulting coefficients to Float32 before the common Float32 sample
+recurrence. This applies to integral and fractional controls without a precision
+selector or a second renderer. Prepared waveform
 constants keep their calibrated Float32 definitions; offline generation of those
 constants does not introduce a runtime double path. Prepared time/rate/spread
 words preserve integer event/tap boundaries. Tuning uses Float32 table words and
