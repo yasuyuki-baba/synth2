@@ -129,15 +129,15 @@ namespace synth2::dsp
                 const float clockCoefficient=static_cast<float>(coefficient);
                 phaseSin-=clockCoefficient*phaseCos;
                 phaseCos+=phaseSin*clockCoefficient;
-                const float base=read-(delayExtent-delayFrames);
-                const float leftPosition=base+phaseExtent*phaseSin;
-                const float rightPosition=type==1 ? leftPosition : base+phaseExtent*phaseCos;
-                const float left=continuousTap(leftPosition,0);
-                const float right=continuousTap(rightPosition,1);
+                const float baseOffset=-(delayExtent-delayFrames);
+                const float leftOffset=baseOffset+phaseExtent*phaseSin;
+                const float rightOffset=type==1 ? leftOffset : baseOffset+phaseExtent*phaseCos;
+                const float left=continuousTap(leftOffset,0);
+                const float right=continuousTap(rightOffset,1);
                 if(type==4)
                 {
-                    const float mirrorLeft=continuousTap(2.0f*base-leftPosition,0);
-                    const float mirrorRight=continuousTap(2.0f*base-rightPosition,1);
+                    const float mirrorLeft=continuousTap(2.0f*baseOffset-leftOffset,0);
+                    const float mirrorRight=continuousTap(2.0f*baseOffset-rightOffset,1);
                     const float leftCross=left*.1f+mirrorLeft*.9f;
                     float leftMix=left*.9f+mirrorLeft*.1f;leftMix+=right*.7f;
                     leftMix=mirrorRight*.3f+leftMix;
@@ -190,11 +190,13 @@ namespace synth2::dsp
                 phaseExtent+=amplitude*weight;
             }
         }
-        float continuousTap(float position,int channel) const noexcept
+        float continuousTap(float offset,int channel) const noexcept
         {
-            position=std::fmod(position,8192.0f);if(position<0)position+=8192.0f;
-            const int index=static_cast<int>(position),next=(index+1)&mask;
-            const float fraction=static_cast<float>(position-index);
+            // Keep the fractional offset independent of the integer ring cursor.
+            // Adding the cursor first discards low fractional bits in Float32.
+            const float whole=std::floor(offset);
+            const float fraction=offset-whole;
+            const int index=(read+static_cast<int>(whole))&mask,next=(index+1)&mask;
             const float a=ring[2*index+channel],b=ring[2*next+channel];
             return a+(b-a)*fraction;
         }
