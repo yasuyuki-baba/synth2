@@ -128,9 +128,10 @@ TEST(FilterResponse, IndexedSpansPreserveFixedSettingsBypassAndRetainedHistory)
         for(int span=0;span<4;++span)
         {
             const FilterAudioSettings config{(mode+span)%5,span%2 ? .6f : .1f,span%2 ? .4f : 0.f,span==2};
-            reference.setParams(config.type,0,config.resonance,0,0,config.saturation);
+            FilterAudioRenderer::configure(candidate,config);
             for(int sample=0;sample<64;++sample)
             {
+                reference.setParams(config.type,0,config.resonance,0,0,config.saturation);
                 const float signal=sample%17==0 ? .01f : -.0001f;
                 const int index=800-sample*7;
                 const int expectedIndex=span==1 ? 0 : span==3 ? 1023 : index;
