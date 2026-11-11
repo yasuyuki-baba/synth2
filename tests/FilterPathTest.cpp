@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "dsp/Filter.h"
 #include <cmath>
+#include <bit>
 
 TEST(FilterPath, SelectedCompatibleKernelKeepsTheSameStateAcrossResonance112)
 {
@@ -149,6 +150,35 @@ TEST(FilterPath, ResonanceCacheMatchesForcedFrequencyPreparation)
                 EXPECT_EQ(diode.process(input),diodeReference.process(input));
             }
             EXPECT_EQ(diode.readState(),diodeReference.readState());
+        }
+    }
+}
+
+TEST(FilterPath, DiodeHighpassCacheMatchesForcedPreparationAcrossRegionsAndRates)
+{
+    synth2::dsp::DiodeKernel candidate,reference;
+    for(int pass=0;pass<3;++pass)
+    {
+        if(pass==1){candidate.reset();reference.reset();}
+        for(int rate:{8000,44100,48000,48001,96000,44100})
+        for(float index:{0.f,128.f,218.f,220.f,256.f,379.f,382.f,512.f,1023.f,382.f,256.f,0.f})
+        for(float resonance:{.1f,.9f,1.f})
+        {
+            SCOPED_TRACE(::testing::Message()<<pass<<" / "<<rate<<" / "<<index<<" / "<<resonance);
+            // A temporary rate change forces all frequency-dependent terms to
+            // refresh without advancing the five retained ladder states.
+            reference.configure(rate+1,index,resonance);
+            reference.configure(rate,index,resonance);
+            candidate.configure(rate,index,resonance);
+            for(int sample=0;sample<32;++sample)
+            {
+                const float input=std::sin(sample*.13f)*.01f;
+                EXPECT_EQ(std::bit_cast<uint32_t>(candidate.process(input)),
+                          std::bit_cast<uint32_t>(reference.process(input)));
+                for(size_t state=0;state<5;++state)
+                    EXPECT_EQ(std::bit_cast<uint64_t>(candidate.readState()[state]),
+                              std::bit_cast<uint64_t>(reference.readState()[state]));
+            }
         }
     }
 }

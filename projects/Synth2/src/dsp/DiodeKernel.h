@@ -43,9 +43,13 @@ namespace synth2::dsp
                     const double fraction=(std::log(cutoff)-lo)/(std::log(300.0)-lo);
                     highpass=std::exp(fraction*(std::log(120.0)-std::log(30.0))+std::log(30.0));
                 }
-                const double hpG=std::tan((highpass*3.141592653589793)*inverseRate);
-                hpA=1.0/(hpG+1.0);
-                hpB=(hpG*2.0)*hpA;hpNegative=-hpA;
+                if(rate!=lastRate || highpass!=lastHighpass)
+                {
+                    const double hpG=std::tan((highpass*3.141592653589793)*inverseRate);
+                    hpA=1.0/(hpG+1.0);
+                    hpB=(hpG*2.0)*hpA;hpNegative=-hpA;
+                    lastHighpass=highpass;
+                }
             }
             lastRate=rate;lastIndex=index;lastResonance=resonance;
             k=static_cast<double>(resonance)*15.0;
@@ -85,5 +89,6 @@ namespace synth2::dsp
         std::array<double,5> state{};
         int lastRate{-1},oversampling{1};double lastIndex{-1};float lastResonance{};
         double a{},G{},p{},b{},c{},d{},e{},f{},h{},ib{},ic{},ia{},hpA{},hpB{},hpNegative{},k{},feedback{},denominator{},scale{};
+        double lastHighpass{-1};
     };
 }
