@@ -17,8 +17,8 @@ Stereo impulse(int count=2048)
 }
 void finite(const Stereo& audio)
 { for(const auto& channel:audio) for(float value:channel) ASSERT_TRUE(std::isfinite(value)); }
-double tailEnergy(const std::vector<float>& audio)
-{ double energy=0; for(size_t i=1;i<audio.size();++i) energy+=double(audio[i])*audio[i]; return energy; }
+float tailEnergy(const std::vector<float>& audio)
+{ float energy=0; for(size_t i=1;i<audio.size();++i) energy+=float(audio[i])*audio[i]; return energy; }
 }
 
 TEST(EffectsBehavior, PipelineBypassPreservesDrySamplesWithAllEffectGroupsEnabled)
@@ -75,7 +75,7 @@ TEST(EffectsBehavior, StereoDelayAndSingleVoiceChorusDoNotLeakIntoTheOtherChanne
 
 TEST(EffectsBehavior, WetPairResetAndPrepareRestoreFreshImpulseResponse)
 {
-    for(double rate:{44100.,48000.,96000.}) for(int voices:{1,2,4}) for(bool fractional:{false,true})
+    for(float rate:{44100.f,48000.f,96000.f}) for(int voices:{1,2,4}) for(bool fractional:{false,true})
     {
         SCOPED_TRACE(rate);
         SCOPED_TRACE(voices);
@@ -107,7 +107,7 @@ TEST(EffectsBehavior, WetPairResetAndPrepareRestoreFreshImpulseResponse)
 
 TEST(EffectsBehavior, PhaserKeepsChannelHistorySeparateAndColdPrepareClearsIt)
 {
-    for(double rate:{44100.,96000.}) for(int pairs:{1,6})
+    for(float rate:{44100.f,96000.f}) for(int pairs:{1,6})
     {
         SCOPED_TRACE(rate);
         SCOPED_TRACE(pairs);
@@ -127,7 +127,7 @@ TEST(EffectsBehavior, PhaserKeepsChannelHistorySeparateAndColdPrepareClearsIt)
 
 TEST(EffectsBehavior, AllMultiEffectsRemainFiniteAndColdPrepareRestoresFreshState)
 {
-    for(int type=0;type<=5;++type) for(int dial:{0,64,127}) for(double rate:{44100.,96000.})
+    for(int type=0;type<=5;++type) for(int dial:{0,64,127}) for(float rate:{44100.f,96000.f})
     {
         SCOPED_TRACE(type);
         SCOPED_TRACE(dial);
@@ -153,7 +153,7 @@ TEST(EffectsBehavior, AllMultiEffectsRemainFiniteAndColdPrepareRestoresFreshStat
 
 namespace
 {
-Stereo wetRender(synth2::DelaySettings delay,synth2::ChorusSettings chorus,double rate=44100)
+Stereo wetRender(synth2::DelaySettings delay,synth2::ChorusSettings chorus,float rate=44100)
 {
     auto pair=std::make_unique<synth2::dsp::EffectPair>();
     pair->prepare(rate);pair->setParams(delay,chorus,120);
@@ -175,7 +175,7 @@ TEST(EffectsBehavior, FractionalDialRecoversEveryIntegerNormalizationWithoutDrop
 
 TEST(EffectsBehavior, FractionalWetEditingPreservesAllIntegerDialImpulseResponses)
 {
-    for(double rate:{44100.,96000.})for(int dial=0;dial<=127;++dial)
+    for(float rate:{44100.f,96000.f})for(int dial=0;dial<=127;++dial)
     {
         SCOPED_TRACE(rate);
         SCOPED_TRACE(dial);
@@ -229,4 +229,33 @@ TEST(EffectsBehavior, LiveSubIntegerWetEditsAreNotSuppressedByTheParameterCache)
     edited->process(a[0].data(),a[1].data(),2048);
     held->process(b[0].data(),b[1].data(),2048);
     finite(a);finite(b);EXPECT_NE(a,b);
+}
+
+TEST(EffectsBehavior, PhaserSweepFactorsKeepTheirWordsWhenDirectionChanges)
+{
+    synth2::dsp::Phaser phaser;
+    phaser.prepare(44100);phaser.setDials(96,127,64,2);
+    std::array<float,64> left{},right{};
+    int changes=0;bool rising=phaser.snapshot()[6]>1;
+    for(int block=0;block<500;++block)
+    {
+        phaser.process(left.data(),right.data(),64);
+        const float factor=phaser.snapshot()[6];
+        EXPECT_EQ(factor,static_cast<float>(static_cast<float>(factor)));
+        const bool next=factor>1;
+        changes+=next!=rising;rising=next;
+    }
+    EXPECT_GT(changes,2);
+}
+
+TEST(EffectsBehavior, RingFrequencyKnotsRetainTheirPhaseStepWords)
+{
+    synth2::dsp::MultiEffect effect;
+    effect.prepare(44100);
+    for(int dial:{0,32,64,96,120,127})
+    {
+        effect.setDials(dial,64,127);
+        const float step=effect.snapshot()[5];
+        EXPECT_EQ(step,static_cast<float>(static_cast<float>(step)));
+    }
 }

@@ -18,7 +18,7 @@ synth2::WaveTableBank sineBank()
     synth2::ShapeTables tables;
     tables.infos.push_back({0,2048,100000});
     for(int i=0;i<2048;++i)
-        tables.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.0)*i/2048)));
+        tables.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.0f)*i/2048)));
     synth2::WaveTableBank bank;
     bank.setShapeTables(3,std::move(tables));
     return bank;
@@ -28,13 +28,13 @@ synth2::WaveTableBank sineBank()
 TEST(OscillatorBehavior, GeneratedSineHasRequestedPitchAcrossRates)
 {
     const auto bank=sineBank();
-    for(double rate:{44100.,48000.25,96000.}) for(float frequency:{110.f,440.f,1760.f})
+    for(float rate:{44100.f,48000.25f,96000.f}) for(float frequency:{110.f,440.f,1760.f})
     {
         SCOPED_TRACE(rate);
         SCOPED_TRACE(frequency);
         synth2::dsp::Oscillator oscillator;
         oscillator.setSampleRate(rate); oscillator.updatePhaseIncrement(frequency);
-        std::vector<double> crossings;
+        std::vector<float> crossings;
         float previous=0;
         for(int i=0;i<static_cast<int>(rate/2);++i)
         {
@@ -44,8 +44,8 @@ TEST(OscillatorBehavior, GeneratedSineHasRequestedPitchAcrossRates)
             previous=value; oscillator.advancePhase();
         }
         ASSERT_GT(crossings.size(),10u);
-        const double measured=(crossings.size()-1)*rate/(crossings.back()-crossings.front());
-        EXPECT_NEAR(measured,frequency,.02); // Hz: interpolation/phase quantization tolerance.
+        const float measured=(crossings.size()-1)*rate/(crossings.back()-crossings.front());
+        EXPECT_NEAR(measured,frequency,.02f); // Hz: interpolation/phase quantization tolerance.
     }
 }
 
@@ -55,7 +55,7 @@ TEST(OscillatorBehavior, OctaveFrequencyDoublesPitchAndResetRestoresPhase)
     synth2::dsp::Oscillator low,high;
     low.setSampleRate(48000); high.setSampleRate(48000);
     low.updatePhaseIncrement(220); high.updatePhaseIncrement(440);
-    EXPECT_NEAR(double(high.getPhaseIncFixed27())/low.getPhaseIncFixed27(),2,1e-5);
+    EXPECT_NEAR(float(high.getPhaseIncFixed27())/low.getPhaseIncFixed27(),2,1e-5f);
     std::vector<float> first;
     for(int i=0;i<257;++i)
     { first.push_back(low.renderSample(3,.5f,0,&bank)); low.advancePhase(); }
@@ -64,6 +64,26 @@ TEST(OscillatorBehavior, OctaveFrequencyDoublesPitchAndResetRestoresPhase)
     EXPECT_EQ(low.getPhaseFixed27(),0u);
     for(float expected:first)
     { EXPECT_EQ(low.renderSample(3,.5f,0,&bank),expected); low.advancePhase(); }
+}
+
+TEST(OscillatorBehavior, UnchangedPitchUsesTheNewSampleRateWithoutResettingPhase)
+{
+    synth2::dsp::Oscillator oscillator;
+    oscillator.setSampleRate(48000);
+    oscillator.updatePhaseIncrement(440);
+    oscillator.advancePhase();
+    const auto phase=oscillator.getPhaseFixed27();
+    const auto increment=oscillator.getPhaseIncFixed27();
+    oscillator.setSampleRate(96000);
+    oscillator.updatePhaseIncrement(440);
+    EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
+    EXPECT_NEAR(oscillator.getPhaseIncFixed27()*2.0f,increment,1.0f);
+    oscillator.updatePhaseIncrement(880);
+    EXPECT_NEAR(oscillator.getPhaseIncFixed27(),increment,1.0f);
+    oscillator.reset();
+    oscillator.updatePhaseIncrement(880);
+    oscillator.advancePhase();
+    EXPECT_NEAR(oscillator.getPhaseFixed27(),increment,1.0f);
 }
 
 TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
@@ -76,7 +96,7 @@ TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
     for(int i=0;i<1024;++i)
     {
         const auto phase=envelope.getPhase();
-        const double before=envelope.getLevel();
+        const float before=envelope.getLevel();
         float gain{}; envelope.render(&gain,1);
         ASSERT_TRUE(std::isfinite(gain));
         EXPECT_GE(envelope.getLevel(),0); EXPECT_LE(envelope.getLevel(),2048);
@@ -92,7 +112,7 @@ TEST(AmplitudeBehavior, AttackDecaySustainAndReleaseFollowTheirLifecycle)
     EXPECT_EQ(envelope.getPhase(),Envelope::Phase::Release);
     for(int i=0;i<1024;++i)
     {
-        const double before=envelope.getLevel();
+        const float before=envelope.getLevel();
         float gain{}; envelope.render(&gain,1);
         EXPECT_LE(envelope.getLevel(),before);
         ASSERT_TRUE(std::isfinite(gain));
@@ -293,10 +313,10 @@ TEST(PanInputs, VoiceRetainsUnisonPlacementWithoutApplyingTheGlobalPanLfo)
     for(auto* voice:{actual.get(),expected.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
     synth2::audio::AudioBuffer<float> first(2,64),second(2,64);first.clear();second.clear();
     actual->renderNextBlock(first,0,64);expected->renderNextBlock(second,0,64);
-    double energy=0;
+    float energy=0;
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
     {EXPECT_EQ(first.getSample(channel,frame),second.getSample(channel,frame));energy+=first.getSample(channel,frame)*first.getSample(channel,frame);}
-    EXPECT_GT(energy,1e-8);
+    EXPECT_GT(energy,1e-8f);
 }
 TEST(PanInputs, OversizeUnknownHistoryCallbacksKeepEveryChunkAndSurroundingSamples)
 {
@@ -311,10 +331,10 @@ TEST(PanInputs, OversizeUnknownHistoryCallbacksKeepEveryChunkAndSurroundingSampl
     engine->render(audio,midi,8,1024);
     for(int chunk=0;chunk<4;++chunk)
     {
-        double energy=0;
+        float energy=0;
         for(int channel=0;channel<2;++channel)for(int frame=8+chunk*256;frame<8+(chunk+1)*256;++frame)
         {EXPECT_TRUE(std::isfinite(audio.getSample(channel,frame)));energy+=audio.getSample(channel,frame)*audio.getSample(channel,frame);}
-        EXPECT_GT(energy,1e-8);
+        EXPECT_GT(energy,1e-8f);
     }
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<1040;++frame)
         if(frame<8 || frame>=1032)EXPECT_EQ(audio.getSample(channel,frame),7);
@@ -329,10 +349,10 @@ TEST(StaticPanInputs, VoiceCorePlacementIsIndependentOfGlobalBalance)
         for(auto* voice:{actual.get(),reference.get()}){voice->prepare(44100);voice->startNote(60,1,nullptr,8192);}
         synth2::audio::AudioBuffer<float> got(2,64),expected(2,64);got.clear();expected.clear();
         actual->renderNextBlock(got,0,64);reference->renderNextBlock(expected,0,64);
-        double energy=0;
+        float energy=0;
         for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
         {EXPECT_EQ(got.getSample(channel,frame),expected.getSample(channel,frame));energy+=got.getSample(channel,frame)*got.getSample(channel,frame);}
-        EXPECT_GT(energy,1e-8);
+        EXPECT_GT(energy,1e-8f);
     }
 }
 
@@ -346,13 +366,13 @@ TEST(TuningBehavior, OneNoteCoarseAndFineCalculationPreservesFractionalControls)
     config.fine=.375f;config.secondFine=.25f;
     synth2::dsp::VoiceTuning fractional(config,69);
     const auto tuned=fractional.prepareCore(.125f);
-    EXPECT_NEAR(tuned.first,440*std::pow(2.,.5/1200),.0001);
-    EXPECT_NEAR(tuned.second,tuned.first*std::pow(2.,12./12+.25/1200),.0002);
+    EXPECT_NEAR(tuned.first,440*std::pow(2.f,.5f/1200),.0001f);
+    EXPECT_NEAR(tuned.second,tuned.first*std::pow(2.f,12.f/12+.25f/1200),.0002f);
     config.secondTracksKeyboard=false;
     synth2::dsp::VoiceTuning fixedLow(config,36),fixedHigh(config,96);
     EXPECT_EQ(fixedLow.prepareCore(.125f).second,fixedHigh.prepareCore(.125f).second);
     EXPECT_NE(fixedLow.prepareCore(.125f).first,fixedHigh.prepareCore(.125f).first);
-    EXPECT_NEAR(fixedLow.prepareCore(.125f).second,440*std::pow(2.,.75/1200),.0001);
+    EXPECT_NEAR(fixedLow.prepareCore(.125f).second,440*std::pow(2.f,.75f/1200),.0001f);
 }
 
 TEST(TuningBehavior, ChannelBendUsesThirtyTwoFramePartitionsAcrossCallbacks)
@@ -381,12 +401,12 @@ TEST(TuningBehavior, GlideRetainsThePhysicalReceiverAcrossLegato)
     auto voice=std::make_unique<synth2::test::PooledTestVoice>(p);voice->prepare(44100);
     synth2::audio::AudioBuffer<float> audio(2,32);audio.clear();
     voice->startNote(69,1,nullptr,8192);voice->renderNextBlock(audio,0,32);
-    EXPECT_NEAR(voice->getCurrentFrequency(),440,.001);
+    EXPECT_NEAR(voice->getCurrentFrequency(),440,.001f);
     voice->setNextTransition({synth2::dsp::NoteTransitionKind::Legato,true});
     voice->startNote(81,1,nullptr,8192);audio.clear();voice->renderNextBlock(audio,0,32);
-    EXPECT_NEAR(voice->getCurrentFrequency(),440,.001); // Initial held receiver span.
+    EXPECT_NEAR(voice->getCurrentFrequency(),440,.001f); // Initial held receiver span.
     for(int i=0;i<1000;++i){audio.clear();voice->renderNextBlock(audio,0,32);}
-    EXPECT_NEAR(voice->getCurrentFrequency(),880,.001);
+    EXPECT_NEAR(voice->getCurrentFrequency(),880,.001f);
 
 }
 
@@ -400,6 +420,6 @@ TEST(AmplitudeBehavior, AttackDurationEditsRetainProgressAndFractionalLevel)
     EXPECT_EQ(envelope.getCounter(),50);EXPECT_EQ(envelope.getLevel(),512);
     envelope.render(gain.data(),10);
     EXPECT_EQ(envelope.getCounter(),60);
-    EXPECT_DOUBLE_EQ(envelope.getLevel(),2048.0*60/200);
+    EXPECT_DOUBLE_EQ(envelope.getLevel(),2048.0f*60/200);
     EXPECT_NE(envelope.getLevel(),std::trunc(envelope.getLevel()));
 }

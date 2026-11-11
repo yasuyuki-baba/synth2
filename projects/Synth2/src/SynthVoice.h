@@ -23,11 +23,11 @@ namespace synth2
 
         bool canPlaySound (::synth2::audio::Sound* sound) override;
 
-        void prepare (double newSampleRate);
+        void prepare (float newSampleRate);
         void setAudioChunkStart(int start) noexcept {audioChunkStart=start;}
         void setAudioOutput(int factor,float* left,float* right) noexcept
         {audioFactor=factor;audioLeft=left;audioRight=right; }
-        void updateSampleRate (double newSampleRate);
+        void updateSampleRate (float newSampleRate);
 
         void startNote (int midiNoteNumber, float velocity,
                         ::synth2::audio::Sound*, int) override;
@@ -49,8 +49,8 @@ namespace synth2
         bool didRenderSignal() const noexcept { return renderedSignal; }
         void setNextTransition(dsp::NoteTransition transition) noexcept { lifecycle.schedule(transition); }
         dsp::VoiceLifecycle::Phase getLifecyclePhase() const noexcept { return lifecycle.phase(); }
-        double getCurrentFrequency() const noexcept
-        {return cores[0]!=nullptr ? static_cast<double>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
+        float getCurrentFrequency() const noexcept
+        {return cores[0]!=nullptr ? static_cast<float>(cores[0]->oscillator.osc1.getPhaseIncFixed27())*sampleRate/dsp::kPhaseScale27 : 0;}
         void setPitchBendOffset(int offset) noexcept {pitchBendOffset=offset;}
         // Offline read-only inspection of the core actually used by this
         // logical voice, using the same physical pool in every play mode.
@@ -89,7 +89,9 @@ namespace synth2
             const auto& oscillator=cores[index]->oscillator;
             const float depth=dsp::OscillatorStack::depth(oscillator.stackDial);
             std::memcpy(words.data(),&depth,4);
-            std::memcpy(words.data()+1,oscillator.stackFrequencies.data(),32);
+            std::array<float,8> frequencies{};
+            std::copy(oscillator.stackFrequencies.begin(),oscillator.stackFrequencies.end(),frequencies.begin());
+            std::memcpy(words.data()+1,frequencies.data(),32);
             std::copy(oscillator.stackPhases.begin(),oscillator.stackPhases.end(),words.begin()+9);
             return true;
         }
@@ -113,12 +115,11 @@ namespace synth2
 
         RenderControls& params;
         dsp::OscillatorPhaseRandom& phaseRandom;
-        double sampleRate { 0.0 };
+        float sampleRate { 0.0f };
         int nativeWorkspaceOrigin {};
         int amplitudeGainHorizon {},amplitudeGainBoundary {};
         int audioFactor=1,audioChunkStart=0;float* audioLeft=nullptr;float* audioRight=nullptr;
         bool renderedSignal {};
-        int filterMidiNote {60};
         int pitchBendOffset {};
         dsp::VoiceLifecycle lifecycle;
         float  level  { 0.0f };

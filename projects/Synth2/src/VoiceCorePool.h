@@ -13,15 +13,19 @@ namespace synth2
     public:
         void prepare (const ::synth2::audio::ProcessSpec&,bool preservePhase=false);
         void updateSampleRate (const ::synth2::audio::ProcessSpec&);
-        void setAudioFactor(double rate,int factor) noexcept
+        void setAudioFactor(float rate,int factor) noexcept
         {for(auto& core:slots)core.setAudioFactor(rate,factor);}
         void requestPhaseReset() noexcept;
         void setPhaseDial (int) noexcept;
         void setGroupCount (int) noexcept;
         void limitCapacity (int) noexcept;
+        void releaseKeysAbove(int count) noexcept
+        {for(size_t i=static_cast<size_t>(std::clamp(count,0,32));i<slots.size();++i)slots[i].releaseKey();}
         SynthVoice* primaryOwner() const noexcept {return owners[0];}
         void setOsc2Coarse(float exponent,bool refreshFrequency) noexcept
         {for(auto& core:slots){core.coarse.set(exponent,core.modulationEnvelope.isActive());if(refreshFrequency)core.coarse.refresh();}}
+        void refreshOsc2Frequency() noexcept
+        {for(auto& core:slots)core.coarse.refresh();}
         void restartFilterCutoff() noexcept
         {for(auto& core:slots)core.cutoff.restart();}
         void setControllerDial(int destination,int rate) noexcept
@@ -55,7 +59,7 @@ namespace synth2
         {
             if(index>=slots.size())return false;
             const auto& state=slots[index].coarse;
-            const std::array<float,3> floats{state.current,state.target,state.anchor};
+            const std::array<float,3> floats{static_cast<float>(state.current),static_cast<float>(state.target),static_cast<float>(state.anchor)};
             std::memcpy(words.data(),floats.data(),sizeof(floats));
             words[3]=static_cast<uint32_t>(state.elapsed);words[4]=state.pending ? 1u : 0u;return true;
         }

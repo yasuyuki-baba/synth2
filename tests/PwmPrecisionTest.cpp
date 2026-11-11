@@ -9,7 +9,7 @@ synth2::WaveTableBank pulseBank()
     for(int shape:{0,5})
     {
         synth2::ShapeTables table;table.infos.push_back({0,2048,100000});
-        for(int i=0;i<2048;++i)table.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.)*i/2048)));
+        for(int i=0;i<2048;++i)table.data.push_back(static_cast<float>(std::sin(2*std::acos(-1.f)*i/2048)));
         bank.setShapeTables(shape,std::move(table));
     }
     return bank;
@@ -19,9 +19,9 @@ synth2::WaveTableBank pulseBank()
 TEST(PwmPrecision, SourceKnotsKeepCompatibleWidthAndModulationValues)
 {
     using M=synth2::dsp::ModulationEnvelope;
-    for(int dial=0;dial<=127;++dial)for(double control:{-512.,-128.,-1.,0.,.125,1.,127.,128.,512.})
+    for(int dial=0;dial<=127;++dial)for(float control:{-512.f,-128.f,-1.f,0.f,.125f,1.f,127.f,128.f,512.f})
     {
-        const double expected=M::pulseWidthBins(dial*(1.f/127.f),control);
+        const float expected=M::pulseWidthBins(dial*(1.f/127.f),control);
         EXPECT_DOUBLE_EQ(M::pulseWidthForDial(synth2::dsp::fractionalDial(dial/127.f),control),expected);
         EXPECT_DOUBLE_EQ(M::pulseWidthForDial(synth2::dsp::fractionalDial(dial*(1.f/127.f)),control),expected);
     }
@@ -34,10 +34,10 @@ TEST(PwmPrecision, SourceKnotsKeepCompatibleWidthAndModulationValues)
 TEST(PwmPrecision, BaseWidthEditsNoLongerPlateauBetweenSourceDials)
 {
     using M=synth2::dsp::ModulationEnvelope;
-    double previous=516;
-    for(double dial:{64.01,64.05,64.1,64.125,64.25,64.75})
+    float previous=516;
+    for(float dial:{64.01f,64.05f,64.1f,64.125f,64.25f,64.75f})
     {
-        const double value=M::pulseWidthForDial(dial,0);
+        const float value=M::pulseWidthForDial(dial,0);
         EXPECT_DOUBLE_EQ(value,516+8*(dial-64));EXPECT_GT(value,previous);previous=value;
     }
 }
@@ -45,13 +45,13 @@ TEST(PwmPrecision, BaseWidthEditsNoLongerPlateauBetweenSourceDials)
 TEST(PwmPrecision, BothCoordinatesRemainContinuousAtCompatibleKnots)
 {
     using M=synth2::dsp::ModulationEnvelope;
-    for(double dial:{1.,32.,64.,96.,126.})for(double control:{-128.,-1.,0.,1.,127.,128.})
+    for(float dial:{1.f,32.f,64.f,96.f,126.f})for(float control:{-128.f,-1.f,0.f,1.f,127.f,128.f})
     {
-        const double exact=M::pulseWidthForDial(dial,control);
-        for(double epsilon:{-.00001,.00001})
+        const float exact=M::pulseWidthForDial(dial,control);
+        for(float epsilon:{-.00001f,.00001f})
         {
-            EXPECT_NEAR(M::pulseWidthForDial(dial+epsilon,control),exact,.001);
-            EXPECT_NEAR(M::pulseWidthForDial(dial,control+epsilon),exact,.001);
+            EXPECT_NEAR(M::pulseWidthForDial(dial+epsilon,control),exact,.001f);
+            EXPECT_NEAR(M::pulseWidthForDial(dial,control+epsilon),exact,.001f);
         }
     }
 }
@@ -97,7 +97,7 @@ TEST(PwmPrecision, DirectAndExplicitCoordinateEntryPointsAgree)
             oscillator->params.osc1Wave=1;oscillator->params.osc2Wave=1;
         }
         const float width=dial*(1.f/127.f);
-        const double bins=synth2::dsp::ModulationEnvelope::pulseWidthForDial(synth2::dsp::fractionalDial(width),0);
+        const float bins=synth2::dsp::ModulationEnvelope::pulseWidthForDial(synth2::dsp::fractionalDial(width),0);
         for(int frame=0;frame<256;++frame)
         {
             EXPECT_EQ(direct.processSample(220,330,width,.25f,0,false,false,0,0,-1,&bank),
@@ -113,15 +113,40 @@ TEST(PwmPrecision, CommonReadPreservesIntegralOffsetsAndWrapsWithoutAdvancingPha
     oscillator.setSampleRate(44100);oscillator.updatePhaseIncrement(220);
     oscillator.setPhaseFixed27(0x07ff8000u);
     const auto phase=oscillator.getPhaseFixed27();
-    for(double bins:{10.,10.25,516.,516.25,2037.})
+    for(float bins:{10.f,10.25f,516.f,516.25f,2037.f})
     {
         const auto sample=[](uint32_t offset){return static_cast<float>(offset*offset);};
         const auto low=static_cast<uint32_t>(bins);
-        const float expected=sample(low)+(sample(low+1)-sample(low))*static_cast<float>(bins-low);
+        const float expected=static_cast<float>(sample(low))+(sample(low+1)-sample(low))*static_cast<float>(bins-low);
         EXPECT_EQ(synth2::dsp::PulseWidthRead::interpolate(bins,sample),expected);
         const float a=oscillator.renderPhaseDiffSawNoAdvance(low<<16,&bank,0,5);
         const float b=oscillator.renderPhaseDiffSawNoAdvance((low+1)<<16,&bank,0,5);
         EXPECT_EQ(oscillator.renderSample(1,.5f,0,&bank,bins),a+(b-a)*static_cast<float>(bins-low));
         EXPECT_EQ(oscillator.getPhaseFixed27(),phase);
     }
+}
+
+TEST(PwmPrecision, WidthConversionIsIndependentOfPriorControlAndLifecycleEdits)
+{
+    using namespace synth2::dsp;
+    OscillatorSection oscillator;
+    oscillator.prepare({44100,64,2});
+    oscillator.resetPhase(.375f);
+    // Repeated controls, base-only edits, modulation-only edits and reversions
+    // must all resolve the same fractional coordinates as a fresh conversion.
+    const std::array<std::array<float,2>,9> edits{{
+        {64.0f/127.0f,0},{64.0f/127.0f,0},{64.125f/127.0f,0},
+        {64.125f/127.0f,28.875f},{64.125f/127.0f,-17.25f},{65.5f/127.0f,-17.25f},
+        {64.0f/127.0f,0},{0,-128},{1,128}}};
+    const auto phase=oscillator.readPhaseWords();
+    for(const auto& edit:edits)
+    {
+        const float expected=ModulationEnvelope::pulseWidthForDial(fractionalDial(edit[0]),edit[1]);
+        EXPECT_DOUBLE_EQ(oscillator.resolvePulseWidth(edit[0],edit[1]),expected);
+        EXPECT_EQ(oscillator.readPhaseWords(),phase);
+    }
+    oscillator.reset();oscillator.prepare({96000,128,2});
+    for(const auto& edit:edits)
+        EXPECT_DOUBLE_EQ(oscillator.resolvePulseWidth(edit[0],edit[1]),
+            ModulationEnvelope::pulseWidthForDial(fractionalDial(edit[0]),edit[1]));
 }

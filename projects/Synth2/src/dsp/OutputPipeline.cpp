@@ -3,9 +3,9 @@
 
 namespace synth2::dsp
 {
-    void OutputPipeline::prepareGain(double rate,bool preserve)
+    void OutputPipeline::prepareGain(float rate,bool preserve)
     { outputGain.prepare(rate,preserve); }
-    void OutputPipeline::prepareProcessors(double rate,bool preserve)
+    void OutputPipeline::prepareProcessors(float rate,bool preserve)
     {
         if(!preserve)audioOversampler.reset();
         nativePan.prepare(rate,preserve);
@@ -16,7 +16,7 @@ namespace synth2::dsp
     {
         if(preserveVoices && rateChanged)equalizer.updateSampleRate(spec.sampleRate);
         else equalizer.prepare(spec);
-        if(spec.sampleRate>=10000.0 && spec.sampleRate<=384000.0)wetEffects.prepare(spec.sampleRate);
+        if(spec.sampleRate>=10000.0f && spec.sampleRate<=384000.0f)wetEffects.prepare(spec.sampleRate);
         else wetEffects.reset();
     }
     void OutputPipeline::release(bool retainTone)
@@ -28,7 +28,7 @@ namespace synth2::dsp
         const OutputPipelineSettings& settings,const OutputProcessContext& context,const ReceiverLfoView& panControls)
     {
         const bool useWetEffects=!context.bypassEffects
-            && context.sampleRate>=10000.0 && context.sampleRate<=384000.0;
+            && context.sampleRate>=10000.0f && context.sampleRate<=384000.0f;
         bool graphSilent=settings.nativeSilenceGraph && context.inputSilent;
         if(!context.bypassEffects)
             graphSilent=processToneAndEffects(buffer,outputStart,outputFrames,settings,
@@ -104,7 +104,7 @@ namespace synth2::dsp
     {
         if(settings.panLfo && !graphSilent && buffer.getNumChannels() >= 2) {
             for(int i=0;i<outputFrames;++i) {
-                const double target=(panControls.receivers[0].enabled && panControls.receivers[0].destination == 6 ? panControls.values[0][i] : 0)
+                const float target=(panControls.receivers[0].enabled && panControls.receivers[0].destination == 6 ? panControls.values[0][i] : 0)
                     +(panControls.receivers[1].enabled && panControls.receivers[1].destination == 6 ? panControls.values[1][i] : 0);
                 float l=buffer.getSample(0,outputStart+i),r=buffer.getSample(1,outputStart+i);
                 nativePan.process(l,r,target,settings.pan);

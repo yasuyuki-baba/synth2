@@ -17,7 +17,7 @@ TEST(Oversampling, ImpulseDelayMatchesReportedLatencyAndDCGainStaysUnity)
         synth2::dsp::AudioDownsampler voice;
         synth2::dsp::StereoOversampler output;
         voice.setFactor(factor);output.setFactor(factor);
-        std::vector<float> impulse(512);
+        std::vector<double> impulse(512);
         for(int frame=0;frame<512;++frame)
         {
             std::array<float,16> input{};

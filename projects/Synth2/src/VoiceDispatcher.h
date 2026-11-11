@@ -35,7 +35,7 @@ namespace synth2
         {return pitchBendWords(1);}
         std::array<int,4> pitchBendWords(int channel) const noexcept
         {const auto& bend=pitchBends[static_cast<size_t>(std::clamp(channel,1,16)-1)];return {bend.current,bend.target,bend.moving() ? 1 : 0,bend.offset};}
-        void setPlaybackRate (double rate, bool preserveNotes);
+        void setPlaybackRate (float rate, bool preserveNotes);
         void resetAllocation() noexcept { lastAllocatedVoice = -1; }
         bool renderedVoicesInRegion {false};
         bool nativeOmniInput {};
@@ -45,10 +45,13 @@ namespace synth2
     protected:
         ::synth2::audio::Voice* findFreeVoice (::synth2::audio::Sound*, int, int, bool) const override;
     private:
+        SynthVoice* soundingMonoVoice(int channel) const noexcept;
+        bool resumeHeldMonoKey(int channel,SynthVoice&);
         bool preservingNotesForRateChange {};
         bool dispatchingArpeggiator {};
         void* activeOutputContext=nullptr;
         OutputSink activeOutputSink=nullptr;
+        void rememberKeyDown(int channel,int note,float velocity);
         void trackLfoKey(const ::synth2::audio::MidiMessage&);
         void applyControllerMessage(int status,int first,int second);
         void renderVoicesWithLfos (::synth2::audio::AudioBuffer<float>&, int startSample, int numSamples,bool completeGainDispatch=false);

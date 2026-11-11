@@ -18,7 +18,7 @@ namespace synth2::dsp
             bool rendered=false;
             for(int offset=0;offset<frames;)
             {
-                std::array<double,2> control{};int count=frames-offset;
+                std::array<float,2> control{};int count=frames-offset;
                 int horizon=config.gainHorizon;
                 if(config.repeatHorizon>0)
                 {

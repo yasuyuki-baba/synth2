@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CompatibleControlCurve.h"
+#include "EnvelopeCurve.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -14,19 +15,19 @@ namespace synth2::dsp
     class ReleaseRamp
     {
     public:
-        static int durationFrames (float seconds,double sampleRate) noexcept
+        static int durationFrames (float seconds,float sampleRate) noexcept
         {
-            const float frames = seconds * static_cast<float> (sampleRate);
+            const float frames=seconds*sampleRate;
             if (!std::isfinite (frames) || frames <= 0) return 0;
             if (frames >= static_cast<float> (std::numeric_limits<int>::max()))
                 return std::numeric_limits<int>::max();
             return static_cast<int> (frames);
         }
 
-        void start (int durationFrames, double initialLevel) noexcept
+        void start (int durationFrames, float initialLevel) noexcept
         {
             duration = std::max (0, durationFrames);
-            initial = level = std::clamp (initialLevel, 0.0, 2048.0);
+            initial = level = std::clamp (initialLevel, 0.0f, 2048.0f);
             counter = boundary = pending = 0;
             active = true;
             updateResolution();
@@ -47,27 +48,24 @@ namespace synth2::dsp
         int segmentHorizon() const noexcept { return pending; }
         bool isActive() const noexcept { return active; }
         int getCounter() const noexcept { return counter; }
-        double getLevel() const noexcept { return level; }
+        float getLevel() const noexcept { return level; }
 
         void advance (int frames) noexcept
         {
-            advance (frames, [] (double,int) {});
+            advance (frames, [] (float,int) {});
         }
 
         template <typename Segment>
         void advance (int frames,Segment&& segment,int horizon = 0) noexcept
         {
             if (!active) return;
-            const float reciprocal = 1.0f / static_cast<float> (std::max (1,duration));
             while (frames > 0 && counter < duration && (level > 0 || pending > 0))
             {
                 if(pending==0)
                 {
                     pending=std::min({std::max(frames,horizon),step,duration-counter});
-                    const float remaining = static_cast<float> (duration-counter-pending) * reciprocal;
-                    const float curve = std::exp ((remaining-1.0f)*8.0f)*remaining;
                     level = compatibleControlCurve(initial,[&](int start) {
-                        return std::trunc(curve*static_cast<float>(start));
+                        return exponentialEnvelopeKnot(start,duration-counter-pending,duration);
                     });
                 }
                 const int count=std::min(frames,pending);
@@ -102,7 +100,7 @@ namespace synth2::dsp
         }
 
         int duration {},counter {},boundary {},step {1},pending {};
-        double initial {},level {};
+        float initial {},level {};
         bool active {};
     };
 }

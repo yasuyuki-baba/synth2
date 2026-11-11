@@ -44,7 +44,7 @@ namespace synth2
         float osc2KbdTrack    { 1.0f };   // p4 (V105) or related in V112
         int   octaveBase      { 0 };      // p9: Octave (-2..+2)
         int   keyShift        { 0 };      // p13: Key Shift (semitones)
-        
+
         // Sub Oscillator
         float subOscGain      { 0.0f }; // p95: 0..1
         int   subOscWave      { 0 };    // p96: 0..3
@@ -65,15 +65,15 @@ namespace synth2
 
         // Filter
         float cutoffIndex     { 1023.0f };
-        double filterCutoffAdjustment {}; // Fractional extension of the native base-index curve.
+        float filterCutoffAdjustment {}; // Fractional extension of the native base-index curve.
         float cutoffHz        { 0.0f };
         float resonanceNorm   { 0.0f };
         float filterEnvAmount { 0.0f };
         float filterKeyTrackNorm { 0.0f }; // Original dial value for native integer tracking.
         float filterVelocity  { 0.0f }; // p24: enables the measured filter-velocity response.
         float ampVelocity     { 0.0f }; // p30: 0..1 sets up to 30 dB velocity attenuation.
-        int   filterType      { 0 };    
-        float filterSaturation{ 0.0f }; 
+        int   filterType      { 0 };
+        float filterSaturation{ 0.0f };
         float pan             { 0.0f }; // p90: -1..+1
 
         // Modulation
@@ -82,13 +82,13 @@ namespace synth2
         ModulationEnvelopeControls modEnv;
 
         // Voice management
-        int   polyphony      { 32 };   
-        int   playMode       { 0 };    
-        int   unisonVoices   { 0 };    
+        int   polyphony      { 32 };
+        int   playMode       { 0 };
+        int   unisonVoices   { 0 };
         int   unisonPitchDial { 24 }; // Source p85; odd group slots are transposed.
-        float unisonDetune   { 0.0f }; 
+        float unisonDetune   { 0.0f };
         float unisonPan      { 0.0f }; // Signed native spread; source64 is neutral.
-        bool  isPolyphonic   { true }; 
+        bool  isPolyphonic   { true };
         bool  portamentoAuto { false };
         float sourcePortamentoDial {0}; // Resolved real dial for the physical portamento receiver.
         bool resetIdleFilter {false}; // Audited mono noise idle reuse.

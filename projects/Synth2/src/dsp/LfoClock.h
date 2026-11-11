@@ -1,5 +1,6 @@
 #pragma once
-#include "FractionalDial.h"
+#include "CompatibleControlCurve.h"
+#include "ControlTables.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -11,25 +12,12 @@ namespace synth2::dsp
     class LfoClock
     {
     public:
-        void setRate(int dial) noexcept
-        {
-            rate = std::clamp(dial,0,127);
-            rateDial=static_cast<float>(rate);
-            const float unit = static_cast<float>(rate) * (1.0f/127.0f);
-            targetHz = static_cast<float>(std::pow(1500.0,static_cast<double>(unit)) * (1.0/12.0));
-            slew(1);
-            step = targetHz > 10.0f ? 32 : 64;
-        }
-
         void setRate(float dial) noexcept
         {
-            dial=std::clamp(dial,0.0f,127.0f);
-            if(dial==std::trunc(dial)){setRate(static_cast<int>(dial));return;}
-            rateDial=dial;
-            rate=static_cast<int>(std::lround(dial));
-            targetHz=interpolateDial(dial,[](int value) {
-                const float unit=static_cast<float>(value)*(1.0f/127.0f);
-                return static_cast<float>(std::pow(1500.0,static_cast<double>(unit))*(1.0/12.0));
+            rateDial=std::clamp(dial,0.0f,127.0f);
+            rate=static_cast<int>(std::lround(rateDial));
+            targetHz=compatibleControlCurve(rateDial,[](int value) {
+                return lfoRateWords[static_cast<size_t>(value)];
             });
             slew(1);
             step=targetHz>10.0f ? 32 : 64;
@@ -45,9 +33,14 @@ namespace synth2::dsp
             // Tempo divisions are discrete choices, separate from free-rate Hz.
             rate=static_cast<int>(std::lround(rateDial));
             const int division=divisions[(rate*30)>>7];
-            const float pulses=bpm*48.0f;
-            const float divided=pulses/static_cast<float>(division);
-            targetHz=divided*(1.0f/120.0f);
+            // Tempo knots define discrete periods: the compatible 3 Hz word
+            // is just above 3, so its period is 14699, not 14700 frames.
+            // Interpolate fractional BPM in Float32 after resolving those words.
+            targetHz=compatibleControlCurve(bpm,[division](int tempo) {
+                const float pulses=static_cast<float>(tempo)*48.0f;
+                const float divided=pulses/static_cast<float>(division);
+                return divided*(1.0f/120.0f);
+            });
             slew(1);
             step=targetHz > 10.0f ? 32 : 64;
         }

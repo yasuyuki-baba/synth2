@@ -9,7 +9,7 @@ namespace synth2::dsp
     class PanLfo
     {
     public:
-        void prepare(double rate,bool preserve=false) noexcept
+        void prepare(float rate,bool preserve=false) noexcept
         {
             const float interval=static_cast<float>(static_cast<int>(rate))*0.0020000000949949026f;
             coefficient=static_cast<float>(1.0-std::pow(0.5,1.0/static_cast<double>(interval)));
@@ -21,7 +21,7 @@ namespace synth2::dsp
             const float cubic=(x*x)*x;
             return value<0 ? cubic : static_cast<float>(static_cast<double>(cubic)*0.5+1.5);
         }
-        void process(float& l,float& r,double control,float pan) noexcept
+        void process(float& l,float& r,float control,float pan) noexcept
         {
             const float x=static_cast<float>(control)*(1.0f/64.0f);
             const auto balance=StereoBalance::gains(pan);

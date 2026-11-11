@@ -9,7 +9,7 @@ namespace synth2::dsp
     class OutputTone
     {
     public:
-        void prepare (double rate, bool preserveState = false) noexcept
+        void prepare (float rate, bool preserveState = false) noexcept
         {
             sampleRate = static_cast<int> (rate);
             if (!preserveState) { x = {}; y = {}; }

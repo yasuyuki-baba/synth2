@@ -16,9 +16,9 @@ namespace synth2::dsp
         SharedModulationRuntime()=default;
         SharedModulationRuntime(const SharedModulationRuntime&)=delete;
         SharedModulationRuntime& operator=(const SharedModulationRuntime&)=delete;
-        void retimeClocks(double sampleRate);
+        void retimeClocks(float sampleRate);
         void prepareBlock(int capacity);
-        void synchronize(const SharedModulationSettings&,double sampleRate);
+        void synchronize(const SharedModulationSettings&,float sampleRate);
         void beginChunk(int start);
         int randomBoundary(int count,const SharedModulationSettings&) const noexcept;
         void renderSpan(int start,int count,const SharedModulationSettings&);

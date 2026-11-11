@@ -18,8 +18,8 @@ namespace synth2::dsp
         // boundaries. Keeping them separate preserves rate-change retention.
         void setOversamplingFactor(int factor) noexcept
         {audioOversampler.setFactor(factor);nativeMultiEffect.setOversamplingFactor(factor);}
-        void prepareGain(double rate,bool preserve);
-        void prepareProcessors(double rate,bool preserve);
+        void prepareGain(float rate,bool preserve);
+        void prepareProcessors(float rate,bool preserve);
         void prepareEffects(const ::synth2::audio::ProcessSpec&,bool preserveVoices,bool rateChanged);
         void release(bool retainTone);
         std::array<float,7> multiEffectState() const noexcept { return nativeMultiEffect.snapshot(); }

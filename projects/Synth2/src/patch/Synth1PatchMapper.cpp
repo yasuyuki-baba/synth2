@@ -20,6 +20,15 @@ namespace synth2
 {
     namespace
     {
+        template<class Curve> float envelopeTime(float dial,Curve curve)
+        {
+            const int low=static_cast<int>(dial);
+            const float first=curve(low),second=curve(std::min(127,low+1));
+            // Compatible timing knots define frame boundaries. Their exponential
+            // spacing remains exponential between knots, with double progress.
+            return first*std::pow(second/first,dial-low);
+        }
+
         float unit (std::optional<int> value, int fallback = 0)
         {
             return std::clamp (value.value_or (fallback), 0, 127) / 127.0f;
@@ -103,8 +112,8 @@ namespace synth2
         }
         auto patch=native ? decodeNativePatchControls(resolved,source,importWorkspace) : importSynth1Patch(source,importWorkspace);
         source.entries.swap(mappingEntries);
-        std::array<float,128> effective;
-        std::copy_n(raw,128,effective.begin());
+        std::array<float,128> effective{};
+        for(size_t i=0;i<effective.size();++i)effective[i]=promoteNormalizedSource(raw[i]);
         if(native)
         {
             resolvedNativeControls=resolved.values;
@@ -113,7 +122,7 @@ namespace synth2
             if(continuousControls)
                 for(int i=0;i<99;++i)
                     if(directControls || (nativeRuntimeEdits[i/64]&(uint64_t{1}<<(i%64)))!=0)
-                        effective[i]=raw[i];
+                        effective[i]=promoteNormalizedSource(raw[i]);
         }
         const auto* controls=effective.data();
         loadHistory.nativeMidiRoutingLoadHistory=native;
@@ -131,7 +140,7 @@ namespace synth2
                 const float dial=dsp::fractionalDial(controls[50+i]);
                 loadHistory.controllerRoutes[i]={controllerSources[i],dest,
                     dest>=0 && dest<99 ? resolved.values[dest] : 0,0,dest==35 ? 19 : dest==85 ? 48 : 127,
-                    (dial<63 ? dial-63 : dial>64 ? dial-64 : 0.0f)*(1.0f/63.0f)};
+                    static_cast<float>((dial<63 ? dial-63 : dial>64 ? dial-64 : 0.0f)*(1.0f/63.0f))};
             }
         mappedNativeSourceLoading=nativeSourceLoading;
         mappedNativePresence=nativeSourcePresence;
@@ -172,8 +181,7 @@ namespace synth2
         target.osc2KbdTrack = patch.oscillators.osc2KeyTrack.value_or (true) ? 1.0f : 0.0f;
         // Preserve the setter's float reciprocal multiply before pulse-width
         // modulation and integer table-bin truncation.
-        target.pulseWidth = static_cast<float>(std::clamp(patch.oscillators.pulseWidth.value_or(64),0,127))
-            * (1.0f/127.0f);
+        target.pulseWidth = static_cast<float>(std::clamp(patch.oscillators.pulseWidth.value_or(64),0,127))/127.0f;
         target.osc2Sync = patch.oscillators.sync.value_or (false) ? 1.0f : 0.0f;
         target.ringMod = patch.oscillators.ring.value_or (false) ? 1.0f : 0.0f;
         target.octaveBase = 0;
@@ -195,7 +203,7 @@ namespace synth2
         target.filterVelocity = patch.filter.velocitySwitch.value_or (false) ? 1.0f : 0.0f;
         target.filterEnv = {envelopeAttackSeconds (patch.filter.attack.value_or (0)),
                             envelopeDecayReleaseSeconds (patch.filter.decay.value_or (0)),
-                            unit (patch.filter.sustain, 127),
+                            render::filterSustainForDial(static_cast<float>(patch.filter.sustain.value_or(127))),
                             envelopeDecayReleaseSeconds (patch.filter.release.value_or (0))};
         target.ampAttackSec = envelopeAttackSeconds (patch.amplifier.attack.value_or (0));
         target.ampDecaySec = envelopeDecayReleaseSeconds (patch.amplifier.decay.value_or (0));
@@ -290,15 +298,15 @@ namespace synth2
         target.filterCutoffAdjustment=0;
         if(continuousControls)
         {
-            const auto dial=[controls](int i) { return std::clamp(controls[i]*127.0f,0.0f,127.0f); };
+            const auto dial=[controls](int i) { return dsp::fractionalDial(controls[i]); };
             const auto normalized=[&](int i) { return dial(i)/127.0f; };
-            const auto attack=[&](int i) { return 0.0005f*std::pow(56000.0f,normalized(i)); };
-            const auto decay=[&](int i) { return 0.01f*std::pow(6000.0f,normalized(i)); };
+            const auto attack=[&](int i) { return envelopeTime(dial(i),envelopeAttackSeconds); };
+            const auto decay=[&](int i) { return envelopeTime(dial(i),envelopeDecayReleaseSeconds); };
             target.osc2FineCents=fineTuneCents(dsp::fractionalDial(controls[3]));
             target.globalFineTune=fineTuneCents(dsp::fractionalDial(controls[72]));
             target.oscMix=normalized(5);
             target.osc1FmAmount=normalized(45);
-            target.pulseWidth=dial(8)*(1.0f/127.0f);
+            target.pulseWidth=normalized(8);
             target.modEnv.amountDial=dsp::fractionalDial(controls[11]);
             // Legacy family conversion has already expanded its integer dials.
             // Only resolved modern controls carry fractional timing coordinates.
@@ -310,7 +318,7 @@ namespace synth2
             for(int index:{19,21,22})render::applyFilterParameter(target,index,controls[index],native);
             target.resonanceNorm=normalized(20);
             target.filterSaturation=dsp::fractionalDial(controls[23])/127.0f;
-            target.filterEnv={attack(15),decay(16),normalized(17),decay(18)};
+            target.filterEnv={attack(15),decay(16),render::filterSustainForDial(dial(17)),decay(18)};
             target.ampAttackSec=attack(25);
             target.ampDecaySec=decay(26);
             const float sustain=dial(27);
@@ -325,7 +333,7 @@ namespace synth2
             target.lfo1.amount=normalized(44);
             target.lfo2.speed=normalized(48);
             target.lfo2.amount=normalized(49);
-            target.subOscGain=(dial(95)*4.0f)*(1.0f/127.0f);
+            target.subOscGain=(dial(95)*4.0f)/127.0f;
             target.unisonDetune=normalized(75);
             if(native)target.unisonPhaseDial=dsp::fractionalDial(controls[92]);
             if(native)

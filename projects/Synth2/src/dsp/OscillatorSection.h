@@ -33,11 +33,23 @@ namespace synth2::dsp {
                      osc1.getPhaseIncFixed27(),osc2.getPhaseIncFixed27()}};
         }
 
-        float processSample(float f1, float f2, float pw, float mix, double fmAmt, bool sync, bool ring,
-                            float subGain, int subShape, int subOctaveMode, const WaveTableBank* bank, double nativePulseWidthBins = -1, double pitch1Control = 0, double pitch2Control = 0, bool nativePitchLfo = false, bool correctFmPhase = false, OscillatorFrameAdvance* frameAdvance = nullptr) {
+        float resolvePulseWidth(float width,float control) noexcept
+        {
+            // Only value conversion is cached. Phase, receivers and random state
+            // still advance on their original sample/segment boundaries.
+            if(!pulseWidthReady || width!=pulseWidthSource || control!=pulseWidthControl)
+            {
+                pulseWidthBins=ModulationEnvelope::pulseWidthForDial(fractionalDial(width),control);
+                pulseWidthSource=width;pulseWidthControl=control;pulseWidthReady=true;
+            }
+            return pulseWidthBins;
+        }
+
+        float processSample(float f1, float f2, float pw, float mix, float fmAmt, bool sync, bool ring,
+                            float subGain, int subShape, int subOctaveMode, const WaveTableBank* bank, float nativePulseWidthBins = -1, float pitch1Control = 0, float pitch2Control = 0, bool nativePitchLfo = false, bool correctFmPhase = false, OscillatorFrameAdvance* frameAdvance = nullptr) {
             const float base1=f1;
-            const double pulseBins=nativePulseWidthBins>=0 ? nativePulseWidthBins
-                : ModulationEnvelope::pulseWidthForDial(fractionalDial(pw),0.0);
+            const float pulseBins=nativePulseWidthBins>=0 ? nativePulseWidthBins
+                : resolvePulseWidth(pw,0.0f);
             if(nativePitchLfo)
             {
                 f1=ModulationEnvelope::pitchFrequency(f1,pitch1Control);
@@ -51,17 +63,17 @@ namespace synth2::dsp {
             uint32_t p1Old = osc1.getPhaseFixed27();
             osc1.updatePhaseIncrement(f1);
             osc2.updatePhaseIncrement(f2);
-            float s2=osc2.renderSample(params.osc2Wave,pw,0,bank,pulseBins);
+            float s2=osc2.readSample(params.osc2Wave,pw,0,bank,pulseBins);
 
             // FM amount is in 27-bit phase-increment units.
             // The native dispatcher scales noise by .65 only without FM.
             // FM kernels apply it internally; Ring wins dispatch but retains
             // the unscaled noise gain when FM is selected.
-            if (params.osc2Wave == 4 && !(ring && fmAmt!=0)) s2 *= .65f;
+            if (params.osc2Wave == 4 && !(ring && fmAmt!=0)) {s2 *= .65f;}
             // Ring wins FM dispatch, but selecting FM also bypasses the
             // pulse modulator's wrapper half-gain (as for noise above).
-            if (params.osc2Wave == 1 && ring && fmAmt!=0) s2 *= 2.0f;
-            const float fmSource = s2;
+            if (params.osc2Wave == 1 && ring && fmAmt!=0) {s2 *= 2.0f;}
+            const float fmSource=s2;
 
             // Native isolated two-tone/noise captures use a linear crossfade.
             float vol1 = 1.0f - mix;
@@ -91,7 +103,7 @@ namespace synth2::dsp {
                 }
                 const int shape=params.osc1Wave == 1 ? 5 : params.osc1Wave;
                 const auto table=(shape == 0 || shape == 2 || shape == 5)
-                    ? bank->getNativeTableFor(shape,std::min(f1,22000.0f)) : bank->getTableFor(shape,std::min(f1,22000.0f));
+                    ? bank->getNativeTableFor(shape,static_cast<float>(std::min(f1,22000.0f))) : bank->getTableFor(shape,std::min(f1,22000.0f));
                 if(table.first != nullptr)
                 {
                     auto read=[&](uint32_t phase) {
@@ -111,7 +123,7 @@ namespace synth2::dsp {
                         const bool down=subOctaveMode < 0;
                         const float subFrequency=std::min(f1,22000.0f)*(down ? 0.5f : 1.0f);
                         const auto subTable=(subShape == 0 || subShape == 1 || subShape == 2)
-                            ? bank->getNativeTableFor(subShape,subFrequency) : bank->getTableFor(subShape,subFrequency);
+                            ? bank->getNativeTableFor(subShape,static_cast<float>(subFrequency)) : bank->getTableFor(subShape,subFrequency);
                         if(subTable.first != nullptr)
                         {
                             auto readSub=[&](uint32_t phase) { return subTable.first[SubOscillatorStack::tableIndex(phase,down)]; };
@@ -128,8 +140,7 @@ namespace synth2::dsp {
                     {
                         const float laneFrequency=pitch1Control != 0
                             ? ModulationEnvelope::pitchFrequency(stackFrequencies[lane],pitch1Control) : std::min(stackFrequencies[lane],22000.0f);
-                        const float increment=static_cast<float>(static_cast<double>(laneFrequency)
-                            *(134217728.0/sampleRate));
+                        const uint32_t increment=compatiblePhaseIncrement(laneFrequency,sampleRate);
                         if(frameAdvance)frameAdvance->stack[lane]=int64_t(static_cast<uint32_t>(increment))+static_cast<int32_t>(phaseAdd);
                         stackPhases[lane]+=static_cast<uint32_t>(increment)+phaseAdd;
                     }
@@ -176,8 +187,8 @@ namespace synth2::dsp {
         // Fine reads follow that signed phase trajectory; Sync resets remain at
         // its boundary. Never infer direction from a shortest circular arc.
         void processFrame(float* output,int factor,float f1,float f2,float pw,float mix,
-                          double fmAmt,bool sync,bool ring,float subGain,int subShape,int subOctaveMode,
-                          const WaveTableBank* bank,double pulseBins=-1,double pitch1=0,double pitch2=0,
+                          float fmAmt,bool sync,bool ring,float subGain,int subShape,int subOctaveMode,
+                          const WaveTableBank* bank,float pulseBins=-1,float pitch1=0,float pitch2=0,
                           bool pitchReceiver=false,bool correctFmPhase=false) {
             const auto initial=*this;
             OscillatorFrameAdvance advance;
@@ -209,8 +220,11 @@ namespace synth2::dsp {
         float stackBase {-1.0f};
         std::array<float,8> stackFrequencies {};
         std::array<uint32_t,8> stackPhases {};
-        double sampleRate{44100.0};
+        float sampleRate{44100.0f};
         Oscillator osc1, osc2;
         FmPhaseCorrection fmPhase;
+    private:
+        float pulseWidthSource{},pulseWidthControl{},pulseWidthBins{};
+        bool pulseWidthReady{};
     };
 }

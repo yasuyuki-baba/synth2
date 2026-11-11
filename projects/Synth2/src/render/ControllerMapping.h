@@ -4,6 +4,7 @@
 #include "../patch/Synth1Tuning.h"
 #include "../dsp/SubOscillatorStack.h"
 #include "../dsp/Portamento.h"
+#include "FilterParameterMapping.h"
 
 namespace synth2::render
 {
@@ -22,7 +23,7 @@ namespace synth2::render
             case 13:p.modEnv.decayDial=dial;return true;
             case 15:p.filterEnv.attackSec=envelopeAttackSeconds(dial);return true;
             case 16:p.filterEnv.decaySec=envelopeDecayReleaseSeconds(dial);return true;
-            case 17:p.filterEnv.sustain=unit;return true;
+            case 17:p.filterEnv.sustain=filterSustainForDial(static_cast<float>(dial));return true;
             case 18:p.filterEnv.releaseSec=envelopeDecayReleaseSeconds(dial);return true;
             case 19:p.cutoffIndex=unit*1023.0f;p.filterCutoffAdjustment=0;return true;
             case 20:p.resonanceNorm=unit;return true;

@@ -1,11 +1,12 @@
 #include "offline/RenderDiagnostics.h"
-#include "render/FilterParameterMapping.h"
+#include "render/ReceiverParameterMapping.h"
 #if defined(SYNTH2_HOST_PROFILING)
 #include "HostCallbackProfile.h"
 #endif
 #include "dsp/OscillatorTables.h"
 #include "dsp/OscillatorTuning.h"
 #include "SynthEngine.h"
+#include "patch/Synth1ControlPromotion.h"
 #include "render/ControllerMapping.h"
 #include "render/OutputConfiguration.h"
 #include "render/SharedModulationConfiguration.h"
@@ -31,9 +32,21 @@ namespace synth2
         synth.addSound (new SynthSound());
     }
 
+    void SynthEngine::applyReceiverParameter(int index,float normalized) noexcept
+    {
+        if(render::filterParameter(index)){applyFilterParameter(index,normalized);return;}
+        const float previousFine=params.globalFineTune;
+        render::applyReceiverParameter(params,index,promoteNormalizedSource(normalized),renderHistory.nativeMidiRoutingLoadHistory);
+        if(index==2)corePool.setOsc2Coarse(dsp::OscillatorTuning::coarseExponent(params.osc2PitchSemis),false);
+        if(index==45)corePool.setControllerDial(45,static_cast<int>(currentSampleRate));
+        // OSC2 Fine/tracking republishes the current coarse frequency; master
+        // Fine does so only when its resolved fine value actually changes.
+        if(index==3 || index==4 || (index==72 && params.globalFineTune!=previousFine))corePool.refreshOsc2Frequency();
+    }
+
     void SynthEngine::applyFilterParameter(int index,float normalized) noexcept
     {
-        render::applyFilterParameter(params,index,normalized,renderHistory.nativeMidiRoutingLoadHistory);
+        render::applyFilterParameter(params,index,promoteNormalizedSource(normalized),renderHistory.nativeMidiRoutingLoadHistory);
         updateFilterEnvelopeConfiguration();
         restartFilterCutoff();
     }
@@ -77,7 +90,7 @@ namespace synth2
                 voice->setAudioOutput(factor,oversampledAudio[0].data(),oversampledAudio[1].data());
     }
 
-    void SynthEngine::prepareToPlay (double sampleRate, int samplesPerBlock)
+    void SynthEngine::prepareToPlay (float sampleRate, int samplesPerBlock)
     {
         // The native host's mains/sample-rate/block-size cycle retains held
         // voices and physical allocation. Keep that history for the audited
@@ -102,6 +115,7 @@ namespace synth2
         globalSampleCount = 0;
         params.globalSampleCount = 0;
         previousPlayMode = params.playMode;
+        previousUnisonVoices=params.unisonVoices;
         outputPipeline.prepareProcessors(sampleRate,!sharedModulation.isInitial());
         sharedModulation.prepareBlock(samplesPerBlock);
 
@@ -129,31 +143,29 @@ namespace synth2
         if(audioFactor>1)setOversamplingFactor(audioFactor);
     }
 
-    void SynthEngine::initWaveTables (double sampleRateForTables)
+    void SynthEngine::initWaveTables (float sampleRateForTables)
     {
-        const double nyquist = sampleRateForTables * 0.5;
+        const float nyquist = sampleRateForTables * 0.5f;
 
         waveTableBank->setAliasBorderHz ((float) nyquist);
         
         constexpr int N = 2048;
         constexpr int halfN = N / 2;
 
-        std::vector<float> sinTable (N);
-        for (int n = 0; n < N; ++n)
-            sinTable[n] = (float) std::sin (::synth2::audio::MathConstants<double>::twoPi * (double) n / (double) N);
+        const std::vector<float> sinTable(dsp::oscillatorSine.begin(),dsp::oscillatorSine.end());
 
         const auto nativeSaw = dsp::buildNativeSaw (sinTable);
         auto square = nativeSaw;
         for (const auto& info : square.infos)
             for (int n = 0; n < N; ++n)
-                square.data[info.offset+n] = .5f * (nativeSaw.data[info.offset+n]
-                    - nativeSaw.data[info.offset+((n+halfN)&(N-1))]);
+                square.data[info.offset+n] = .5f * (static_cast<float>(nativeSaw.data[info.offset+n])
+                    - static_cast<float>(nativeSaw.data[info.offset+((n+halfN)&(N-1))]));
         waveTableBank->setShapeTables (1,std::move (square));
         waveTableBank->setShapeTables (5,nativeSaw);
         waveTableBank->setShapeTables (0,nativeSaw);
         waveTableBank->setShapeTables (2,dsp::buildNativeTriangle (sinTable));
         synth2::ShapeTables sineShape;
-        sineShape.data = sinTable;
+        sineShape.data.assign(sinTable.begin(),sinTable.end());
         sineShape.infos.push_back ({ 0u, (std::size_t) N, (float) nyquist });
         waveTableBank->setShapeTables (3,std::move (sineShape));
     }
@@ -226,18 +238,26 @@ namespace synth2
         if (previousPlayMode != params.playMode)
         {
             if(!renderHistory.nativeMidiRoutingLoadHistory)synth.allNotesOff (0, false);
+            // Mode admission precedes a group-size update. Growing the group
+            // afterward must not resurrect keys released at that boundary.
+            else if(params.playMode!=0)corePool.releaseKeysAbove(previousUnisonVoices);
             previousPlayMode = params.playMode;
         }
+        previousUnisonVoices=params.unisonVoices;
         assert (capacity > 0);
         if (capacity <= 0) return;
         const auto outputSink=[](void* context,int start,int count,bool silent) {
             (*static_cast<decltype(processOutput)*>(context))(start,count,silent);
         };
+        auto nextMidi=midiMessages.findNextSamplePosition(startSample);
         for (int offset = 0; offset < numSamples;)
         {
-            // Win64 processing bridge RVA 0x19e00 limits each synth call
-            // to 256 frames, including hosts that supply larger blocks.
-            const int size = std::min ({capacity,256,numSamples - offset});
+            // MIDI defines each input region before the workspace limit is
+            // applied. A MIDI event restarts that region's 256-frame budget.
+            const int position=startSample+offset;
+            while(nextMidi!=midiMessages.cend() && nextMidi->samplePosition<=position)++nextMidi;
+            int size = std::min ({capacity,256,numSamples - offset});
+            if(nextMidi!=midiMessages.cend())size=std::min(size,nextMidi->samplePosition-position);
             audioChunkStart=startSample+offset;
             if(audioFactor>1)
             {

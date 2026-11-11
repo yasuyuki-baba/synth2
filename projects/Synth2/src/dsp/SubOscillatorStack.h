@@ -9,7 +9,7 @@ namespace synth2::dsp
         // Win64 0x2943b, followed by 0x3e540. Preserve the serialized knob.
         static float level(int dial) noexcept
         {
-            return static_cast<float>(std::clamp(dial,0,127)*4)*(1.0f/127.0f);
+            return static_cast<float>(std::clamp(dial,0,127)*4)/127.0f;
         }
         static float denominator(float level,float mix) noexcept
         {

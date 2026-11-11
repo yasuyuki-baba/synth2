@@ -7,6 +7,9 @@ ARP draws remain bound to that same stream and retain their position in the
 scheduler. Phase/VCO randomness remains separate from the Engine-owned LFO pair. Do not fit seeds to patches or add draws to conceal a mismatch.
 
 History setters, receiver queries and clock advances are distinct ordered actions.
+The shared LFO clock keeps free-rate mapping, fractional interpolation, frequency
+slew and phase rescaling in Float32, matching the real control buffers.
+Musical divisions, sample periods, counters and query indices remain discrete.
 Preserve callback/receiver spans, slot order, random advancement, fractional-rate
 handling and state retention. Disabled shared sources may still advance their
 native histories. Destination enable and evidence validity are separate facts; evidence validity

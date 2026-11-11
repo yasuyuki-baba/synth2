@@ -6,8 +6,7 @@
 namespace synth2::dsp
 {
     // Source23 dispatch0x298fb..0x29956 followed by CVcf0x3a920.
-    // Preserve the float dial normalization, double exponential/products,
-    // float receiver field and final float*100 in that order.
+    // Preserve double curve intermediates before rounding the receiver to Float32.
     inline float saturationForDial (int dial) noexcept
     {
         dial=std::clamp(dial,0,127);

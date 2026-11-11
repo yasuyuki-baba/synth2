@@ -5,7 +5,7 @@
 
 namespace
 {
-synth2::dsp::OutputGain settleGain(synth2::dsp::OutputPipeline& pipeline,double rate)
+synth2::dsp::OutputGain settleGain(synth2::dsp::OutputPipeline& pipeline,float rate)
 {
     pipeline.prepareGain(rate,false);
     synth2::dsp::OutputGain reference;reference.prepare(rate);
@@ -24,7 +24,7 @@ synth2::dsp::OutputGain settleGain(synth2::dsp::OutputPipeline& pipeline,double 
 
 TEST(OutputPipelinePath, WetProcessingAlwaysUsesTheCurrentKernelWithinItsRateDomain)
 {
-    for(double rate:{10000.,44100.,48000.25,384000.})for(int channels:{1,2})
+    for(float rate:{10000.f,44100.f,48000.25f,384000.f})for(int channels:{1,2})
     {
         auto pipeline=std::make_unique<synth2::dsp::OutputPipeline>();
         auto reference=std::make_unique<synth2::dsp::EffectPair>();
@@ -59,7 +59,7 @@ TEST(OutputPipelinePath, WetProcessingAlwaysUsesTheCurrentKernelWithinItsRateDom
 
 TEST(OutputPipelinePath, UnsupportedWetRatesBypassWithoutSelectingAnotherAlgorithm)
 {
-    for(double rate:{8000.,9999.,384001.})
+    for(float rate:{8000.f,9999.f,384001.f})
     {
         auto pipeline=std::make_unique<synth2::dsp::OutputPipeline>();
         pipeline->prepareEffects({rate,64,2},false,false);pipeline->prepareProcessors(rate,false);
@@ -94,7 +94,7 @@ TEST(OutputPipelinePath, ReleaseRetainsOrClearsTheCurrentEqualizerHistory)
     used->process(first,0,64,settings,context,{});held->process(second,0,64,settings,context,{});
     used->release(true);first.clear();second.clear();
     used->process(first,0,64,settings,context,{});held->process(second,0,64,settings,context,{});
-    double energy=0;
+    float energy=0;
     for(int c=0;c<2;++c)for(int i=0;i<64;++i)
     {EXPECT_EQ(first.getSample(c,i),second.getSample(c,i));energy+=first.getSample(c,i)*first.getSample(c,i);}
     EXPECT_GT(energy,0);
@@ -124,10 +124,10 @@ TEST(PanInputs, CubicPanRunsAfterNonlinearEffectsForEverySourceHistory)
         l=wrong.getSample(0,i);r=wrong.getSample(1,i);pre.process(l,r,32,.25f);wrong.setSample(0,i,l);wrong.setSample(1,i,r);
     }
     wrongOrder->process(wrong,0,64,withoutPan,context,{});
-    double difference=0;
+    float difference=0;
     for(int channel=0;channel<2;++channel)for(int i=0;i<64;++i)
     {EXPECT_EQ(got.getSample(channel,i),expected.getSample(channel,i));difference+=std::abs(got.getSample(channel,i)-wrong.getSample(channel,i));}
-    EXPECT_GT(difference,.001);
+    EXPECT_GT(difference,.001f);
 }
 #include "render/OutputConfiguration.h"
 TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoAndStereo)
@@ -153,9 +153,9 @@ TEST(StaticPanInputs, GlobalBalanceFollowsDriveForMonoAndStereo)
         const float left=channels==1 ? .75f : .5f;
         expected.applyGain(0,8,64,left);wrong.applyGain(0,8,64,left);
         wrongOrder->process(wrong,8,64,withoutPan,context,{});
-        double difference=0;
+        float difference=0;
         for(int channel=0;channel<channels;++channel)for(int i=0;i<80;++i)
         {EXPECT_EQ(got.getSample(channel,i),expected.getSample(channel,i));difference+=std::abs(got.getSample(channel,i)-wrong.getSample(channel,i));}
-        EXPECT_GT(difference,.001);
+        EXPECT_GT(difference,.001f);
     }
 }

@@ -27,13 +27,13 @@ public:
     int getCurrentlyPlayingNote()const{return note;}
     Sound* getCurrentlyPlayingSound()const{return sound;}
     bool wasStartedBefore(const Voice& other)const{return order<other.order;}
-    double getSampleRate()const{return sampleRate;}
+    float getSampleRate()const{return sampleRate;}
     void clearCurrentNote(){note=-1;sound=nullptr;channel=0;}
 private:
     friend class VoiceBank;
     Sound* sound=nullptr;int note=-1,channel=0;uint64_t order{};
     bool keyDown=false,sustain=false,sostenuto=false;
-    double sampleRate=44100;
+    float sampleRate=44100;
 };
 // Audio-thread-owned logical voices. Physical DSP allocation remains in
 // VoiceCorePool; this class only dispatches channel messages and note lifetime.
@@ -48,7 +48,7 @@ public:
     int getNumVoices()const{return static_cast<int>(voices.size());}
     Voice* getVoice(int i)const{return voices.at(static_cast<size_t>(i)).get();}
     Sound* getSound(int i)const{return sounds.at(static_cast<size_t>(i)).get();}
-    void setCurrentPlaybackSampleRate(double rate)
+    void setCurrentPlaybackSampleRate(float rate)
     {
         if(rate==sampleRate)return;
         allNotesOff(0,false);sampleRate=rate;
@@ -74,7 +74,7 @@ public:
             if(!v->sustain && !v->sostenuto)stopVoice(v.get(),velocity,tail);
         }
     }
-    double getSampleRate()const{return sampleRate;}
+    float getSampleRate()const{return sampleRate;}
     virtual void allNotesOff(int c,bool tail)
     {
         for(auto& v:voices)if(c<=0 || v->channel==c)v->stopNote(1.f,tail);
@@ -126,6 +126,6 @@ private:
     std::vector<std::unique_ptr<Sound>> sounds;
     std::array<bool,16> sustain{};
     std::array<int,16> pitch{};
-    uint64_t counter{};double sampleRate=0;bool stealNotes=true;
+    uint64_t counter{};float sampleRate=0;bool stealNotes=true;
 };
 }

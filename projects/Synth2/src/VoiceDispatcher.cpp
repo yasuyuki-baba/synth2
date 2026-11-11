@@ -47,28 +47,28 @@ namespace synth2
             modulation->trackKey(message,render::sharedModulation(*params));
     }
 
+    void VoiceDispatcher::rememberKeyDown(int channel,int note,float velocity)
+    {
+        const size_t c=static_cast<size_t>(channel-1);
+        physicalKeys[c][note]=true;heldOrder[c][note]=++noteOrder;heldVelocity[c][note]=velocity;
+    }
+
     void VoiceDispatcher::noteOn (int midiChannel, int midiNoteNumber, float velocity)
     {
         if (!dispatchingArpeggiator && midiChannel>=1 && midiChannel<=16 && midiNoteNumber>=0 && midiNoteNumber<128)
-            trackLfoKey(::synth2::audio::MidiMessage::noteOn(midiChannel,midiNoteNumber,velocity));
+            trackLfoKey(::synth2::audio::MidiMessage::noteOn(midiChannel,midiNoteNumber,static_cast<float>(velocity)));
+        if (midiChannel < 1 || midiChannel > 16 || midiNoteNumber < 0 || midiNoteNumber > 127) return;
+        const auto& keys=heldOrder[static_cast<size_t>(midiChannel-1)];
+        const bool overlapping=params!=nullptr && params->playMode!=0
+            && std::any_of(keys.begin(),keys.end(),[](auto order){return order!=0;});
+        rememberKeyDown(midiChannel,midiNoteNumber,velocity);
         if (params == nullptr || params->playMode == 0)
         {
-            if(nativeOmniInput && midiChannel>=1 && midiChannel<=16 && midiNoteNumber>=0 && midiNoteNumber<128)
-            {
-                const size_t c=static_cast<size_t>(midiChannel-1);
-                physicalKeys[c][midiNoteNumber]=true;heldOrder[c][midiNoteNumber]=++noteOrder;heldVelocity[c][midiNoteNumber]=velocity;
-            }
             ::synth2::audio::VoiceBank::noteOn (midiChannel, midiNoteNumber, velocity);
             return;
         }
-        if (midiChannel < 1 || midiChannel > 16 || midiNoteNumber < 0 || midiNoteNumber > 127) return;
         const size_t channel = static_cast<size_t> (midiChannel - 1);
-        physicalKeys[channel][midiNoteNumber]=true;
-        bool overlapping = false;
-        for (auto order : heldOrder[channel]) overlapping = overlapping || order != 0;
-        heldOrder[channel][midiNoteNumber] = ++noteOrder;
-        heldVelocity[channel][midiNoteNumber] = velocity;
-        auto* voice = nativeOmniInput && corePool!=nullptr ? corePool->primaryOwner() : monoVoices[channel];
+        auto* voice = soundingMonoVoice(midiChannel);
         const bool continuing = voice != nullptr && voice->isVoiceActive() && voice->isPlayingChannel (midiChannel);
         if (! continuing)
             voice = dynamic_cast<SynthVoice*> (findFreeVoice (getSound(0), midiChannel, midiNoteNumber, true));
@@ -79,6 +79,27 @@ namespace synth2
         voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f && (!params->portamentoAuto || overlapping)});
         startVoice (voice, getSound(0), midiChannel, midiNoteNumber, velocity);
         monoVoices[channel] = voice;
+    }
+
+    SynthVoice* VoiceDispatcher::soundingMonoVoice(int channel) const noexcept
+    {
+        return nativeOmniInput && corePool!=nullptr ? corePool->primaryOwner()
+            : monoVoices[static_cast<size_t>(channel-1)];
+    }
+
+    bool VoiceDispatcher::resumeHeldMonoKey(int channel,SynthVoice& voice)
+    {
+        const size_t c=static_cast<size_t>(channel-1);
+        int previous=-1;uint64_t newest=0;
+        for(int key=0;key<128;++key)
+            if(heldOrder[c][key]>newest){newest=heldOrder[c][key];previous=key;}
+        if(previous<0 || previous==voice.getCurrentlyPlayingNote())return false;
+        const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
+            : dsp::NoteTransitionKind::RetainedRetrigger;
+        voice.setNextTransition({transition,params->sourcePortamentoDial>0.0f});
+        startVoice(&voice,getSound(0),channel,previous,heldVelocity[c][previous]);
+        monoVoices[c]=&voice;
+        return true;
     }
 
     void VoiceDispatcher::noteOff (int channel, int note, float velocity, bool tail)
@@ -102,22 +123,11 @@ namespace synth2
             ::synth2::audio::VoiceBank::noteOff(channel,note,velocity,tail);return;
         }
         heldOrder[c][note] = 0;
-        auto* voice = monoVoices[c];
+        auto* voice = soundingMonoVoice(channel);
         if (voice != nullptr && voice->isVoiceActive() && voice->isPlayingChannel (channel)
             && voice->getCurrentlyPlayingNote() == note)
         {
-            int previous = -1;
-            uint64_t newest = 0;
-            for (int key = 0; key < 128; ++key)
-                if (heldOrder[c][key] > newest) { newest = heldOrder[c][key]; previous = key; }
-            if (previous >= 0)
-            {
-                const auto transition=params->playMode==2 ? dsp::NoteTransitionKind::Legato
-                    : dsp::NoteTransitionKind::RetainedRetrigger;
-                voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f});
-                startVoice (voice, getSound(0), channel, previous, heldVelocity[c][previous]);
-                return;
-            }
+            if(resumeHeldMonoKey(channel,*voice))return;
         }
         ::synth2::audio::VoiceBank::noteOff (channel, note, velocity, tail);
     }
@@ -132,8 +142,9 @@ namespace synth2
             if(!down && params!=nullptr && params->playMode!=0)
             {
                 for(int key=0;key<128;++key)if(!physicalKeys[c][key])heldOrder[c][key]=0;
-                auto* voice=monoVoices[c];
+                auto* voice=soundingMonoVoice(channel);
                 if(voice!=nullptr && voice->isVoiceActive() && voice->getCurrentlyPlayingNote()>=0
+                    && !resumeHeldMonoKey(channel,*voice)
                     && !physicalKeys[c][voice->getCurrentlyPlayingNote()])
                     noteOff(channel,voice->getCurrentlyPlayingNote(),0,true);
             }
@@ -183,7 +194,7 @@ namespace synth2
         ::synth2::audio::VoiceBank::handleController(channel,number,value);
     }
 
-    void VoiceDispatcher::setPlaybackRate (double rate, bool preserveNotes)
+    void VoiceDispatcher::setPlaybackRate (float rate, bool preserveNotes)
     {
         const ::synth2::audio::ScopedValueSetter<bool> preserving (preservingNotesForRateChange, preserveNotes);
         setCurrentPlaybackSampleRate (rate);
@@ -260,7 +271,7 @@ namespace synth2
             const int offset=start-modulation->block().startSample;
             const auto frame=params->globalSampleCount+static_cast<uint64_t>(offset);
             gainHorizon=64-static_cast<int>(frame%64);
-            const int next=arpeggiator.framesUntilBoundary(static_cast<double>(frame),count+64);
+            const int next=arpeggiator.framesUntilBoundary(static_cast<int64_t>(frame),count+64);
             gainBoundary=receiverBoundary ? std::min(count,next) : next<count+64 ? next : 0;
             if(gainBoundary>0)gainHorizon=std::min(gainHorizon,gainBoundary);
         }
@@ -302,7 +313,7 @@ namespace synth2
         const ::synth2::audio::ScopedValueSetter<void*> context(activeOutputContext,outputContext);
         const ::synth2::audio::ScopedValueSetter<OutputSink> sink(activeOutputSink,outputSink);
         renderedVoicesInRegion=false;
-        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->playMode!=0 ? std::max(params->polyphony,params->unisonVoices) : params->polyphony);
+        if (corePool != nullptr && params != nullptr) corePool->limitCapacity(params->playMode!=0 ? params->unisonVoices : params->polyphony);
         const int voiceLimit = corePool != nullptr && params != nullptr && params->playMode == 0
             ? getNumVoices() : logicalVoiceLimit (params, getNumVoices());
         for (int i = voiceLimit; i < getNumVoices(); ++i)
@@ -311,18 +322,51 @@ namespace synth2
         int cursor = startSample;
         nativeWorkspaceOrigin=startSample;
         auto inputBoundary=midi.findNextSamplePosition(startSample);
-        std::optional<::synth2::audio::MidiMessage> pendingArpOff;
-        int pendingArpPosition=0;
-        const auto flushArpOff=[&] {
-            if(!pendingArpOff)return;
+        // The keyboard collects a timestamp before polyphonic admission.
+        // New keys are admitted most-recent first, independently of the input
+        // trace order and the physical slot/render order.
+        std::array<::synth2::audio::MidiMessage,16*128> pendingPolyOns;
+        int pendingPolyCount=0;
+        const auto removePendingKey=[&](int channel,int note) {
+            for(int i=0;i<pendingPolyCount;)
+            {
+                if(pendingPolyOns[i].getChannel()==channel && (note<0 || pendingPolyOns[i].getNoteNumber()==note))
+                {
+                    for(int j=i+1;j<pendingPolyCount;++j)pendingPolyOns[j-1]=pendingPolyOns[j];
+                    --pendingPolyCount;
+                }
+                else ++i;
+            }
+        };
+        const auto flushPolyOns=[&] {
             const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
-            handleMidiEvent(*pendingArpOff);pendingArpOff.reset();
+            const int physical=params!=nullptr ? std::clamp(params->polyphony,1,32) : 32;
+            const int group=params!=nullptr ? std::clamp(params->unisonVoices,1,8) : 1;
+            // Admit complete groups; one partial group remains possible when
+            // the requested Unison itself exceeds the physical budget.
+            const int count=std::min(pendingPolyCount,std::max(1,physical/group));
+            for(int i=0;i<count;++i)
+            {
+                const auto& message=pendingPolyOns[pendingPolyCount-1-i];
+                const int channel=message.getChannel(),note=message.getNoteNumber();
+                ::synth2::audio::VoiceBank::noteOn(channel,note,message.getFloatVelocity());
+                if(!physicalKeys[static_cast<size_t>(channel-1)][note])
+                    ::synth2::audio::VoiceBank::noteOff(channel,note,0,true);
+            }
+            pendingPolyCount=0;
+        };
+        std::optional<::synth2::audio::MidiMessage> pendingLegatoOff;
+        int pendingLegatoPosition=0;
+        const auto flushLegatoOff=[&] {
+            if(!pendingLegatoOff)return;
+            const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
+            handleMidiEvent(*pendingLegatoOff);pendingLegatoOff.reset();
         };
         // Silent arp boundaries use the same render partition as MIDI events.
         const auto renderUntil=[&](int position) {
             if(position>cursor)
             {
-                flushArpOff();renderVoicesWithLfos(output,cursor,position-cursor,true);
+                flushPolyOns();flushLegatoOff();renderVoicesWithLfos(output,cursor,position-cursor,true);
             }
             cursor=position;
             // The native VST bridge reuses its aligned workspace for each
@@ -332,34 +376,44 @@ namespace synth2
         };
         arpeggiator.process (midi, startSample, numSamples,
                              params != nullptr ? params->arpeggiator : ArpeggiatorSettings {},
-                             params != nullptr ? params->hostBpm : 120.0,
+                             params != nullptr ? params->hostBpm : 120.0f,
                              [&](const ::synth2::audio::MidiMessage& message, int position)
         {
             renderUntil(position);
             const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
-            if(pendingArpOff)
+            if(params!=nullptr && params->playMode==0)
             {
-                if(message.isNoteOn() && position==pendingArpPosition
-                    && message.getChannel()==pendingArpOff->getChannel())
+                const int channel=message.getChannel(),note=message.getNoteNumber();
+                if(message.isNoteOn())
                 {
-                    // A connected full-gate native legato step retains the
+                    rememberKeyDown(channel,note,message.getFloatVelocity());
+                    removePendingKey(channel,note);
+                    pendingPolyOns[pendingPolyCount++]=message;
+                    return;
+                }
+                if(message.isNoteOff() && !sustainDown[static_cast<size_t>(channel-1)])removePendingKey(channel,note);
+                if(message.isAllNotesOff() || message.isAllSoundOff())removePendingKey(channel,-1);
+            }
+            if(pendingLegatoOff)
+            {
+                if(message.isNoteOn() && position==pendingLegatoPosition
+                    && message.getChannel()==pendingLegatoOff->getChannel())
+                {
+                    // A same-time native legato replacement retains the
                     // sounding envelope even for a repeated pitch. Keep the
                     // held-note overlap until its new assignment is installed.
                     handleMidiEvent(message);
-                    if(message.getNoteNumber()!=pendingArpOff->getNoteNumber())handleMidiEvent(*pendingArpOff);
-                    pendingArpOff.reset();return;
+                    if(message.getNoteNumber()!=pendingLegatoOff->getNoteNumber())handleMidiEvent(*pendingLegatoOff);
+                    pendingLegatoOff.reset();return;
                 }
-                flushArpOff();
+                if(message.isNoteOnOrOff() || message.isAllNotesOff() || message.isAllSoundOff())flushLegatoOff();
             }
-            if(message.isNoteOff() && params!=nullptr
-                && params->playMode==2 && params->arpeggiator.enabled
-                // Random order uses the same connected full-gate assignment
-                // as ordered ARP; do not release its core between same-time events.
-                && ((params->arpeggiator.type>=1 && params->arpeggiator.type<=3)
-                    || params->arpeggiator.type==4)
-                && params->arpeggiator.gate==127)
+            // Native legato sees the final keyboard state at this timestamp.
+            // Keep same-time Off/On replacements connected across ordinary
+            // controller messages and ARP gate/keyboard binding changes.
+            if(message.isNoteOff() && params!=nullptr && params->playMode==2)
             {
-                pendingArpOff=message;pendingArpPosition=position;return;
+                pendingLegatoOff=message;pendingLegatoPosition=position;return;
             }
             handleMidiEvent (message);
         },renderUntil,[&](const ::synth2::audio::MidiMessage& message,int position) {
@@ -372,8 +426,12 @@ namespace synth2
                 renderUntil(position);trackLfoKey(message);
             }
         },nativeOmniInput);
-        flushArpOff();
-        if (cursor < endSample) renderVoicesWithLfos (output, cursor, endSample - cursor);
+        flushPolyOns();flushLegatoOff();
+        // The next MIDI region can begin exactly at this workspace end.
+        // Its known boundary also caps projected ARP amplitude gain spans.
+        const auto nextInput=midi.findNextSamplePosition(endSample);
+        const bool inputAtEnd=nextInput!=midi.cend() && nextInput->samplePosition==endSample;
+        if (cursor < endSample) renderVoicesWithLfos (output, cursor, endSample - cursor,inputAtEnd);
     }
 
 }

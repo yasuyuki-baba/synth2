@@ -21,7 +21,7 @@ namespace synth2::dsp
     public:
         enum class Mode { LP12 = 0, LP24 = 1, HP12 = 2, BP12 = 3, Diode = 4 };
 
-        void setSampleRate (double sr) noexcept { sampleRate = sr; nativeLimiter.prepare(sr,true); nativeLp24.prepare(static_cast<int>(sr),true); }
+        void setSampleRate (float sr) noexcept { sampleRate = sr; nativeLimiter.prepare(sr,true); nativeLp24.prepare(static_cast<int>(sr),true); }
         void prepare (const ::synth2::audio::ProcessSpec& spec)
         {
             sampleRate = spec.sampleRate;
@@ -58,7 +58,7 @@ namespace synth2::dsp
             std::array<float,17> values{nativeStateVariable.getLow(),nativeStateVariable.getBand(),nativeLimiter.value()};
             nativeLp24.copyState(values.data()+3);return values;
         }
-        float processNativeIndex (float input,double index) noexcept
+        float processNativeIndex (float input,float index) noexcept
         {
             const bool bypass = offline::bypassFilter();
             if(bypass)return input;
@@ -92,7 +92,7 @@ namespace synth2::dsp
         }
     private:
         Mode mode {Mode::LP12};
-        double sampleRate {44100.0};
+        float sampleRate {44100.0f};
         float cutoffIndex {1023.0f}, resonanceNorm {0.0f};
         float envelopeAmount {0.0f}, keyboardTracking {0.0f}, saturation {0.0f}, saturationCurve {0.0f};
         StateVariableFilter nativeStateVariable;

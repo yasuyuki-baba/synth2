@@ -199,6 +199,21 @@ TEST(Arpeggiator, SlowTempoKeepsHeldNotesAndFullGateWithinFrameRange)
     }
 }
 
+TEST(Arpeggiator, LongRunningFrameClockPreservesSubBlockNoteOffsets)
+{
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(48000);
+    auto settings=defaults();settings.enabled=false;
+    synth2::audio::MidiBuffer empty;
+    arp.process(empty,0,1<<25,settings,120,[](const auto&,int){});
+    settings.enabled=true;settings.beat=0;settings.gate=127;
+    auto input=held({60},13);input.addEvent(synth2::audio::MidiMessage::noteOff(1,60),37);
+    Events events;
+    arp.process(input,0,64,settings,120,[&](const auto& message,int frame){capture(events,message,frame);});
+    const auto on=notes(events),off=notes(events,false);
+    ASSERT_EQ(on.size(),1u);ASSERT_EQ(off.size(),1u);
+    EXPECT_EQ(std::get<0>(on[0]),13);EXPECT_EQ(std::get<0>(off[0]),37);
+}
+
 TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
 {
     synth2::dsp::CrtRandom random;
@@ -215,4 +230,144 @@ TEST(Arpeggiator, RandomConsumesCallerStreamAndKeepsFirstKeyVelocity)
     arp.process(empty,0,1000,p,120,[&](const auto& msg,int frame){capture(events,msg,frame+1);});
     const auto on=notes(events);ASSERT_GT(on.size(),4u);
     for(const auto& event:on)EXPECT_EQ(std::get<3>(event),31);
+}
+
+TEST(Arpeggiator, RepeatedTempoChangesRescaleWholeSampleCounters)
+{
+    for(int type:{1,2,3,4})for(int gate:{83,127})for(int block:{1,17,64,127})
+        for(int warmup:{0,1<<25})
+    {
+        SCOPED_TRACE(::testing::Message()<<type<<" "<<gate<<" "<<block<<" "<<warmup);
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.enabled=false;
+        synth2::audio::MidiBuffer empty;
+        if(warmup)arp.process(empty,0,warmup,settings,120,[](const auto&,int){});
+        settings.enabled=true;settings.type=type;settings.range=0;settings.beat=11;settings.gate=gate;
+        Events events;int position=0;
+        auto segment=[&](int length,float tempo){
+            for(int remaining=length;remaining>0;){
+                constexpr int prefix=7;
+                const int count=std::min(block,remaining);
+                synth2::audio::MidiBuffer input;
+                if(position==0)input=held({60},prefix);
+                arp.process(input,prefix,count,settings,tempo,[&](const auto& msg,int frame){
+                    EXPECT_GE(frame,prefix);EXPECT_LT(frame,prefix+count);
+                    capture(events,msg,position+frame-prefix);
+                });
+                position+=count;remaining-=count;
+            }
+        };
+        // Integer age100/period250 rescales to66/166, then age86/166
+        // rescales to129/250. Gate163 is34 frames away; the next period
+        // is121 frames away. Keep these counter truncations at each edit.
+        segment(100,120);segment(20,180);segment(200,120);
+        const auto on=notes(events),off=notes(events,false);
+        ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
+        EXPECT_EQ(std::get<0>(on[0]),0);EXPECT_EQ(std::get<0>(on[1]),241);
+        EXPECT_EQ(std::get<0>(off[0]),gate==83 ? 154 : 241);
+    }
+}
+
+TEST(Arpeggiator, PeriodEditsRecomputeGateFromRescaledCounter)
+{
+    for(int firstEdit:{16,100})for(int wait:{1,20})
+        for(int firstTempo:{150,180,300})for(int secondTempo:{120,240})
+    {
+        SCOPED_TRACE(::testing::Message()<<firstEdit<<" "<<wait<<" "<<firstTempo<<" "<<secondTempo);
+        const int secondEdit=firstEdit+wait;
+        // At 1 kHz/beat11, the native integer period is floor(30000/BPM).
+        const int firstPeriod=30000/firstTempo,secondPeriod=30000/secondTempo;
+        const int firstCounter=firstEdit*firstPeriod/250;
+        const int secondCounter=(firstCounter+wait)*secondPeriod/firstPeriod;
+        const int nextNote=secondEdit+secondPeriod-secondCounter;
+        const int nextGate=secondEdit+(secondPeriod*83/127)-secondCounter;
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=83;
+        synth2::audio::MidiBuffer empty;auto input=held({60});
+        Events events;int base=0;
+        auto sink=[&](const auto& message,int frame){capture(events,message,base+frame);};
+        arp.process(input,0,firstEdit,settings,120,sink);
+        base=firstEdit;arp.process(empty,0,wait,settings,static_cast<float>(firstTempo),sink);
+        base=secondEdit;arp.process(empty,0,nextNote-base+1,settings,static_cast<float>(secondTempo),sink);
+        const auto on=notes(events),off=notes(events,false);
+        ASSERT_EQ(on.size(),2u);ASSERT_EQ(off.size(),1u);
+        EXPECT_EQ(std::get<0>(on[1]),nextNote);
+        EXPECT_EQ(std::get<0>(off[0]),nextGate);
+    }
+}
+
+TEST(Arpeggiator, PeriodRescalingHandlesSaturatedSlowTempo)
+{
+    for(int gate:{83,127})
+    {
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=gate;
+        auto input=held({60});synth2::audio::MidiBuffer empty;
+        arp.process(input,0,100,settings,120,[](const auto&,int){});
+        arp.process(empty,0,20,settings,180,[](const auto&,int){});
+        auto sink=[](const auto&,int frame){EXPECT_GE(frame,0);EXPECT_LT(frame,64);};
+        arp.process(empty,0,64,settings,1e-40f,sink);
+        arp.process(empty,0,64,settings,120,sink);
+    }
+}
+
+TEST(Arpeggiator, OrderedCursorFollowsKeysAcrossMembershipEdits)
+{
+    using synth2::audio::MidiMessage;
+    auto settings=defaults();settings.type=2;settings.range=1;settings.beat=14;settings.gate=83;
+    auto input=held({60,64,67});
+    input.addEvent(MidiMessage::noteOff(1,64),400);
+    input.addEvent(MidiMessage::noteOn(1,65,static_cast<uint8_t>(31)),550);
+    const std::vector<int> expected{60,64,67,72,79,60};
+    for(int block:{1,17,64,127}){
+        const auto on=notes(render(settings,input,block,700));ASSERT_EQ(on.size(),expected.size());
+        for(size_t i=0;i<on.size();++i){EXPECT_EQ(std::get<2>(on[i]),expected[i]);EXPECT_EQ(std::get<3>(on[i]),100);}
+    }
+}
+
+TEST(Arpeggiator, BypassRestoresHeldKeysInPressOrderWithoutPanic)
+{
+    using synth2::audio::MidiMessage;
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+    auto settings=defaults();settings.beat=11;settings.gate=83;
+    auto input=held({60,64});input.addEvent(MidiMessage::noteOn(1,60,static_cast<uint8_t>(91)),10);
+    arp.process(input,0,50,settings,120,[](const auto&,int){});
+    settings.enabled=false;synth2::audio::MidiBuffer empty;Events events;
+    arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+    const auto on=notes(events);ASSERT_EQ(on.size(),2u);
+    EXPECT_EQ(std::get<2>(on[0]),64);EXPECT_EQ(std::get<2>(on[1]),60);
+    settings.enabled=true;events.clear();
+    arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+    for(const auto& event:events)EXPECT_FALSE(std::get<1>(event)==0xb0 && std::get<2>(event)==120);
+}
+
+TEST(Arpeggiator, EnablingWithBypassedKeysPreservesFirstKeyVelocity)
+{
+    using synth2::audio::MidiMessage;
+    for(int type:{1,2,3,4})
+    {
+        synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+        auto settings=defaults();settings.enabled=false;settings.type=type;settings.beat=11;settings.gate=83;
+        synth2::audio::MidiBuffer input;
+        input.addEvent(MidiMessage::noteOn(1,60,static_cast<uint8_t>(91)),0);
+        input.addEvent(MidiMessage::noteOn(1,64,static_cast<uint8_t>(42)),1);
+        arp.process(input,0,2,settings,120,[](const auto&,int){});
+        settings.enabled=true;synth2::audio::MidiBuffer empty;Events events;
+        arp.process(empty,0,1,settings,120,[&](const auto& msg,int frame){capture(events,msg,frame);});
+        const auto on=notes(events);ASSERT_EQ(on.size(),1u)<<type;
+        EXPECT_EQ(std::get<3>(on[0]),91)<<type;
+    }
+}
+
+TEST(Arpeggiator, GateEditsQueryTheCurrentCycleEvenAfterAMissedGate)
+{
+    synth2::dsp::CrtRandom random;synth2::midi::Arpeggiator arp(random);arp.prepare(1000);
+    auto settings=defaults();settings.range=0;settings.beat=11;settings.gate=83;
+    auto input=held({60});synth2::audio::MidiBuffer empty;Events events;int base=0;
+    auto sink=[&](const auto& msg,int frame){capture(events,msg,base+frame);};
+    arp.process(input,0,100,settings,120,sink);
+    settings.gate=40;base=100;arp.process(empty,0,100,settings,120,sink);
+    settings.gate=110;base=200;arp.process(empty,0,100,settings,120,sink);
+    const auto off=notes(events,false);ASSERT_EQ(off.size(),1u);EXPECT_EQ(std::get<0>(off[0]),216);
+    const auto on=notes(events);ASSERT_EQ(on.size(),2u);EXPECT_EQ(std::get<0>(on[1]),250);
 }

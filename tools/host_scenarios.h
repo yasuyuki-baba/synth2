@@ -45,13 +45,13 @@ inline int activeCores(synth2::host::ProcessorBridge& p)
     }
     return result;
 }
-inline bool finite(const synth2::audio::AudioBuffer<float>& audio)
+template<class Sample> bool finite(const synth2::audio::AudioBuffer<Sample>& audio)
 {
     for(int ch=0;ch<audio.getNumChannels();++ch)for(int i=0;i<audio.getNumSamples();++i)
         if(!std::isfinite(audio.getSample(ch,i)))return false;
     return true;
 }
-inline void process(synth2::host::ProcessorBridge& p,synth2::audio::AudioBuffer<float>& a,const synth2::audio::MidiBuffer& midi) {
+template<class Sample> void process(synth2::host::ProcessorBridge& p,synth2::audio::AudioBuffer<Sample>& a,const synth2::audio::MidiBuffer& midi) {
     for(const auto& e:midi){const auto* b=e.getMessage().getRawData();if(!p.enqueueMidi(e.samplePosition,b[0],b[1],b[2]))throw std::runtime_error("MIDI rejected");}
     if(!p.process(a.getWritePointer(0),a.getWritePointer(1),a.getNumSamples(),120.))throw std::runtime_error("Block rejected");
 }

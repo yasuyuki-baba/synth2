@@ -12,7 +12,7 @@ namespace synth2::dsp
     class EffectPair
     {
     public:
-        void prepare(double rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0,384000.0));reset();}
+        void prepare(float rate) noexcept {sampleRate=static_cast<int>(std::clamp(rate,1.0f,384000.0f));reset();}
         void reset() noexcept {delay->reset();chorus.reset();initialized=false;}
         template<class DelaySettings,class ChorusSettings>
         void setParams(const DelaySettings& d,const ChorusSettings& c,float bpm) noexcept
@@ -72,7 +72,7 @@ namespace synth2::dsp
             std::array<uint32_t,9> words {static_cast<uint32_t>(delay->getSilentFrames()),static_cast<uint32_t>(delay->getTailFrames()),
                 static_cast<uint32_t>(delay->getWritePosition()),static_cast<uint32_t>(chorus.getSilentFrames()),static_cast<uint32_t>(chorus.getTailFrames()),
                 static_cast<uint32_t>(chorus.getReadPosition()),static_cast<uint32_t>(chorus.getWritePosition())};
-            const float sine=chorus.getPhaseSin(),cosine=chorus.getPhaseCos();
+            const float sine=static_cast<float>(chorus.getPhaseSin()),cosine=static_cast<float>(chorus.getPhaseCos());
             std::memcpy(&words[7],&sine,4);std::memcpy(&words[8],&cosine,4);return words;
         }
     private:
@@ -96,25 +96,29 @@ namespace synth2::dsp
             }
             if(silent)*silent=allSilent;
         }
-        std::array<double,2> delayFrames(float time,float spread,float bpm) const noexcept
+        std::array<float,2> delayFrames(float time,float spread,float bpm) const noexcept
         {
             const int t0=static_cast<int>(time),t1=std::min(127,t0+1);
             const int s0=static_cast<int>(spread),s1=std::min(127,s0+1);
             auto anchor=[&](int t,int s){
-                const int nominal=static_cast<int>(static_cast<float>(sampleRate)*EffectControls::delaySeconds(t,bpm));
-                const int aligned=nominal-nominal%4;
                 const float offset=EffectControls::spreadSeconds(s);
-                const int l=aligned+(offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0);
-                const int r=aligned+(offset<0 ? static_cast<int>(static_cast<float>(sampleRate)*-offset) : 0);
-                const int minimum=static_cast<int>(static_cast<double>(sampleRate)*.0001);
-                return std::array<double,2>{static_cast<double>(std::clamp(l,minimum,131072-256)),static_cast<double>(std::clamp(r,minimum,131072-256))};
+                const int left=offset>=0 ? static_cast<int>(static_cast<float>(sampleRate)*offset) : 0;
+                const int right=offset<0 ? static_cast<int>(static_cast<float>(sampleRate)*-offset) : 0;
+                const int minimum=static_cast<int>(static_cast<float>(sampleRate)*.0001f);
+                const auto frames=[&](int extra) {
+                    const float seconds=EffectControls::delaySeconds(t,bpm);
+                    const int nominal=static_cast<int>(static_cast<float>(sampleRate)*seconds);
+                    const int aligned=nominal-nominal%4;
+                    return std::clamp(aligned+extra,minimum,131072-256);
+                };
+                return std::array<float,2>{static_cast<float>(frames(left)),static_cast<float>(frames(right))};
             };
             const auto a=anchor(t0,s0),b=anchor(t0,s1),c=anchor(t1,s0),d=anchor(t1,s1);
-            std::array<double,2> result{};
+            std::array<float,2> result{};
             for(int channel=0;channel<2;++channel)
             {
-                const double low=a[channel]+(b[channel]-a[channel])*(spread-s0);
-                const double high=c[channel]+(d[channel]-c[channel])*(spread-s0);
+                const float low=a[channel]+(b[channel]-a[channel])*(spread-s0);
+                const float high=c[channel]+(d[channel]-c[channel])*(spread-s0);
                 result[channel]=low+(high-low)*(time-t0);
             }
             return result;

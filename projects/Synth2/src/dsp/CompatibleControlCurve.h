@@ -8,16 +8,16 @@ namespace synth2::dsp
     // Integer coordinates identify measured control-curve knots, not the
     // storage type of a running signal. Fractional coordinates stay real.
     template<class Mapping>
-    double compatibleControlCurve(double coordinate,Mapping mapping) noexcept
+    float compatibleControlCurve(float coordinate,Mapping mapping) noexcept
     {
         const int low=static_cast<int>(std::floor(coordinate));
-        const double first=mapping(low);
+        const float first=mapping(low);
         if(coordinate==low)return first;
-        return first+(static_cast<double>(mapping(low+1))-first)*(coordinate-low);
+        return first+(static_cast<float>(mapping(low+1))-first)*(coordinate-low);
     }
 
     template<class Mapping>
-    std::pair<double,int> compatibleControlQuery(double coordinate,Mapping mapping) noexcept
+    std::pair<float,int> compatibleControlQuery(float coordinate,Mapping mapping) noexcept
     {
         const int low=static_cast<int>(std::floor(coordinate));
         const auto first=mapping(low);
@@ -25,6 +25,6 @@ namespace synth2::dsp
         const auto second=mapping(low+1);
         const int frames=first.second<0 ? second.second : second.second<0 ? first.second
             : std::min(first.second,second.second);
-        return {first.first+(static_cast<double>(second.first)-first.first)*(coordinate-low),frames};
+        return {first.first+(static_cast<float>(second.first)-first.first)*(coordinate-low),frames};
     }
 }

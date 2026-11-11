@@ -19,8 +19,8 @@ std::vector<float> render(int voices,float time,float depth,float rate,bool hist
     std::vector<float> audio(16384);
     for(size_t i=0;i<audio.size()/2;++i)
     {
-        audio[2*i]=static_cast<float>(std::sin(i*.07));
-        audio[2*i+1]=static_cast<float>(std::cos(i*.11))*.5f;
+        audio[2*i]=static_cast<float>(std::sin(i*.07f));
+        audio[2*i+1]=static_cast<float>(std::cos(i*.11f))*.5f;
     }
     for(int i=0;i<8192;i+=64)chorus->process(audio.data()+2*i,nullptr,64);
     return audio;
@@ -64,6 +64,56 @@ TEST(ChorusPath, ZeroDepthKeepsExactIntegralAndFractionalImpulseDelays)
             const float expected=dial==64 ? (i==666 ? 1.f : 0.f)
                 : i==667 ? .625f : i==668 ? .375f : 0.f;
             EXPECT_EQ(audio[2*i],expected);EXPECT_EQ(audio[2*i+1],0);
+        }
+    }
+}
+
+TEST(ChorusPath, ModulationAndAudioRingUseFloatWords)
+{
+    auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
+    ASSERT_TRUE(chorus->configure(44100,2,64,0,50,64,127));
+    chorus->setRateDial(50.125f);
+    chorus->reset();
+    const float input=std::nextafter(1.0f,2.0f);
+    std::array<float,128> audio{};
+    audio[0]=input;
+    chorus->process(audio.data(),nullptr,64);
+    EXPECT_EQ(audio[0],input);
+    EXPECT_EQ(audio[0],std::nextafter(1.0f,2.0f));
+    EXPECT_EQ(chorus->getPhaseSin(),static_cast<float>(static_cast<float>(chorus->getPhaseSin())));
+    EXPECT_EQ(chorus->getPhaseCos(),static_cast<float>(static_cast<float>(chorus->getPhaseCos())));
+    for(int block=1;block<=10;++block)
+    {
+        audio.fill(0);chorus->process(audio.data(),nullptr,64);
+        if(block==10)EXPECT_EQ(audio[2*(666-640)],input);
+    }
+}
+
+TEST(ChorusPath, FractionalImpulseWeightsDoNotDependOnRingCursor)
+{
+    for(int voices:{1,2,4})for(int start:{0,4095,8191,16381})for(float dial:{64.1f,64.9f})
+    {
+        SCOPED_TRACE(::testing::Message()<<"voices="<<voices<<" start="<<start<<" dial="<<dial);
+        auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
+        ASSERT_TRUE(chorus->configure(44100,voices,64,0,0,64,127));
+        chorus->setTimeDial(dial);chorus->reset();
+        const float delay=chorus->getDelayFramesContinuous();
+        const int frames=static_cast<int>(delay);
+        const float fraction=delay-frames;
+        ASSERT_GT(fraction,0);ASSERT_LT(fraction,1);
+        const int count=start+frames+3;
+        std::vector<float> audio(2*count);
+        audio[2*start]=1;audio[2*start+1]=-.5f;
+        for(int at=0;at<count;at+=64)
+            chorus->process(audio.data()+2*at,nullptr,std::min(64,count-at));
+        const float leftGain=voices==4 ? .5f : 1.f;
+        const float rightGain=voices==4 ? .5f : -.5f;
+        for(int i=start+1;i<count;++i)
+        {
+            const float expected=i==start+frames ? 1-fraction
+                : i==start+frames+1 ? fraction : 0.f;
+            EXPECT_NEAR(audio[2*i],expected*leftGain,0.000001f)<<"frame="<<i;
+            EXPECT_NEAR(audio[2*i+1],expected*rightGain,0.000001f)<<"frame="<<i;
         }
     }
 }

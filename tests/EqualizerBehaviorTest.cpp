@@ -4,29 +4,29 @@
 
 namespace
 {
-    double response (int tone, int level = 64, double frequency = 440.0)
+    float response (int tone, int level = 64, float frequency = 440.0f)
     {
         synth2::dsp::Equalizer eq;
-        eq.prepare (44100.0);
+        eq.prepare (44100.0f);
         synth2::EqualizerSettings p;
         p.tone = tone / 127.0f; p.level = level / 127.0f;
         p.freq = p.q = 64.0f / 127.0f;
         eq.setParams (p);
-        double sum = 0.0;
+        float sum = 0.0f;
         for (int i = 0; i < 22050; ++i)
         {
-            const float input = 0.001f * static_cast<float> (std::sin (synth2::audio::MathConstants<double>::twoPi * frequency * i / 44100.0));
+            const float input = 0.001f * static_cast<float> (std::sin (synth2::audio::MathConstants<float>::twoPi * frequency * i / 44100.0f));
             const float output = eq.processSample (input);
             if (i >= 11025) sum += output * output;
         }
-        return std::sqrt (sum / 11025) / (0.001 / std::sqrt (2.0));
+        return std::sqrt (sum / 11025) / (0.001f / std::sqrt (2.0f));
     }
 }
 
 TEST(Equalizer, StereoChannelsKeepIndependentFilterHistory)
 {
     synth2::dsp::Equalizer eq;
-    eq.prepare ({44100.0, 256, 2});
+    eq.prepare ({44100.0f, 256, 2});
     synth2::EqualizerSettings p; p.tone = 0.0f; p.level = 64.0f / 127.0f;
     eq.setParams (p);
     synth2::audio::AudioBuffer<float> buffer (2, 256); buffer.clear();
@@ -43,18 +43,18 @@ TEST(Equalizer, StereoChannelsKeepIndependentFilterHistory)
 
 TEST(Equalizer, ParametricBandAndToneHaveIndependentControls)
 {
-    const double neutral = response (64, 64, 915.0);
-    EXPECT_NEAR(neutral, 1.0, 0.002);
-    EXPECT_LT(neutral, 1.0);
-    EXPECT_GT(response (64, 96, 915.0), neutral * 2.0);
-    EXPECT_LT(response (64, 32, 915.0), neutral * 0.5);
-    EXPECT_LT(response (0, 64, 915.0), neutral * 0.3);
+    const float neutral = response (64, 64, 915.0f);
+    EXPECT_NEAR(neutral, 1.0f, 0.002f);
+    EXPECT_LT(neutral, 1.0f);
+    EXPECT_GT(response (64, 96, 915.0f), neutral * 2.0f);
+    EXPECT_LT(response (64, 32, 915.0f), neutral * 0.5f);
+    EXPECT_LT(response (0, 64, 915.0f), neutral * 0.3f);
 }
 
 TEST(Equalizer, ContextBypassPreservesDryAudioAndHistory)
 {
     synth2::dsp::Equalizer eq;
-    eq.prepare ({48000.0, 64, 2});
+    eq.prepare ({48000.0f, 64, 2});
     synth2::EqualizerSettings p; p.tone = 0.0f; eq.setParams (p);
     synth2::audio::AudioBuffer<float> audio (2, 64);
     for (int channel = 0; channel < 2; ++channel)
@@ -66,7 +66,7 @@ TEST(Equalizer, ContextBypassPreservesDryAudioAndHistory)
     for (int channel = 0; channel < 2; ++channel)
     for (int frame = 0; frame < 64; ++frame)
         EXPECT_FLOAT_EQ(audio.getSample(channel, frame), original.getSample(channel, frame));
-    synth2::dsp::Equalizer fresh; fresh.prepare({48000.0,64,2}); fresh.setParams(p);
+    synth2::dsp::Equalizer fresh; fresh.prepare({48000.0f,64,2}); fresh.setParams(p);
     context.isBypassed=false; eq.process(context);
     for(int channel=0;channel<2;++channel)for(int frame=0;frame<64;++frame)
         EXPECT_EQ(audio.getSample(channel,frame),fresh.processSample(original.getSample(channel,frame),channel));
@@ -74,7 +74,7 @@ TEST(Equalizer, ContextBypassPreservesDryAudioAndHistory)
 
 TEST(Equalizer, ParameterEndpointsRemainFiniteAcrossSampleRates)
 {
-    for (double rate : {22050.0, 44100.0, 48000.0, 96000.0})
+    for (float rate : {22050.0f, 44100.0f, 48000.0f, 96000.0f})
     for (int tone : {0, 32, 63, 64, 65, 96, 127})
     for (int level : {0, 64, 127})
     {
@@ -92,7 +92,7 @@ TEST(Equalizer, ParameterEndpointsRemainFiniteAcrossSampleRates)
 
 namespace
 {
-std::array<float,1024> eqImpulse(synth2::EqualizerSettings p,double rate)
+std::array<float,1024> eqImpulse(synth2::EqualizerSettings p,float rate)
 {
     synth2::dsp::Equalizer eq;eq.prepare(rate);eq.setParams(p);
     std::array<float,1024> output{};
@@ -105,7 +105,7 @@ std::array<float,1024> eqImpulse(synth2::EqualizerSettings p,double rate)
 
 TEST(Equalizer, EquivalentIntegralNormalizationsProduceTheSameNativeResponse)
 {
-    for(double rate:{22050.,44100.,96000.})for(int dial=0;dial<=127;++dial)
+    for(float rate:{22050.f,44100.f,96000.f})for(int dial=0;dial<=127;++dial)
     {
         SCOPED_TRACE(rate);
         SCOPED_TRACE(dial);
@@ -136,10 +136,10 @@ TEST(Equalizer, FractionalPeakDialsUseTheDeclaredFrequencyGainAndQualityScales)
     synth2::dsp::PeakEq eq;eq.prepare(44100);
     eq.setDials(63.5f,64.5f,63.5f);
     const auto settings=eq.snapshot();
-    EXPECT_NEAR(settings[0],50*std::sqrt(320.0),.001);
-    EXPECT_NEAR(settings[1],25.0/127,1e-6);
-    EXPECT_NEAR(settings[2],std::sqrt(10.0),1e-6);
-    for(double rate:{22050.,44100.,96000.})for(float dial:{.125f,63.875f,64.125f,126.875f})
+    EXPECT_NEAR(settings[0],50*std::sqrt(320.0f),.001f);
+    EXPECT_NEAR(settings[1],25.0f/127,1e-6f);
+    EXPECT_NEAR(settings[2],std::sqrt(10.0f),1e-6f);
+    for(float rate:{22050.f,44100.f,96000.f})for(float dial:{.125f,63.875f,64.125f,126.875f})
     {
         synth2::EqualizerSettings p;
         p.freq=p.level=p.q=p.tone=dial/127;
@@ -150,7 +150,7 @@ TEST(Equalizer, FractionalPeakDialsUseTheDeclaredFrequencyGainAndQualityScales)
 
 TEST(Equalizer, SampleContextAndStereoGraphUseTheSameFractionalKernels)
 {
-    for(double rate:{22050.,44100.,96000.})for(float dial:{0.f,32.125f,64.f,64.375f,127.f})
+    for(float rate:{22050.f,44100.f,96000.f})for(float dial:{0.f,32.125f,64.f,64.375f,127.f})
     {
         synth2::dsp::Equalizer sample,context,graph;
         synth2::EqualizerSettings p;p.freq=64.125f/127;p.q=32.375f/127;p.tone=dial/127;p.level=(dial==64 ? 64.f : 80.25f)/127;

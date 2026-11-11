@@ -21,13 +21,13 @@ public:
     static const std::array<float,65>& coefficients() noexcept
     {
         static const auto values=[] {
-            std::array<float,65> h{};double sum=0;
-            constexpr double pi=3.14159265358979323846;
+            std::array<float,65> h{};float sum=0;
+            constexpr float pi=3.14159265358979323846f;
             for(int i=0;i<65;++i)
             {
                 const int n=i-32;
-                const double window=.42-.5*std::cos(2*pi*i/64)+.08*std::cos(4*pi*i/64);
-                const double tap=n==0 ? .5 : n%2==0 ? 0 : std::sin(.5*pi*n)/(pi*n);
+                const float window=.42f-.5f*std::cos(2*pi*i/64)+.08f*std::cos(4*pi*i/64);
+                const float tap=n==0 ? .5f : n%2==0 ? 0 : std::sin(.5f*pi*n)/(pi*n);
                 h[i]=static_cast<float>(tap*window);sum+=h[i];
             }
             for(auto& tap:h)tap=static_cast<float>(tap/sum);

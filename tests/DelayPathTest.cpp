@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "dsp/DelayKernel.h"
+#include "dsp/EffectPair.h"
+#include "dsp/EffectSettings.h"
 #include <array>
 #include <cmath>
 #include <memory>
@@ -27,7 +29,7 @@ TEST(DelayPath, FractionalEditHistoryDoesNotSelectDifferentProcessingAfterReset)
     for(int kind:{0,1,2})for(int tone:{63,64,65})
     {
         auto cold=makeDelay(kind,tone),edited=makeDelay(kind,tone);
-        edited->setFrameTargets(cold->getLeftFrames()+.25,cold->getRightFrames()+.75);
+        edited->setFrameTargets(cold->getLeftFrames()+.25f,cold->getRightFrames()+.75f);
         edited->setTimeSeconds(.01f);
         edited->setToneDial(64.25f);edited->setToneDial(static_cast<float>(tone));
         cold->reset();edited->reset();
@@ -47,7 +49,7 @@ TEST(DelayPath, FractionalEditHistoryDoesNotSelectDifferentProcessingAfterReset)
 
 TEST(DelayPath, ProcessingPartitionDoesNotChangeFractionalOrIntegralSlew)
 {
-    for(int kind:{0,1,2})for(double fraction:{0.,.25})
+    for(int kind:{0,1,2})for(float fraction:{0.f,.25f})
     {
         auto block=makeDelay(kind,37),single=makeDelay(kind,37);
         block->reset();single->reset();
@@ -70,17 +72,17 @@ TEST(DelayPath, ProcessingPartitionDoesNotChangeFractionalOrIntegralSlew)
 
 TEST(DelayPath, EveryCoordinateUsesTheSameSettlingRule)
 {
-    for(double fraction:{0.,.25})
+    for(float fraction:{0.f,.25f})
     {
         auto delay=makeDelay();
-        const double base=delay->getLeftFrames()+fraction;
+        const float base=delay->getLeftFrames()+fraction;
         delay->setFrameTargets(base,base);delay->reset();
         float dry[2]{1,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));
-        delay->setFrameTargets(base+.0625,base+.0625);
+        delay->setFrameTargets(base+.0625f,base+.0625f);
         dry[0]=0;ASSERT_TRUE(delay->process(dry,send,1));
         EXPECT_FALSE(delay->isSlewing());
-        EXPECT_EQ(delay->getCurrentLeft(),base+.0625);
+        EXPECT_EQ(delay->getCurrentLeft(),base+.0625f);
     }
 }
 
@@ -95,5 +97,65 @@ TEST(DelayPath, IntegralFrameTargetsPreserveTheExactImpulseEndpoint)
         float dry[2]{frame==0 ? 1.f : 0.f,0},send[2]{};
         ASSERT_TRUE(delay->process(dry,send,1));
         EXPECT_EQ(send[0],frame==endpoint ? 1.f : 0.f);EXPECT_EQ(send[1],0);
+    }
+}
+
+TEST(DelayPath, AdjacentFloatTempoUsesAlignedFrameWords)
+{
+    synth2::DelaySettings settings;
+    settings.enable=true;settings.time=7.0f/127;settings.spread=settings.tone=64.0f/127;
+    settings.feedback=0;settings.level=1;settings.type=0;
+    synth2::ChorusSettings chorus;chorus.enabled=false;
+    const float tempo=std::nextafter(120.0f,121.0f);
+    ASSERT_GT(tempo,120.0f);
+    auto cold=std::make_unique<synth2::dsp::EffectPair>();
+    auto changed=std::make_unique<synth2::dsp::EffectPair>();
+    cold->prepare(48000);changed->prepare(48000);
+    cold->setParams(settings,chorus,tempo);
+    changed->setParams(settings,chorus,120);changed->setParams(settings,chorus,tempo);
+    // Native adjacent tempo words give aligned endpoints 9000 and 8996.
+    // Float32 BPM uses the adjacent native aligned frame word.
+    for(int frame=0;frame<=9001;++frame)
+    {
+        float left=frame==0 ? 1.0f : 0.0f,right=0,editedLeft=left,editedRight=right;
+        cold->process(&left,&right,1);changed->process(&editedLeft,&editedRight,1);
+        EXPECT_EQ(left,editedLeft);EXPECT_EQ(right,editedRight);
+        EXPECT_EQ(left,frame==8996 ? 1.0f : 0.0f);
+        EXPECT_EQ(right,0.0f);
+    }
+}
+
+TEST(DelayPath, LongDelaySlewsReachTheirTargetWithoutRoundingStalls)
+{
+    for(int rate:{44100,48000})for(float target:{24000.25f,60000.75f})
+    {
+        auto delay=std::make_unique<DelayKernel>();
+        ASSERT_TRUE(delay->configure(rate,0,1,0,0,64));delay->reset();delay->setEnabled(true);
+        std::array<float,512> dry{},send{};
+        delay->process(dry.data(),send.data(),256);
+        ASSERT_TRUE(delay->setFrameTargets(target,target));ASSERT_TRUE(delay->isSlewing());
+        for(int frame=0;frame<rate*6;frame+=256)
+        {
+            dry.fill(0);delay->process(dry.data(),send.data(),std::min(256,rate*6-frame));
+        }
+        EXPECT_FALSE(delay->isSlewing());
+        EXPECT_EQ(delay->getCurrentLeft(),target);EXPECT_EQ(delay->getCurrentRight(),target);
+    }
+}
+
+TEST(DelayPath, NegativeTapRoundingAtRingEndWrapsToFirstSample)
+{
+    for(int kind:{0,1,2})
+    {
+        auto delay=std::make_unique<DelayKernel>();
+        ASSERT_TRUE(delay->configure(44100,kind,256.f/44100,0,0,127,64));
+        ASSERT_TRUE(delay->setFrameTargets(256.,std::nextafter(256.,257.)));
+        delay->reset();
+        std::array<float,514> dry{},send{};dry[0]=1;dry[1]=.5f;
+        delay->process(dry.data(),send.data(),257);
+        // The tiny negative coordinate rounds to the ring length on wrapping.
+        // It must read slot zero, including type2's separate right-hand view.
+        EXPECT_EQ(send[512],kind==0 ? 1.f : kind==1 ? .5f : .75f);
+        EXPECT_EQ(send[513],kind==0 ? .5f : kind==1 ? 1.f : 0.f);
     }
 }

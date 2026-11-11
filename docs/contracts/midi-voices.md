@@ -19,15 +19,39 @@ Random order consumes its shared draw; ordered modes do not draw random values.
 An absent-key Note Off can also restart that clock. Ordered and admitted random
 ARP retain empty-keyboard render boundaries at partial and full gate. Full gate
 has one boundary per period, including while existing voices are releasing.
-Preserve upstream LFO key/pedal tracking. Connected full-gate assignments retain
-the observed note-off/on ordering without releasing the core between assignments.
+Preserve upstream LFO key/pedal tracking. Same-timestamp legato Off/On replacements retain
+the sounding core through assignment, including partial/full ARP gates, bypass
+binding changes and intervening same-time ordinary controllers. An unmatched
+Note Off is flushed before audio advances; panic messages still take effect.
 Deterministic LFO waveforms do not by themselves invalidate the running ARP clock.
 
+Polyphonic admission collects the keyboard state for one timestamp before
+starting voices. Admit new keys most-recent first, up to the effective physical
+voice count after accounting for Unison groups; older pending keys must not
+consume cores or phase draws. Admit complete groups, or one partial group if
+Unison exceeds the entire physical budget. A repeated
+pending key retains its latest velocity/order, and a key cancelled before
+admission must not start a voice. Preserve a pending key released under sustain
+until pedal-up. Input traces and upstream keyboard order remain unchanged.
+
 Mono and poly modes share the 32-core physical pool. Unison consumes physical
-cores from that budget; logical note counts do not create an independent pool. Mono admission pauses higher
-core groups without destroying receiver history. A changed effective voice count
+cores from that budget; logical note counts do not create an independent pool. Mono admission relinquishes ownership of higher
+core groups without destroying receiver history. Returning to poly mode does not
+resume those retired notes; a later note may reuse their physical histories. A changed effective voice count
 resets the pool allocation cursor; an equal-count load preserves it. Neither
 operation implies erasing the retained physical state.
+
+A legato assignment binds the requested first physical Unison group. Continuing
+cores retain their envelopes and filter note; newly admitted cores receive an
+ordinary note start and their own filter note. A smaller group relinquishes its
+extra cores without erasing their retained physical histories.
+
+On entry to mono, release held physical keys outside the preceding Unison
+group before the new group size takes effect. Increasing that size does not
+cancel those releases. Later legato notes start the released lanes while
+continuing the still-held lanes, including their separate filter notes.
+Pedal-up reevaluates the most recently held mono key even when the current
+sounding key remains physically down after a mode/state change.
 
 Logical note retirement is separate from VCA/filter/FM history. Reuse decisions
 inspect actual physical VCA activity. Consume pending Retrigger/Legato/Retained-
@@ -45,3 +69,31 @@ identity across arbitrary callback partitions.
 
 Single-note results do not establish repeated-note, arbitrary live-edit or all
 controller behavior. See [voice lifecycle](../architecture/voice-lifecycle.md) for ownership.
+
+ARP absolute sample positions use integer frame counters, independently of the
+Float32 sample-rate and tempo inputs. Very slow tempos saturate period/gate frame
+counts before conversion, and long-running clocks must retain sub-block offsets.
+
+Tempo and beat edits rescale the elapsed integer cycle counter using Float32
+multiply/divide followed by integer truncation at each setter. Recompute gate
+boundaries from that counter and the current period/gate, including live gate
+edits that cross a previously queried boundary. Keep absolute clocks integer.
+Do not substitute fractional pending deadlines or a Double scheduling path.
+
+Ordered ARP selection retains the last keyboard key, octave and direction across
+held-key membership edits. All generated notes retain the first-key trigger
+velocity until the keyboard is reset. Bypass restores held keys in physical
+press order; enabling releases bypassed keys through ordinary note events.
+
+MIDI timestamps define input regions before the prepared/256-frame workspace
+limit is applied. Restart that workspace budget at each input region while
+keeping equal-timestamp event groups intact. Bend advances once per root span
+of at most 32 frames; a large callback must not add an extra step by carrying
+a workspace boundary across an intervening MIDI event.
+
+A MIDI event at the workspace end remains owned by the next region. Its known
+position still caps the preceding projected ARP amplitude-gain horizon.
+
+Mono Note Off and pedal-up reselection use the current primary physical owner
+for shared native input, including the first Poly-to-Mono program/state recall.
+A prior Mono note is not required to establish that ownership.

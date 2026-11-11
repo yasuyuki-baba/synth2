@@ -39,18 +39,18 @@ an index to test sources, not a record of successive implementation changes.
 | Area | Test entry points | Exercised properties |
 | --- | --- | --- |
 | Import and callback mapping | [PatchImportWorkspace](../../tests/PatchImportWorkspaceTest.cpp), [ProcessorState](../../tests/LoadingBehaviorTest.cpp), [PlaybackBehavior](../../tests/PlaybackBehaviorTest.cpp) | Ordinary/workspace decoding across accepted versions; exact integer promotion including packed MIDI/out-of-host-range words; sparse defaults; fractional state-mode retention and resolved EQ/Delay/Chorus recall |
-| Numerical precision | [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp), [ContinuousLevel](../../tests/ContinuousLevelTest.cpp), [DspBasics](../../tests/DspBasicsTest.cpp) | Gain/velocity/saturation anchors, fine tuning, 27-bit phase storage, real signal transport versus discrete spans, fractional effect controls and decimation remainder; real envelope progress, retrigger anchors, release endpoints and final silence |
+| Numerical precision | [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp), [ContinuousLevel](../../tests/ContinuousLevelTest.cpp), [DspBasics](../../tests/DspBasicsTest.cpp) | Gain/velocity/saturation anchors, fine tuning, 27-bit phase storage, real signal transport versus discrete spans, fractional effect controls and decimation remainder; real envelope progress, retrigger anchors, release endpoints and final silence; representable Float32 filter/delay history and pitch-modulation base frequencies, Float32 time/rate frame conversion and exact widening for double host output (including oversampling) |
 | LFO depth, rate and history | [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp), [ModulationBehavior](../../tests/ModulationBehaviorTest.cpp), [LfoPhasePrecision](../../tests/LfoPhasePrecisionTest.cpp) | Fractional depth/periods, discrete synced divisions, held spans, sine phase interpolation/wrapping and integer knots, key sync, one-draw random projection, held/smoothed targets and unchanged RNG advancement |
-| Shared source ownership | [ModulationBehavior](../../tests/ModulationBehaviorTest.cpp) | First-key resets after MIDI, overlapping keys/channels, subregions, unknown-history random retention without reseeding, read-only one/many-voice consumption and mixed admitted/fallback amplitude slots |
-| Tuning, glide and unison | [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp), [TuningBehavior](../../tests/DspBasicsTest.cpp), [PerformanceBehavior](../../tests/PerformanceBehaviorTest.cpp) | Common tracked/fixed tuning and fractional fine values; fractional glide/retrigger progress; pitch/filter unison layout, stacking/fixed-phase caches and pending random draw counts; ordinary bend with/without LFO or bound dispatcher, channel isolation, omni ingress and CC121 |
-| Oscillator reads, Ring and Sub | [OscillatorRead](../../tests/OscillatorReadTest.cpp), [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp) | Fixed 22 kHz frequency ceiling on both oscillators across sample rates, post-modulation ordering and FM/Ring/Sync/stack/sub paths; adjacent-sample/wrapped interpolation without phase advance; direct/adapter agreement; Ring product and FM precedence; OSC1-linked Sub phase while muted, fractional level scaling across dial 0.5 and stacking |
+| Shared source ownership | [ModulationBehavior](../../tests/ModulationBehaviorTest.cpp) | First-key resets after MIDI, overlapping keys/channels, subregions, unknown-history random retention without reseeding, read-only one/many-voice consumption and mixed modulated/unmodulated amplitude slots |
+| Tuning, glide and unison | [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp), [TuningBehavior](../../tests/DspBasicsTest.cpp), [PerformanceBehavior](../../tests/PerformanceBehaviorTest.cpp) | Common tracked/fixed tuning and fractional fine values; Float32 fine inputs, tracked/stack base transport, moving coarse exponent words and stack-cache edit history; fractional glide/retrigger progress; pitch/filter unison layout, stacking/fixed-phase caches and pending random draw counts, adjacent Float32 fixed-phase/Spread coordinates with preserved local/shared draws; ordinary bend with/without LFO or bound dispatcher, channel isolation, omni ingress and CC121 |
+| Oscillator reads, Ring and Sub | [OscillatorRead](../../tests/OscillatorReadTest.cpp), [BoundedPrecision](../../tests/BoundedPrecisionTest.cpp) | Fixed 22 kHz frequency ceiling on both oscillators across sample rates, post-modulation ordering and FM/Ring/Sync/stack/sub paths; adjacent-sample/wrapped interpolation without phase advance; direct/adapter agreement; Ring product and FM precedence; OSC1-linked Sub phase while muted, pulse-width conversion across repeated/base/modulation/lifecycle edits, fractional level scaling across dial 0.5 and stacking |
 | Pulse width | [PwmPrecision](../../tests/PwmPrecisionTest.cpp), [PlaybackBehavior](../../tests/PlaybackBehaviorTest.cpp), [OscillatorRead](../../tests/OscillatorReadTest.cpp) | Reciprocal-multiply integer knots under both normalizations, fractional base/additional coordinates, wrap continuity, ordinary/stack adapter agreement without clock changes, shared/envelope input composition and OSC2 one-octave control response |
 | FM phase and receiver | [FmPhaseCorrection](../../tests/FmPhaseCorrectionTest.cpp), [FmBehavior](../../tests/DspBasicsTest.cpp), [ContinuousLevel](../../tests/ContinuousLevelTest.cpp) | Constant/ramped/held coefficient correction, bounded fractional drift, reset/rebase/settling and synchronized noise; common waveform/envelope/history policy, Ring bypass, wide-depth transport, integral mapping knots, base-dial slew horizon/completion and sounding-retrigger retention |
 | Modulation routing | [ModulationInputs](../../tests/ModulationBehaviorTest.cpp), [RenderPolicy](../../tests/RenderPolicyTest.cpp), [ModulationBehavior](../../tests/ModulationBehaviorTest.cpp) | Endpoint units, per-slot consumption, wheel beside admitted sources, shared/envelope/additional FM composition, exact partitions and missing-source neutrality; common deterministic composition and restricted unknown-random admission |
-| Filter and oscillator envelopes | [FilterEnvelopePrecision](../../tests/FilterEnvelopePrecisionTest.cpp), [ContinuousLevel](../../tests/ContinuousLevelTest.cpp), [EnvelopeBehavior](../../tests/DspBasicsTest.cpp), [HostLifecycle](../../tests/HostLifecycleTest.cpp) | Real peak/sustain/release coordinates, peak rescaling and zero-peak continuity, integer normalization knots, OSC2 destination/timing and direct physical envelopes; ordered live cutoff setters, slew restarts, zero-frame requests, saturation recovery and sound replacement |
-| Filter kernels | [FilterPath](../../tests/FilterPathTest.cpp), [FilterBehavior](../../tests/FilterBehaviorTest.cpp), [RenderPolicy](../../tests/RenderPolicyTest.cpp) | Resonance-boundary crossings, repeated edits, direct-index/sample state agreement, low-rate cutoff stability, common coordinate history/reset and source admission around restricted resonance |
+| Filter and oscillator envelopes | [FilterEnvelopePrecision](../../tests/FilterEnvelopePrecisionTest.cpp), [ContinuousLevel](../../tests/ContinuousLevelTest.cpp), [EnvelopeBehavior](../../tests/DspBasicsTest.cpp), [HostLifecycle](../../tests/HostLifecycleTest.cpp) | Real peak/sustain/release coordinates, peak rescaling and zero-peak continuity, integer normalization knots, shared reciprocal sustain normalization through loading and parameter/controller edits, OSC2 destination/timing and direct physical envelopes; ordered live cutoff setters, slew restarts, zero-frame requests, saturation recovery and sound replacement |
+| Filter kernels | [FilterPath](../../tests/FilterPathTest.cpp), [FilterBehavior](../../tests/FilterBehaviorTest.cpp), [RenderPolicy](../../tests/RenderPolicyTest.cpp) | Analytic coefficient precision before Float32 storage, double diode impulse-response state below Float32 sample range, resonance-only cache edits versus forced frequency preparation, resonance-boundary crossings, repeated edits, direct-index/sample state agreement, low-rate cutoff stability, common coordinate history/reset and source admission around restricted resonance |
 | Physical VCA and allocation | [AmplitudeBehavior](../../tests/DspBasicsTest.cpp), [AmplitudeInputs](../../tests/ModulationBehaviorTest.cpp) | Direct Voice phases/retirement, repeated note-off, assigned velocity retention, release-first allocation, fractional attack-duration edits, independent shared/additional factors, output alignment, partitions, release state and disabled neutrality |
-| Delay and chorus | [DelayPath](../../tests/DelayPathTest.cpp), [ChorusPath](../../tests/ChorusPathTest.cpp), [EffectsBehavior](../../tests/EffectsBehaviorTest.cpp), [EffectLifecycle](../../tests/EffectLifecycleTest.cpp) | Integral/fractional edit-history reset equivalence, impulse endpoints, delay tone/type and slew partitioning/settling, chorus x1/x2/x4 coordinate continuity, fractional impulse positions and effect tails |
+| Delay and chorus | [DelayPath](../../tests/DelayPathTest.cpp), [ChorusPath](../../tests/ChorusPathTest.cpp), [EffectsBehavior](../../tests/EffectsBehaviorTest.cpp), [EffectLifecycle](../../tests/EffectLifecycleTest.cpp) | Integral/fractional edit-history reset equivalence, impulse endpoints, delay tone/type and slew partitioning/settling, chorus x1/x2/x4 coordinate continuity, rounded negative delay-coordinate boundaries and fractional impulse positions and cursor-independent weights across ring wraps, adjacent Float32 tempo tap endpoints, compatible modulation clocks with Float32 audio history, sweep direction changes and effect tails |
 | EQ and output tone | [OutputTonePrecision](../../tests/OutputTonePrecisionTest.cpp), [EqualizerBehavior](../../tests/EqualizerBehaviorTest.cpp), [PlaybackBehavior](../../tests/PlaybackBehaviorTest.cpp) | Integer-knot/fractional continuity, rate changes, cache/recall, near-neutral activity, bypass history, reset/prepare retention, and sample/context/stereo graph agreement |
 | Pan and stage order | [StereoBalance](../../tests/DspBasicsTest.cpp), [PanInputs](../../tests/DspBasicsTest.cpp), [StaticPanInputs](../../tests/DspBasicsTest.cpp), [OutputPipelinePath](../../tests/OutputPipelinePathTest.cpp) | Static coefficient bounds, real per-slot pan selection/depth/offsets, read-only subregion consumption and core/unison placement; mono/stereo balance after nonlinear stages and cubic-pan order versus independent stage composition |
 | Output lifecycle | [OutputPipelinePath](../../tests/OutputPipelinePathTest.cpp), [EffectsBehavior](../../tests/EffectsBehaviorTest.cpp), [EffectLifecycle](../../tests/EffectLifecycleTest.cpp) | Common wet kernels at integer/fractional supported-rate endpoints, unsupported-rate bypass, EQ retention/reset, startup gain through silence, nonlinear/EQ/pan/wet order and surrounding-buffer sentinels |
@@ -188,3 +188,60 @@ compatible receiver queries. Common clocks retain native setter/query/advance
 cadence; do not infer block-size-independent LFO audio from gain-horizon tests.
 Physical ARP gain-fragment checks, receiver-knot/phase tests, history/draw-order
 checks, and end-to-end public playback coverage remain in the suite.
+
+`Arpeggiator.RepeatedTempoChangesRescaleWholeSampleCounters` checks integer
+counter truncation across repeated edits, modes, gates, callback partitions and
+long-running absolute clocks. `Arpeggiator.PeriodEditsRecomputeGateFromRescaledCounter`
+checks gate reconstruction; `Arpeggiator.PeriodRescalingHandlesSaturatedSlowTempo`
+checks saturated slow-tempo transitions. Membership cursor, first-key velocity,
+held-key press order, non-panic bypass and live gate edits have dedicated
+`ArpeggiatorBehaviorTest.cpp` properties.
+
+`PerformanceBehavior.SameTimeLegatoReplacementRetainsPhysicalAmplitudePhase`
+checks the actual bridge's physical VCA phase/level/counter through a same-time
+Off/controller/On replacement against the same partition without replacement.
+
+Polyphonic keyboard admission is exercised through the portable bridge with
+permuted simultaneous chords, repeated/cancelled pending keys, capacity limits
+and a pending key released under sustain in `PerformanceBehaviorTest.cpp`.
+Physical frequency words and paired generated-input audio establish admission
+order and absence of extra starts without captured original outputs.
+
+`PerformanceBehaviorTest.cpp` checks actual-bridge Fine refresh/zero-band rules
+and the FM base setter's full slew horizon. `DelayPathTest.cpp` checks completion
+of long integer/fractional delay-time slews without rounding stalls, alongside
+partition invariance, reset history and impulse endpoint properties.
+
+`PerformanceBehaviorTest.cpp` checks bend state through the actual bridge for
+large callbacks and varied MIDI offsets, including positions around 256 frames.
+An explicit MIDI-region pair checks audio equality only when internal spans
+match; arbitrary callback partitions retain their documented DSP sensitivity.
+
+`PerformanceBehavior.LargerLegatoGroupAdmitsCoresWithoutRetriggeringContinuingCores`
+loads a generated larger Unison program through the actual bridge. It checks
+retained amplitude counters and filter tracking in continuing cores, new starts
+in added cores and advancing physical phases. It does not establish arbitrary
+program/state-transition audio equivalence.
+
+`PerformanceBehavior.ReturningFromMonoDoesNotResumeRelinquishedPolyphonicNotes`
+checks retained paused core words through mono/poly program loads and verifies
+that subsequent poly admission reuses the relinquished group.
+
+`PerformanceBehavior.StateRestoreRetainsTheReleaseFromThePrecedingMonoGroupBoundary`
+recalls a generated mono state after a smaller poly group. It checks the partial
+physical release and subsequent legato admission/filter-note retention through
+the actual bridge; it does not establish unrestricted state-recall equivalence.
+
+`PerformanceBehavior.PedalUpReselectsTheNewestHeldKeyAfterPolyToMonoRecall`
+checks the physical pitch after pedal-up when a newer held key was admitted
+during a polyphonic interval and a mono state was recalled.
+
+`PerformanceBehavior.IdleLanesFreezeAndLeaveTheSurvivingVoiceBeforeReuse` checks
+physical phase/controller/filter-memory retention with a partially idle Unison
+group at 1x/4x, continued held-core progress, legato reactivation and unique
+physical-core views when a new polyphonic note claims the freed lanes.
+
+Poly admission regressions cover newest-note identity for Unison groups within
+physical budgets, including non-divisible budgets and partial groups. Mono
+reselection covers first entry from Poly through program and state recall,
+Note Off and pedal-up, for Mono and Legato modes.

@@ -17,7 +17,7 @@ namespace synth2::dsp
     class Equalizer
     {
     public:
-        void prepare (double newSampleRate) noexcept
+        void prepare (float newSampleRate) noexcept
         {
             sampleRate = newSampleRate;
             cached = false;
@@ -31,7 +31,7 @@ namespace synth2::dsp
             reset();
         }
 
-        void updateSampleRate (double rate) noexcept
+        void updateSampleRate (float rate) noexcept
         {
             sampleRate = rate;
             cached = false;
@@ -117,7 +117,7 @@ namespace synth2::dsp
     private:
         OutputTone nativeTone;
         SilenceGate peakSilence,toneSilence;
-        double sampleRate { 44100.0 };
+        float sampleRate { 44100.0f };
         EqualizerSettings previous {};
         PeakEq nativePeak;
         bool cached = false, peakEnabled = false;

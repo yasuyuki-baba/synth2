@@ -8,10 +8,10 @@ namespace synth2
 {
     // Static FM shares the native compatible knots; fractional edits interpolate
     // after loading has resolved any legacy integer source values.
-    static double float01ToFmTarget(float v01) noexcept
+    static float float01ToFmTarget(float v01) noexcept
     {
         return dsp::FrequencyModulation::depth(
-            static_cast<double>(dsp::fractionalDial(v01)),0.0);
+            static_cast<float>(dsp::fractionalDial(v01)),0.0f);
     }
 
 }

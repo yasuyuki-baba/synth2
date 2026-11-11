@@ -21,12 +21,12 @@ namespace synth2::dsp
             const float index=std::log(relative)*1024.0f/std::log(1066.6666259765625f);
             return std::clamp(static_cast<int>(index),0,1024)-baseIndex;
         }
-        static double keyboardOffset(double baseIndex,float tracking,int note) noexcept
+        static float keyboardOffset(float baseIndex,float tracking,int note) noexcept
         {
-            const double dial=fractionalDial(tracking);
+            const float dial=fractionalDial(tracking);
             return compatibleControlCurve(baseIndex,[&](int index) {
                 // Exact loaded words keep their original normalization arithmetic.
-                if(dial==std::trunc(dial))return static_cast<double>(keyboardOffset(index,tracking,note));
+                if(dial==std::trunc(dial))return static_cast<float>(keyboardOffset(index,tracking,note));
                 return compatibleControlCurve(dial,[&](int value) {
                     return keyboardOffset(index,static_cast<float>(value)/127.0f,note);
                 });
@@ -39,13 +39,14 @@ namespace synth2::dsp
             const float denominator=static_cast<float>(1.0-std::exp(-1.3));
             return static_cast<int>((numerator/denominator)*127.0f);
         }
-        static float amount (int baseIndex,int keyboard,float depth,bool velocityEnabled,int velocity,int externalOffset=0) noexcept
+        static float amount (int baseIndex,int keyboard,float coordinate,bool velocityEnabled,int velocity,int externalOffset=0) noexcept
         {
+            float depth=static_cast<float>(coordinate);
             if(velocityEnabled)
                 depth=(static_cast<float>(velocityLevel(velocity))*depth)*(1.0f/127.0f);
             return FilterEnvelope::boundedAmount(baseIndex+keyboard+externalOffset,depth);
         }
-        static float amount(double baseIndex,double keyboard,float depth,bool velocityEnabled,int velocity,double externalOffset=0) noexcept
+        static float amount(float baseIndex,float keyboard,float depth,bool velocityEnabled,int velocity,float externalOffset=0) noexcept
         {
             if(velocityEnabled)
                 depth=(static_cast<float>(velocityLevel(velocity))*depth)*(1.0f/127.0f);

@@ -15,8 +15,8 @@ namespace synth2::dsp
     {
         float firstFrequency {},secondFrequency {},pulseWidth {},mix {},subGain {};
         bool sync {},ring {};
-        double firstPitch {},secondPitch {},glidePitch {},envelope {},fmDepth {};
-        double pulseControl {};
+        float firstPitch {},secondPitch {},glidePitch {},envelope {},fmDepth {};
+        float pulseControl {};
     };
     struct OscillatorAudioRenderer
     {
@@ -25,11 +25,11 @@ namespace synth2::dsp
             const synth2::WaveTableBank* bank,float* frame=nullptr,int factor=1)
         {
             float firstFrequency=input.firstFrequency,secondFrequency=input.secondFrequency;
-            double firstPitch=input.firstPitch+input.glidePitch;
-            double secondPitch=input.secondPitch+(config.secondTracksKeyboard ? input.glidePitch : 0);
+            float firstPitch=input.firstPitch+input.glidePitch;
+            float secondPitch=input.secondPitch+(config.secondTracksKeyboard ? input.glidePitch : 0);
             if(config.pitchEnvelope)
             {
-                const double control=input.envelope;
+                const float control=input.envelope;
                 if(config.pitchReceiver)
                 {
                     secondPitch+=control;
@@ -39,8 +39,8 @@ namespace synth2::dsp
                     secondFrequency=ModulationEnvelope::pitchFrequency(secondFrequency,control);
                 }
             }
-            const double fm=input.fmDepth;
-            double pulse=input.pulseControl;
+            const float fm=input.fmDepth;
+            float pulse=input.pulseControl;
             if(config.pulseReceiver && lfos.available)
                 for(size_t slot=0;slot<2;++slot)
                     if(lfos.receivers[slot].enabled && lfos.receivers[slot].destination==4)
@@ -48,7 +48,7 @@ namespace synth2::dsp
             if(config.pulseEnvelope)pulse+=input.envelope;
             const float width=config.pulseReceiver || config.pulseEnvelope
                 ? config.pulseWidth : input.pulseWidth;
-            const double bins=ModulationEnvelope::pulseWidthForDial(fractionalDial(width),pulse);
+            const float bins=oscillator.resolvePulseWidth(width,pulse);
             if(frame) {
                 oscillator.processFrame(frame,factor,firstFrequency,secondFrequency,input.pulseWidth,input.mix,
                     fm,input.sync,input.ring,input.subGain,config.subWave,config.subOctave,bank,

@@ -25,12 +25,13 @@ namespace synth2
         SynthEngine();
         ~SynthEngine() = default;
 
-        void prepareToPlay (double sampleRate, int samplesPerBlock);
+        void prepareToPlay (float sampleRate, int samplesPerBlock);
         void releaseResources();
         void setOversamplingFactor(int factor) noexcept;
         int getOversamplingFactor() const noexcept {return audioFactor;}
         void requestPhaseReset();
         void restartFilterCutoff() noexcept;
+        void applyReceiverParameter(int index,float normalized) noexcept;
         void applyFilterParameter(int index,float normalized) noexcept;
         void updateFilterEnvelopeConfiguration() noexcept;
         void requestNativeLfoRateUpdate(size_t index) noexcept { sharedModulation.touchRate(index); }
@@ -92,7 +93,7 @@ namespace synth2
         }
 
     private:
-        void initWaveTables (double sampleRate);
+        void initWaveTables (float sampleRate);
         int audioFactor=1;
         std::array<std::array<float,256*16>,2> oversampledAudio{};
         std::array<dsp::AudioDownsampler,2> audioDownsamplers;
@@ -106,9 +107,10 @@ namespace synth2
         dsp::OutputPipeline outputPipeline;
 
         std::unique_ptr<synth2::WaveTableBank> waveTableBank;
-        double currentSampleRate { 44100.0 };
+        float currentSampleRate { 44100.0f };
         uint64_t globalSampleCount { 0 };
         int previousPlayMode { 0 };
+        int previousUnisonVoices {1};
         
 
     };

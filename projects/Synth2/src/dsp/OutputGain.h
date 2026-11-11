@@ -4,12 +4,12 @@
 namespace synth2::dsp
 {
     // CSynth output stage, Win64 RVAs 0x28150 / 0x28480. The recurrence
-    // advances once per interleaved float, so right follows left by one step.
+    // advances once per interleaved sample, so right follows left by one step.
     class OutputGain
     {
     public:
         static constexpr float defaultTarget=0x1.a696eep-1f;
-        void prepare (double sampleRate, bool preserveCurrent = false) noexcept
+        void prepare (float sampleRate, bool preserveCurrent = false) noexcept
         {
             coefficient = static_cast<float> (1.0 - std::pow (0.5,
                 1.0 / static_cast<float> (static_cast<float> (sampleRate) * 0.002f)));

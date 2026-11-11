@@ -8,7 +8,7 @@ namespace synth2::dsp
     class FilterLimiter
     {
     public:
-        void prepare (double rate, bool preserveState = false) noexcept
+        void prepare (float rate, bool preserveState = false) noexcept
         {
             coefficient=std::exp(-1.0f/(static_cast<float>(rate)*0.005000000353902578f));
             if (!preserveState) reset();

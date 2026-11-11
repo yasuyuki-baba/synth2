@@ -6,6 +6,8 @@
 namespace synth2::dsp
 {
     // CLFO 0x15080, native destination numbers and admitted integer depth0..127.
+    // Integer control knots retain source-word rounding; real receiver buffers
+    // interpolate these values in Float32 without changing RNG advancement.
     // Range recalculation does not redraw the random target or move its history.
     inline std::pair<int,int> lfoDepthRange(int destination,int depth) noexcept
     {

@@ -12,7 +12,7 @@ namespace synth2::dsp
     struct FilterAudioInput
     {
         float signal {};
-        double cutoffIndex {};
+        float cutoffIndex {};
     };
     struct FilterAudioRenderer
     {

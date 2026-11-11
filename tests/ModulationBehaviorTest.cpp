@@ -9,6 +9,7 @@
 #include "SynthEngine.h"
 #include "../tools/host_scenarios.h"
 #include <cmath>
+#include <bit>
 #include <cstring>
 #include <type_traits>
 #include <vector>
@@ -45,7 +46,7 @@ TEST(ModulationBehavior, FractionalSharedDepthChangesSignalsWithoutChangingClock
             advance(first,a);advance(second,b);
             for(int i=0;i<64;++i)
             {
-                const double x=first.block().controls[0][i],y=second.block().controls[0][i];
+                const float x=first.block().controls[0][i],y=second.block().controls[0][i];
                 ASSERT_TRUE(std::isfinite(x));ASSERT_TRUE(std::isfinite(y));
                 differs|=x!=y;fractional|=x!=std::trunc(x);
                 EXPECT_GT(first.block().controlRemaining[0][i],0);
@@ -126,6 +127,39 @@ TEST(ModulationBehavior, FractionalSharedRateSurvivesBothSlotsSyncAndRepeatedUpd
             if(sync)EXPECT_EQ(first.clock(slot).targetHz,second.clock(slot).targetHz);
             else {EXPECT_EQ(first.clock(slot).targetHz,firstHz);EXPECT_EQ(second.clock(slot).targetHz,secondHz);}
         }
+    }
+}
+
+TEST(ModulationBehavior, SharedFreeRateUsesFloatClockStorage)
+{
+    auto settings=sharedSettings();
+    settings.lfos[0].speed=64.0f/127;
+    settings.lfos[1].speed=82.0f/127;
+    synth2::dsp::SharedModulationRuntime runtime;
+    prepare(runtime,settings);
+    for(int slot=0;slot<2;++slot)
+    {
+        const int dial=slot==0 ? 64 : 82;
+        const long double expected=std::pow(1500.0L,static_cast<long double>(dial)/127.0L)/12.0L;
+        const float actual=runtime.clock(slot).targetHz;
+        EXPECT_NEAR(actual,static_cast<float>(expected),static_cast<float>(expected)*4*std::numeric_limits<float>::epsilon());
+        static_assert(std::is_same_v<decltype(runtime.clock(slot).targetHz),float>);
+        advance(runtime,settings);
+        EXPECT_EQ(runtime.clock(slot).targetHz,actual);
+    }
+}
+
+TEST(ModulationBehavior, DiagnosticClockWordsKeepTheirFloat32Format)
+{
+    auto processor=hostvalidation::processor();
+    hostvalidation::load(*processor,hostvalidation::patch());processor->prepare(48000,64);
+    for(size_t slot=0;slot<2;++slot)
+    {
+        std::array<uint32_t,7> words{};
+        ASSERT_TRUE(synth2::readNativeLfoClockWords(*processor,slot,words));
+        const auto& clock=processor->engineForInspection().getNativeLfoClock(slot);
+        EXPECT_EQ(std::bit_cast<float>(words[2]),static_cast<float>(clock.currentHz));
+        EXPECT_EQ(std::bit_cast<float>(words[3]),static_cast<float>(clock.targetHz));
     }
 }
 
@@ -238,14 +272,14 @@ TEST(ModulationBehavior, EveryWaveformUsesBoundedPhysicalControlsAndReplaysItsHi
         load.randomControls={{{dest+1,wave==4 ? 3 : wave==5 ? 4 : 0,47},{1,0,0}}};
         SharedModulationRuntime first,replay;
         for(auto* runtime:{&first,&replay}){runtime->applyHistory(load,120);prepare(*runtime,settings);}
-        const auto range=lfoDepthRange(dest+1,47);bool changes=false;double previous=0;
+        const auto range=lfoDepthRange(dest+1,47);bool changes=false;float previous=0;
         for(int block=0;block<128;++block)
         {
             for(auto* runtime:{&first,&replay})advance(*runtime,settings);
             EXPECT_EQ(first.block().controls,replay.block().controls);
             for(int i=0;i<64;++i)
             {
-                const double value=first.block().controls[0][i];
+                const float value=first.block().controls[0][i];
                 ASSERT_TRUE(std::isfinite(value));ASSERT_GE(value,std::min(range.first,range.second));ASSERT_LE(value,std::max(range.first,range.second));
                 changes|=value!=previous;previous=value;
             }
@@ -358,7 +392,7 @@ TEST(AmplitudeInputs, GainHorizonRetainsProgressAndCanBeInterruptedByANewTarget)
         const std::array<int,5> edges{{0,113,197,259,512}};
         for(size_t section=0;section+1<edges.size();++section)
         {
-            state.setModulation(section==0 ? 384 : section==1 ? 1024 : 0,section==2 ? 512.5 : 0);
+            state.setModulation(section==0 ? 384 : section==1 ? 1024 : 0,section==2 ? 512.5f : 0);
             for(int position=edges[section];position<edges[section+1];)
             {
                 const int count=std::min(block,edges[section+1]-position);
@@ -438,22 +472,22 @@ TEST(ModulationInputs, RingRetainsPhysicalFmSlewAndResumesWhenDisabled)
     using namespace synth2::dsp;
     synth2::RenderControls controls;controls.ringMod=1;controls.osc1FmAmount=0;
     auto config=synth2::render::oscillatorControls(controls,44100,false);
-    FrequencyModulation state;state.settle=false;state.current=state.target=4096.25;
+    FrequencyModulation state;state.settle=false;state.current=state.target=4096.25f;
     state.elapsed=44;
     VoiceControlBuffer envelope{},depth{};VoiceSpanBuffer spans{};
     for(int i=0;i<256;++i)spans[i]=256-i;
     OscillatorControlRenderer::fm(config,{},state,256,envelope,spans,depth);
-    for(double value:depth)EXPECT_EQ(value,4096.25);
-    EXPECT_EQ(state.target,0);EXPECT_EQ(state.current,4096.25);
+    for(float value:depth)EXPECT_EQ(value,4096.25f);
+    EXPECT_EQ(state.target,0);EXPECT_EQ(state.current,4096.25f);
     EXPECT_EQ(state.remaining,44);EXPECT_EQ(state.elapsed,44);
     // A different physical core must still advance while this core uses Ring.
     auto independent=state;
     controls.ringMod=0;config=synth2::render::oscillatorControls(controls,44100,false);
     OscillatorControlRenderer::fm(config,{},independent,256,envelope,spans,depth);
     EXPECT_EQ(independent.current,0);EXPECT_EQ(independent.remaining,0);
-    EXPECT_EQ(state.current,4096.25);EXPECT_EQ(state.remaining,44);
+    EXPECT_EQ(state.current,4096.25f);EXPECT_EQ(state.remaining,44);
     OscillatorControlRenderer::fm(config,{},state,256,envelope,spans,depth);
-    EXPECT_EQ(depth.front(),4096.25);EXPECT_EQ(depth.back(),0);
+    EXPECT_EQ(depth.front(),4096.25f);EXPECT_EQ(depth.back(),0);
     EXPECT_EQ(state.current,0);EXPECT_EQ(state.remaining,0);
 }
 
@@ -468,17 +502,17 @@ TEST(ModulationInputs, GlidePublishesNestedFmDispatchSpansWithoutChangingPitch)
     // Two upstream regions: glide must retain their boundary while refining it.
     for(int i=0;i<64;++i)spans[i]=(i<45 ? 45 : 64)-i;
     std::vector<int> ends;int position=0;
-    for(int frames:{45,19})reference.render(frames,[&](double value,int count){
+    for(int frames:{45,19})reference.render(frames,[&](float value,int count){
         std::fill_n(expected.data()+position,count,value);position+=count;ends.push_back(position);
     });
     OscillatorControlRenderer::glide(config,{},state,64,spans,pitch);
     int begin=0;for(int end:ends){for(int i=begin;i<end;++i){EXPECT_EQ(spans[i],end-i);EXPECT_EQ(pitch[i],expected[i]);}begin=end;}
     ASSERT_GT(ends.size(),2u);EXPECT_EQ(state.elapsed,reference.elapsed);
     // A pending FM transition must see the first glide request horizon, not 64.
-    config.fmAmount=0;FrequencyModulation fm;fm.settle=false;fm.current=fm.target=1024.5;
+    config.fmAmount=0;FrequencyModulation fm;fm.settle=false;fm.current=fm.target=1024.5f;
     fm.elapsed=44;VoiceControlBuffer envelope{},actual{},manual{};
     auto expectedFm=fm;position=0;begin=0;
-    for(int end:ends){expectedFm.render(0,end-begin,44100,[&](double value){manual[position++]=value;});begin=end;}
+    for(int end:ends){expectedFm.render(0,end-begin,44100,[&](float value){manual[position++]=value;});begin=end;}
     OscillatorControlRenderer::fm(config,{},fm,64,envelope,spans,actual);
     for(int i=0;i<64;++i)EXPECT_EQ(actual[i],manual[i]);
     EXPECT_EQ(fm.elapsed,expectedFm.elapsed);EXPECT_EQ(fm.remaining,expectedFm.remaining);

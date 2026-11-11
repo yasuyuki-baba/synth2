@@ -21,27 +21,33 @@ namespace synth2::dsp
             std::fill_n(stage,4,0.0f); std::fill_n(previous,4,0.0f);
             initialized=false; lastIndex=-1; lastResonance=-1;
         }
-        void configure (double index,float resonance) noexcept
+        void configure (float index,float resonance) noexcept
         {
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            index=std::clamp(index,0.0,1023.0);
+            index=std::clamp(index,0.0f,1023.0f);
             if(index==lastIndex && resonance==lastResonance)return;
-            lastIndex=index;lastResonance=resonance;clipping=static_cast<double>(resonance)>0.9;
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
-            // Above-Nyquist source cutoffs cannot be represented at low rates.
-            // Keep the same recurrence with its pole strictly inside the unit
-            // circle rather than switching to another filter implementation.
-            const float f=std::min((frequency*2.0f)/static_cast<float>(sampleRate),1.0f);
-            const float poleLimit=std::nextafter(1.0f,0.0f);
-            targetA=std::clamp(static_cast<float>((static_cast<double>(f)*3.6-(static_cast<double>(f)*1.6)*f)-1.0),-poleLimit,poleLimit);
-            targetB=(targetA+1.0f)*0.5f;
-            const float square=(f*2.5f)*f;
-            double shape=static_cast<double>(f)*4.3-static_cast<double>(square);
-            shape-=1.0;shape+=1.0;
-            targetFeedback=static_cast<float>(std::exp((1.0-shape*0.5)*1.386249))*resonance;
+            clipping=static_cast<float>(resonance)>0.9f;
+            if(index!=lastIndex)
+            {
+                // Coefficient preparation keeps its double intermediates; storage and recurrence stay Float32.
+                const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
+                const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+                // Above-Nyquist source cutoffs cannot be represented at low rates.
+                // Keep the same recurrence with its pole strictly inside the unit
+                // circle rather than switching to another filter implementation.
+                const float f=std::min((frequency*2.0f)/static_cast<float>(sampleRate),1.0f);
+                const float poleLimit=std::nextafter(1.0f,0.0f);
+                targetA=std::clamp(static_cast<float>((static_cast<double>(f)*3.6-(static_cast<double>(f)*1.6)*f)-1.0),-poleLimit,poleLimit);
+                targetB=(targetA+1.0f)*0.5f;
+                const float square=(f*2.5f)*f;
+                double shape=static_cast<double>(f)*4.3-static_cast<double>(square);
+                shape-=1.0;shape+=1.0;
+                feedbackBase=static_cast<float>(std::exp((1.0-shape*0.5)*1.386249));
+            }
+            lastIndex=index;lastResonance=resonance;
+            targetFeedback=feedbackBase*resonance;
             if(!initialized){a=targetA;b=targetB;feedback=targetFeedback;initialized=true;}
         }
         float process (float input) noexcept
@@ -71,8 +77,8 @@ namespace synth2::dsp
         float getB() const noexcept{return targetB;}
         float getFeedback() const noexcept{return targetFeedback;}
     private:
-        int sampleRate {44100}; double lastIndex {-1}; float lastResonance {-1};
+        int sampleRate {44100}; float lastIndex {-1}; float lastResonance {-1};
         float stage[4] {},previous[4] {},smoothing {},a {},b {},feedback {};
-        float targetA {},targetB {},targetFeedback {}; bool initialized {},clipping {};
+        float feedbackBase{},targetA {},targetB {},targetFeedback {}; bool initialized {},clipping {};
     };
 }

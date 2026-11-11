@@ -15,58 +15,64 @@ namespace synth2::dsp {
     static constexpr uint32_t kPhaseMask27 = 0x07ffffff;
     static constexpr uint32_t kPhaseScale27 = (1u << kPhaseBits27);
 
+    // Native frequency and phase words are discrete compatibility boundaries.
+    // Audio samples and interpolation use Float32 throughout the graph.
+    inline uint32_t compatiblePhaseIncrement(float frequency,float sampleRate) noexcept
+    {
+        const float increment=(frequency/sampleRate)*static_cast<float>(kPhaseScale27);
+        return static_cast<uint32_t>(static_cast<float>(increment))&kPhaseMask27;
+    }
+
     class Oscillator {
     public:
         Oscillator() { reset(); }
-        void setSampleRate(double sr) { sampleRate = sr; }
+        void setSampleRate(float sr) {
+            if(sampleRate!=sr)incrementReady=false;
+            sampleRate=sr;
+        }
 
         uint32_t getPhaseFixed27() const noexcept { return phaseAcc32; }
         void setPhaseFixed27(uint32_t p) noexcept { phaseAcc32 = p & kPhaseMask27; }
         uint32_t getPhaseIncFixed27() const noexcept { return phaseIncFixed27; }
         void synchronizeNoise(uint32_t master,uint32_t nextMaster) noexcept { noise.synchronize(master,nextMaster); }
 
-        float renderSample(int waveIndex, float pulseWidth, uint32_t phaseOffset27 = 0, const WaveTableBank* bank = nullptr, double nativePulseWidthBins = -1) noexcept {
-            if (waveIndex == 4) {
+        float renderSample(int waveIndex,float pulseWidth,uint32_t phaseOffset27=0,
+            const WaveTableBank* bank=nullptr,float nativePulseWidthBins=-1) noexcept
+        {return readSample(waveIndex,pulseWidth,phaseOffset27,bank,nativePulseWidthBins);}
+
+        float readSample(int waveIndex,float pulseWidth,uint32_t phaseOffset27=0,
+            const WaveTableBank* bank=nullptr,float nativePulseWidthBins=-1) noexcept
+        {
+            if(waveIndex==4) {
                 return noise.sample();
             }
-            const uint32_t p = (phaseAcc32 + phaseOffset27) & kPhaseMask27;
-
-            if (bank != nullptr) {
-                if (waveIndex == 1 && bank->hasShape (5)) {
-                    const double bins=nativePulseWidthBins>=0 ? nativePulseWidthBins
-                        : ModulationEnvelope::pulseWidthForDial(fractionalDial(pulseWidth),0.0);
-                    const auto saw=bank->getNativeTableFor(5,frequencyHz);
-                    if(saw.first==nullptr)return 0.0f;
-                    const auto read=[&](uint32_t phase) {
-                        const auto index=(phase>>16)&2047u;
-                        const float fraction=static_cast<float>(phase&65535u)*(1.0f/65536.0f);
-                        return saw.first[index]+fraction*(saw.first[(index+1)&2047u]-saw.first[index]);
-                    };
-                    const float origin=read(p);
-                    return PulseWidthRead::interpolate(bins,[&](uint32_t offset) {
-                        return .5f*(origin-read((p+(offset<<16))&kPhaseMask27));
-                    });
-                }
-                float freqHz = (float)((double)phaseIncFixed27 * sampleRate / (double)kPhaseScale27);
-                auto tbl = (waveIndex == 0 || waveIndex == 2) ? bank->getNativeTableFor (waveIndex,frequencyHz) : bank->getTableFor(waveIndex, freqHz);
-                if (tbl.first != nullptr) {
-                    const float* data = tbl.first;
-                    const size_t len = tbl.second;
-
-                    uint32_t i0 = (uint32_t)((p >> 16) & 0x7ffu);
-                    float frac = (float)(p & 0xffffu) / 65536.0f;
-                    uint32_t i1 = (i0 + 1) % 2048;
-                    return data[i0] + frac * (data[i1] - data[i0]);
-                }
+            if(bank==nullptr)return {};
+            const uint32_t phase=(phaseAcc32+phaseOffset27)&kPhaseMask27;
+            if(waveIndex==1 && bank->hasShape(5))
+            {
+                const float bins=std::clamp(nativePulseWidthBins>=0 ? nativePulseWidthBins
+                    : ModulationEnvelope::pulseWidthForDial(fractionalDial(pulseWidth),0.0f),10.0f,2037.0f);
+                const auto table=bank->getNativeTableFor(5,static_cast<float>(frequencyHz));
+                if(table.first==nullptr)return {};
+                const auto origin=readTable(table.first,phase);
+                const auto shifted=[&](uint32_t offset) {
+                    const auto next=readTable(table.first,(phase+(offset<<16))&kPhaseMask27);
+                    return .5f*(origin-next);
+                };
+                const auto low=static_cast<uint32_t>(bins);
+                return interpolate(shifted(low),shifted(low+1),bins-low);
             }
-            return 0.0f;
+            const float frequency=phaseIncFixed27*sampleRate/kPhaseScale27;
+            const auto table=waveIndex==0 || waveIndex==2
+                ? bank->getNativeTableFor(waveIndex,static_cast<float>(frequencyHz)) : bank->getTableFor(waveIndex,frequency);
+            return table.first!=nullptr ? readTable(table.first,phase) : 0.0f;
         }
 
         float renderPhaseDiffSawNoAdvance(uint32_t offsetFixed27, const WaveTableBank* bank,
                                          uint32_t phaseOffset27 = 0, int sawShape = 0) noexcept {
             if (bank == nullptr) return 0.0f;
-            float freqHz = (float)((double)phaseIncFixed27 * sampleRate / (double)kPhaseScale27);
-            auto saw = (sawShape == 0 || sawShape == 5) ? bank->getNativeTableFor (sawShape,frequencyHz) : bank->getTableFor(sawShape, freqHz);
+            float freqHz = (float)((float)phaseIncFixed27 * sampleRate / (float)kPhaseScale27);
+            auto saw = (sawShape == 0 || sawShape == 5) ? bank->getNativeTableFor (sawShape,static_cast<float>(frequencyHz)) : bank->getTableFor(sawShape, freqHz);
             if (saw.first == nullptr) return 0.0f;
 
             const float* sd = saw.first;
@@ -92,27 +98,33 @@ namespace synth2::dsp {
         }
 
         void updatePhaseIncrement(float freqHz) noexcept {
+            if(incrementReady && frequencyHz==freqHz)return;
             frequencyHz = freqHz;
-            // Win64 dispatcher: MULSS phase scale, double reciprocal-rate
-            // multiplication, round back to float, then CVTTSS2SI.
-            const float scaledFrequency = freqHz * static_cast<float> (kPhaseScale27);
-            const float increment = static_cast<float> (static_cast<double> (scaledFrequency) * (1.0/sampleRate));
-            phaseIncFixed27 = static_cast<uint32_t> (increment) & kPhaseMask27;
+            phaseIncFixed27=compatiblePhaseIncrement(freqHz,sampleRate);
             if (phaseIncFixed27 == 0) phaseIncFixed27 = 1;
-
+            incrementReady=true;
         }
 
         void reset() noexcept { phaseAcc32 = 0; noise.reset(); }
         void resetPhase(float phase01, int waveIndex) noexcept {
-            const double v = (double)phase01 * (double)kPhaseScale27;
+            const float v = (float)phase01 * (float)kPhaseScale27;
             phaseAcc32 = (uint32_t)std::floor(v) & kPhaseMask27;
         }
 
     private:
+        static float interpolate(float first,float second,float fraction) noexcept
+        {return first+(second-first)*fraction;}
+        static float readTable(const float* data,uint32_t phase) noexcept
+        {
+            const uint32_t index=(phase>>16)&2047u;
+            return interpolate(data[index],data[(index+1)&2047u],
+                static_cast<float>(phase&65535u)*(1.0f/65536.0f));
+        }
         uint32_t phaseAcc32{0}, phaseIncFixed27{1};
         NoiseGenerator noise;
-        double sampleRate{44100.0};
+        float sampleRate{44100.0f};
         float frequencyHz{440.0f};
+        bool incrementReady{};
     };
 
 }

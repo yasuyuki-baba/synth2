@@ -11,7 +11,7 @@ TEST(ContinuousLevel, AttackRetainsSubLevelPrecisionAtWholeSettings)
     synth2::dsp::AmplitudeEnvelope envelope;
     envelope.setParameters(1000,1000,512,4410);envelope.noteOn();
     std::array<float,64> gains{};envelope.render(gains.data(),64);
-    EXPECT_NEAR(envelope.getLevel(),131.072,1e-10);
+    EXPECT_EQ(envelope.getLevel(),131.072f);
     EXPECT_NE(envelope.getLevel(),std::trunc(envelope.getLevel()));
     EXPECT_NEAR(gains.back(),.064f,1e-6f);
     envelope.render(gains.data(),64);EXPECT_GT(envelope.getLevel(),131.072);
@@ -122,6 +122,6 @@ TEST(ContinuousLevel, ReleaseRetriggerKeepsRealLevelAndUsesCompatibleSamplePosit
     EXPECT_EQ(envelope.getCounter(),24755); // floor(100000 * whole level 507 / 2048).
     EXPECT_DOUBLE_EQ(envelope.getLevel(),507.25);
     envelope.render(gains.data(),1);
-    EXPECT_DOUBLE_EQ(envelope.getLevel(),507.00288);
+    EXPECT_FLOAT_EQ(envelope.getLevel(),507.00288f);
     EXPECT_TRUE(envelope.isActive());
 }

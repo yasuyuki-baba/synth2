@@ -10,27 +10,31 @@ namespace synth2::dsp
     {
     public:
         void reset() noexcept { low=band=0; }
-        void configure (double sampleRate,double index,float resonance) noexcept
+        void configure (float sampleRate,float index,float resonance) noexcept
         {
-            index=std::clamp(index,0.0,1023.0);
+            index=std::clamp(index,0.0f,1023.0f);
             if (sampleRate==lastRate && index==lastIndex && resonance==lastResonance) return;
-            lastRate=sampleRate; lastIndex=index; lastResonance=resonance;
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
-            const double boundedFrequency=std::min(static_cast<double>(frequency),sampleRate*.5);
-            f=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
-            configureCoefficients(f,resonance);
+            if(sampleRate!=lastRate || index!=lastIndex)
+            {
+                // Coefficient preparation keeps its double intermediates; storage and recurrence stay Float32.
+                const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
+                const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+                const double boundedFrequency=std::min(static_cast<double>(frequency),static_cast<double>(sampleRate)*.5);
+                frequencyCoefficient=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
+            }
+            lastRate=sampleRate;lastIndex=index;lastResonance=resonance;
+            configureCoefficients(frequencyCoefficient,resonance);
         }
         void configureCoefficients (float coefficient,float resonance) noexcept
         {
-            clipping=static_cast<double>(resonance)>0.9;
+            clipping=static_cast<float>(resonance)>0.9f;
             const float r=std::clamp(resonance,0.0f,1.0f);
             damping=r-1.0f;
             // The Chamberlin step is stable when f^2-2*damping*f < 4.
             // Keep the existing coefficient whenever it is inside that domain;
             // low-rate/high-cutoff inputs must not cross the marginal pole.
-            const double d=damping;
-            const float limit=std::nextafter(static_cast<float>(d+std::sqrt(d*d+4.0)),0.0f);
+            const float d=damping;
+            const float limit=std::nextafter(static_cast<float>(d+std::sqrt(d*d+4.0f)),0.0f);
             f=std::min(coefficient,limit);
             gain=static_cast<float>(1.0-static_cast<double>(r)*.7);
         }
@@ -54,8 +58,8 @@ namespace synth2::dsp
         float getLow() const noexcept { return low; }
         float getBand() const noexcept { return band; }
     private:
-        double lastRate {-1}; double lastIndex {-1}; float lastResonance {-1};
+        float lastRate {-1}; float lastIndex {-1}; float lastResonance {-1};
         bool clipping {};
-        float f {},damping {-1},gain {1},low {},band {};
+        float frequencyCoefficient{},f {},damping {-1},gain {1},low {},band {};
     };
 }

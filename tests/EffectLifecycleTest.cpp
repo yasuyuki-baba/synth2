@@ -29,8 +29,8 @@ TEST(EffectLifecycle, SilentDelayInputStillProducesItsPendingEcho)
     int silent=1;
     ASSERT_TRUE(effect->process(dry.data(),send.data(),1024,&silent));
     EXPECT_EQ(silent,0);
-    double energy=0;
-    for (float sample:send) { ASSERT_TRUE(std::isfinite(sample)); energy+=double(sample)*sample; }
+    float energy=0;
+    for (float sample:send) { ASSERT_TRUE(std::isfinite(sample)); energy+=float(sample)*sample; }
     EXPECT_GT(energy,0);
 }
 

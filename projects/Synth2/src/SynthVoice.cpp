@@ -60,7 +60,7 @@ namespace synth2
         return true;
     }
 
-    void SynthVoice::prepare (double newSampleRate)
+    void SynthVoice::prepare (float newSampleRate)
     {
         retireNote();
         lifecycle.consumeTransition();
@@ -71,12 +71,11 @@ namespace synth2
             amplifier.prepare (spec);
             dsp::ModulationEnvelope::prepare();
             dsp::FrequencyModulation::prepare();
-            dsp::OscillatorTuning::prepare();
         }
 
     }
 
-    void SynthVoice::updateSampleRate (double newSampleRate)
+    void SynthVoice::updateSampleRate (float newSampleRate)
     {
         sampleRate = newSampleRate;
         // Imported native envelopes reconfigure their durations without note-on.
@@ -90,31 +89,15 @@ namespace synth2
         const auto transition=lifecycle.next();
         lifecycle.noteStarted();
         midiNote = midiNoteNumber;
-        if(!transition.legato())filterMidiNote=midiNoteNumber;
         level = velocity;
 
         const bool nativeGlide = !params.portamentoAuto || transition.glide;
 
-        if (transition.legato())
-        {
-            for(auto* core:cores) if(core != nullptr)
-            {
-                core->coarse.refresh();
-                core->portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
-                core->portamento.setNote(midiNoteNumber,nativeGlide,
-                    static_cast<int>(params.octaveBase*12+params.keyShift));
-            }
-            updateEnvelopeConfiguration();
-            lifecycle.consumeTransition();
-            return;
-        }
-        lifecycle.consumeTransition();
-
-        releaseCores();
         const int activeCores = std::clamp (params.unisonVoices, 1, 8);
         auto startCore = [&](int i)
         {
             auto& core = *cores[i];
+            core.filterMidiNote=midiNoteNumber;core.noteHeld=true;
             const bool wasActive=core.amplitude.isActive();
             const auto reuse=dsp::CoreReusePolicy::select(wasActive);
             core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
@@ -144,6 +127,39 @@ namespace synth2
             if(reuse.settleFm)core.fm.settle=true;
             core.fm.noteOn();
         };
+        if (transition.legato())
+        {
+            // Mono binds the first physical group. A larger group retains the
+            // continuing cores and admits its additional cores as new notes.
+            const auto previous=cores;
+            std::array<bool,8> started {};
+            startingNote=true;
+            releaseCores();
+            assignedCount=activeCores;
+            for(int i=0;i<activeCores;++i)
+            {
+                cores[i]=pool.claim(*this,32,i);
+                const bool continuing=cores[i]->noteHeld && std::find(previous.begin(),previous.end(),cores[i])!=previous.end();
+                if(!continuing){startCore(i);started[i]=true;}
+                else
+                {
+                    auto& core=*cores[i];
+                    core.coarse.refresh();
+                    core.portamento.setDuration(dsp::Portamento::timeSeconds(params.sourcePortamentoDial),static_cast<int>(sampleRate));
+                    core.portamento.setNote(midiNoteNumber,nativeGlide,
+                        static_cast<int>(params.octaveBase*12+params.keyShift));
+                }
+            }
+            startingNote=false;
+            updateEnvelopeConfiguration();
+            for(int i=0;i<activeCores;++i)
+                if(started[i])
+                {cores[i]->filterEnvelope.noteOn();cores[i]->cutoff.settle();}
+            lifecycle.consumeTransition();
+            return;
+        }
+        lifecycle.consumeTransition();
+        releaseCores();
         startingNote = true;
         assignedCount = activeCores;
         for (int i = 0; i < activeCores; ++i)
@@ -164,8 +180,7 @@ namespace synth2
         if(action==dsp::VoiceLifecycle::StopAction::Preserve)return;
         if(action==dsp::VoiceLifecycle::StopAction::Release)
         {
-            for (auto* core : cores) { if (core != nullptr) core->amplitude.noteOff(); }
-            for (auto* core : cores) if (core != nullptr) core->filterEnvelope.noteOff();
+            for(auto* core:cores)if(core!=nullptr)core->releaseKey();
         }
         else
         {
@@ -173,7 +188,7 @@ namespace synth2
             // a legato reassignment startVoice replaces its note bookkeeping.
             // Native mono retriggers from the sounding envelope/filter state;
             // Logical bookkeeping replacement must not reset that physical core.
-            for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.reset(); core->amplitude.reset(); core->modulationEnvelope.reset(); }
+            for (auto* core : cores) if (core != nullptr) { core->filterEnvelope.reset(); core->amplitude.reset(); core->modulationEnvelope.reset(); core->noteHeld=false; }
             retireNote();
         }
     }
@@ -186,18 +201,26 @@ namespace synth2
                                        int startSample,
                                        int numSamples)
     {
-        if (sampleRate <= 0.0 || lifecycle.phase()==dsp::VoiceLifecycle::Phase::Idle) return;
+        if (sampleRate <= 0.0f || lifecycle.phase()==dsp::VoiceLifecycle::Phase::Idle) return;
         if (numSamples > 256)
         {
             for (int offset = 0; offset < numSamples; offset += 256)
                 renderNextBlock (outputBuffer,startSample+offset,std::min (256,numSamples-offset));
             return;
         }
-        // Envelope retirement and logical note state keep separate lifetimes.
+        // Snapshot physical activity before VCA advancement. A core finishing
+        // its release still renders this complete span; an already idle core
+        // keeps its oscillator, filter and receiver history until reuse.
+        // Logical note activity and requested Unison layout remain separate.
         const bool bypassEnv = offline::bypassEnvelopes();
         bool amplitudeActive = false;
-        for (int v = 0; v < activeCoreCount(); ++v)
-            if (cores[v] != nullptr) amplitudeActive = amplitudeActive || cores[v]->amplitude.isActive();
+        std::array<bool,8> renderCore {};
+        for(int v=0;v<activeCoreCount();++v)if(cores[v]!=nullptr)
+        {
+            const bool active=cores[v]->amplitude.isActive();
+            amplitudeActive=amplitudeActive || active;
+            renderCore[v]=bypassEnv || active;
+        }
         if (!bypassEnv && !amplitudeActive)
         {
             retireNote();
@@ -219,28 +242,28 @@ namespace synth2
         std::array<dsp::VoiceSpanBuffer,8> nativeModRemaining;
         // Preserve the native stage order across all cores. Child controllers
         // retain separate oscillator-envelope/glide/FM and filter partitions.
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::envelope(oscillatorControl,lfoView,cores[v]->modulationEnvelope,
                 numSamples,nativeModPitch[v],nativeModRemaining[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::glide(oscillatorControl,lfoView,cores[v]->portamento,
                 numSamples,nativeModRemaining[v],nativeGlidePitch[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::OscillatorControlRenderer::fm(oscillatorControl,lfoView,cores[v]->fm,
                 numSamples,nativeModPitch[v],nativeModRemaining[v],nativeFmDepth[v],
                 &cores[v]->coarse,&nativeCoarsePitch[v]);
-        for(int v=0;v<activeCoreCount();++v)if(cores[v])
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             dsp::FilterControlRenderer::render(filterControl,lfoView,cores[v]->filterEnvelope,cores[v]->cutoff,
                 cores[v]->keyboardOffset,cores[v]->unisonOffset,numSamples,nativeCutoffIndices[v]);
 
         // Native oscillator input is rendered for the entire callback before
         // the integer amplitude stage retires the voice. Keep those phase ticks.
-        // The native root advances its interleaved workspace by two floats
-        // per frame before the mono VCA receiver processes each subregion.
+        // The native workspace advances by two words per frame. Retain this
+        // scheduling coordinate independently of Float32 gain/audio storage.
         const int gainOffset=!bypassEnv ? (((startSample-nativeWorkspaceOrigin)*2)&3) : 0;
         alignas(16) std::array<std::array<float,260>,8> amplitudeGains;
         if (!bypassEnv)
-            for (int v = 0; v < activeCoreCount(); ++v) if (cores[v] != nullptr)
+            for (int v = 0; v < activeCoreCount(); ++v) if (renderCore[v])
             {
                 // Projected signals and generated ARP events retain gain progress.
                 // Ordinary receiver spans keep their actual dispatch length.
@@ -260,7 +283,8 @@ namespace synth2
 
         const auto& unison=tuning.unison;
         std::array<dsp::VoiceTuning::Core,8> coreTuning;
-        for(int v=0;v<activeCoreCount();++v)if(cores[v]!=nullptr)
+        std::array<float,8> coarseFrequencies;
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])
             coreTuning[v]=tuning.prepareCore(unison.pitchCents[layoutSlot(v)]);
 
         for (int v = 0; v < activeCoreCount(); ++v) {
@@ -276,28 +300,40 @@ namespace synth2
 
         for (int i = 0; i < numSamples; ++i)
         {
-            double firstPitch=0,secondPitch=0;
+            float firstPitch=0,secondPitch=0;
             if(lfoView.available)for(size_t slot=0;slot<2;++slot)
                 if(lfoView.receivers[slot].enabled)
                 {
                     const auto destination=lfoView.receivers[slot].destination;
-                    const double value=lfoView.values[slot][i];
+                    const float value=lfoView.values[slot][i];
                     if(destination==1)firstPitch+=value;
                     if(destination==0 || destination==1)secondPitch+=value;
                 }
 
             float combinedL = 0.0f;
             float combinedR = 0.0f;
-            std::array<float,16> highLeft{},highRight{};
+            std::array<float,16> highLeft,highRight;
+            if(audioFactor>1)
+            {
+                std::fill_n(highLeft.data(),audioFactor,0.0f);
+                std::fill_n(highRight.data(),audioFactor,0.0f);
+            }
 
             for (int v = 0; v < activeCoreCount(); ++v)
             {
-                if (cores[v] == nullptr) continue;
+                if (!renderCore[v]) continue;
                 const float panAmt = dsp::Unison::panOffset (numUnison,layoutSlot(v),params.unisonPan);
 
                 auto coreFrequency=coreTuning[v];
                 if(nativeCoarsePitch[v][i]!=cores[v]->coarse.target)
-                    coreFrequency.second=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
+                {
+                    // Base/fine inputs are fixed for this render span. Only a
+                    // changed receiver exponent needs another frequency map.
+                    // First use always assigns; no cache crosses span boundaries.
+                    if(i==0 || nativeCoarsePitch[v][i]!=nativeCoarsePitch[v][i-1])
+                        coarseFrequencies[v]=tuning.coarseSecond(coreTuning[v],nativeCoarsePitch[v][i],unison.pitchCents[layoutSlot(v)]);
+                    coreFrequency.second=coarseFrequencies[v];
+                }
                 const dsp::OscillatorAudioInput oscillatorInput {
                     coreFrequency.first,coreFrequency.second,params.pulseWidth,params.oscMix,params.subOscGain,syncEnabled,ringEnabled,
                     firstPitch+bend,
@@ -374,11 +410,13 @@ namespace synth2
         }
 
     }
-        for (auto* core : cores) if (core != nullptr) core->filter.finishNativeBlock();
+        for(int v=0;v<activeCoreCount();++v)if(renderCore[v])cores[v]->filter.finishNativeBlock();
         if (!bypassEnv)
         {
             const int count = activeCoreCount();
-            for (int v = 0; v < count; ++v) if (cores[v] != nullptr && !cores[v]->amplitude.isActive())
+            const bool finished=std::all_of(cores.begin(),cores.begin()+count,
+                [](auto* core) {return core==nullptr || !core->amplitude.isActive();});
+            for(int v=0;v<count;++v)if(renderCore[v] && !cores[v]->amplitude.isActive())
             {
                 // Native VCO envelope history survives stealing while sounding,
                 // but the VCA's completed tail resets it before idle reuse.
@@ -390,8 +428,12 @@ namespace synth2
                     cores[v]->cutoff.settle();
                 }
                 pool.release(*this,*cores[v]);
+                // A surviving logical note must not keep a writable view of a
+                // freed lane that another note can claim. Retired whole notes
+                // retain their read-only inspection views as before.
+                if(!finished)cores[v]=nullptr;
             }
-            if (std::all_of(cores.begin(),cores.begin()+count,[](auto* core) { return core == nullptr || !core->amplitude.isActive(); })) retireNote();
+            if(finished)retireNote();
         }
 
     }
@@ -431,7 +473,7 @@ namespace synth2
             auto& core = *cores[v];
             core.unisonOffset = layout.filterIndex[layoutSlot(v)];
             // CVcf keeps its note while a legato assignment retunes only CVCO.
-            const int filterNote=filterMidiNote;
+            const int filterNote=core.filterMidiNote;
             dsp::VoiceEnvelopeConfigurator::filter(core.filterEnvelope,core.keyboardOffset,core.unisonOffset,
                 filterSettings,filterNote,level,sampleRate);
         }

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <utility>
 #include "LfoRange.h"
+#include "OscillatorConstants.h"
 
 namespace synth2::dsp
 {
@@ -15,7 +16,7 @@ namespace synth2::dsp
         static void prepare() noexcept { (void)sine(); }
         static int amplitudeDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*2048.0f);
         }
         static int amplitude(int depth,int phaseIndex) noexcept
@@ -27,17 +28,17 @@ namespace synth2::dsp
         }
         static int panDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*64.0f);
         }
         static int pulseWidthDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*128.0f);
         }
         static int filterDepth(int dial) noexcept
         {
-            const float unit=static_cast<float>(static_cast<double>(std::clamp(dial,0,127))*(1.0/127.0));
+            const float unit=static_cast<float>(std::clamp(dial,0,127))*(1.0f/127.0f);
             return static_cast<int>(unit*1024.0f);
         }
         static int unipolarControl(int depth,float sample) noexcept
@@ -176,7 +177,7 @@ namespace synth2::dsp
             {
                 int destination {},depth {};
                 std::pair<int,int> range {};
-                std::pair<double,int> query(int wave,int counter,int period,int minimumStep) const noexcept
+                std::pair<float,int> query(int wave,int counter,int period,int minimumStep) const noexcept
                 {
                     if(wave==2)return saw(range.first,range.second,counter,period,minimumStep);
                     if(wave==3)return square(range.first,range.second,counter,period,minimumStep);
@@ -195,11 +196,11 @@ namespace synth2::dsp
                             : destination==2 || destination==5 ? filter(depth,index)
                             : destination==6 ? pan(depth,index) : amplitude(depth,index);
                     };
-                    const double first=atPhase(phase);
+                    const float first=atPhase(phase);
                     if(wave!=0 || (destination!=3 && destination!=6))
                         return {first,depth==0 ? -1 : minimumStep};
-                    const double fraction=static_cast<double>(position%static_cast<uint32_t>(period))/period;
-                    const double value=first+(static_cast<double>(atPhase(phase+1))-first)*fraction;
+                    const float fraction=static_cast<float>(position%static_cast<uint32_t>(period))/period;
+                    const float value=first+(static_cast<float>(atPhase(phase+1))-first)*fraction;
                     return {value,depth==0 ? -1 : minimumStep};
                 }
             };
@@ -209,33 +210,28 @@ namespace synth2::dsp
                 return {destination,destination==3 ? range.first : range.second,range};
             }
             Knot first,second;
-            double fraction {};
+            float fraction {};
         public:
-            DepthCurve(int destination,double dial) noexcept
+            DepthCurve(int destination,float dial) noexcept
             {
-                dial=std::clamp(dial,0.0,127.0);
+                dial=std::clamp(dial,0.0f,127.0f);
                 const int low=static_cast<int>(dial);
                 fraction=dial-low;first=knot(destination,low);
                 second=fraction==0 ? first : knot(destination,low+1);
             }
-            std::pair<double,int> query(int wave,int counter,int period,int minimumStep) const noexcept
+            std::pair<float,int> query(int wave,int counter,int period,int minimumStep) const noexcept
             {
                 const auto a=first.query(wave,counter,period,minimumStep);
                 if(fraction==0)return {a.first,a.second};
                 const auto b=second.query(wave,counter,period,minimumStep);
                 const int frames=a.second<0 ? b.second : b.second<0 ? a.second : std::min(a.second,b.second);
-                return {a.first+(static_cast<double>(b.first)-a.first)*fraction,frames};
+                return {a.first+(static_cast<float>(b.first)-a.first)*fraction,frames};
             }
         };
     private:
         static const std::array<float,2048>& sine() noexcept
         {
-            static const auto values=[] {
-                std::array<float,2048> result {};
-                for(int i=0;i<2048;++i)result[static_cast<size_t>(i)]=static_cast<float>(std::sin(6.283185307179586*i/2048));
-                return result;
-            }();
-            return values;
+            return oscillatorSine;
         }
     };
 }

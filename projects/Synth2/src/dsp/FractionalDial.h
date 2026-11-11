@@ -10,7 +10,11 @@ namespace synth2::dsp
     {
         const float value=std::clamp(normalized,0.0f,1.0f);
         const float raw=value*127.0f,nearest=std::round(raw);
-        return value==nearest/127.0f || value==nearest*(1.0f/127.0f) ? nearest : raw;
+        // Loading may publish either native float normalization. Recognize
+        // those exact source words before extending the continuous coordinate.
+        const float anchor=static_cast<float>(nearest);
+        return value==nearest/127.0f || value==static_cast<float>(anchor/127.0f)
+            || value==static_cast<float>(anchor*(1.0f/127.0f)) ? nearest : raw;
     }
     template<class Mapping>
     float interpolateDial(float dial,Mapping mapping) noexcept

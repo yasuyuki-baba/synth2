@@ -27,14 +27,14 @@ private:T& ref;T previous;
 };
 struct Decibels
 {
-    static float decibelsToGain(float db,float floor=-100.f) {return db>floor ? std::pow(10.f,db*.05f) : 0.f;}
-    static float gainToDecibels(float gain,float floor=-100.f) {return gain>0.f ? std::max(floor,20.f*std::log10(gain)) : floor;}
+    static float decibelsToGain(float db,float floor=-100.0f) {return db>floor ? std::pow(10.0f,db*.05f) : 0.0f;}
+    static float gainToDecibels(float gain,float floor=-100.0f) {return gain>0.0f ? std::max(floor,20.0f*std::log10(gain)) : floor;}
 };
 struct ProcessSpec
 {
-    double sampleRate{};uint32_t maximumBlockSize{},numChannels{};
+    float sampleRate{};uint32_t maximumBlockSize{},numChannels{};
     ProcessSpec()=default;
-    ProcessSpec(double rate,uint32_t frames,uint32_t channels):sampleRate(rate),maximumBlockSize(frames),numChannels(channels){}
+    ProcessSpec(float rate,uint32_t frames,uint32_t channels):sampleRate(rate),maximumBlockSize(frames),numChannels(channels){}
     template<class Spec> ProcessSpec(const Spec& s):ProcessSpec(s.sampleRate,s.maximumBlockSize,s.numChannels){}
 };
 // Storage is resized only during preparation. A pointer-backed view never owns

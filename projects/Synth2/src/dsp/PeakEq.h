@@ -9,7 +9,7 @@ namespace synth2::dsp
     class PeakEq
     {
     public:
-        void prepare(double rate,bool preserve=false) noexcept
+        void prepare(float rate,bool preserve=false) noexcept
         {
             sampleRate=static_cast<int>(rate);
             if(!preserve)states={};

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ReleaseRamp.h"
+#include "EnvelopeCurve.h"
 #include "FractionalDial.h"
 #include <algorithm>
 #include <array>
@@ -20,16 +21,16 @@ namespace synth2::dsp
         {
             dial=std::clamp(dial,0,127);
             if(dial==0)return 0;
-            const double exponent=std::pow(static_cast<double>(dial)*(1.0/127.0),0.3);
-            return static_cast<float>(std::exp(std::log(2048.0)*exponent)*(1.0/2048.0));
+            const float exponent=std::pow(static_cast<float>(dial)*(1.0f/127.0f),0.3f);
+            return static_cast<float>(std::exp(std::log(2048.0f)*exponent)*(1.0f/2048.0f));
         }
         static float velocityForDials(int velocity,int sensitivity) noexcept
         {
             velocity=std::clamp(velocity,0,127);sensitivity=std::clamp(sensitivity,0,127);
             const float amount=(static_cast<float>(sensitivity)*(1.0f/127.0f))*(-30.0f);
-            double exponent=static_cast<double>(amount)*static_cast<double>(127-velocity);
-            exponent*=1.0/127.0;exponent*=0.05;
-            return static_cast<float>(std::exp(std::log(10.0)*exponent));
+            float exponent=static_cast<float>(amount)*static_cast<float>(127-velocity);
+            exponent*=1.0f/127.0f;exponent*=0.05f;
+            return static_cast<float>(std::exp(std::log(10.0f)*exponent));
         }
 
         static float gainForDial(float dial) noexcept
@@ -37,7 +38,7 @@ namespace synth2::dsp
         static float velocityForDials(int velocity,float sensitivity) noexcept
         {return interpolateDial(sensitivity,[&](int value){return velocityForDials(velocity,value);});}
 
-        void setParameters (int attackFrames,int decayFrames,double sustainLevel,int releaseFrames) noexcept
+        void setParameters (int attackFrames,int decayFrames,float sustainLevel,int releaseFrames) noexcept
         {
             attackFrames = std::max (0,attackFrames);
             decayFrames = std::max (0,decayFrames);
@@ -46,7 +47,7 @@ namespace synth2::dsp
             if (phase == Phase::Decay && decay != decayFrames)
                 counter = decay > 0 ? static_cast<int> (static_cast<int64_t>(counter)*decayFrames/decay) : 0;
             attack = attackFrames; decay = decayFrames;
-            sustain = std::clamp (sustainLevel,0.0,2048.0);
+            sustain = std::clamp (sustainLevel,0.0f,2048.0f);
             releaseFrames = std::max (0,releaseFrames);
             releaseDuration = releaseFrames;
             release.setDuration (releaseFrames);
@@ -60,12 +61,12 @@ namespace synth2::dsp
         }
         bool isActive() const noexcept { return phase != Phase::Idle; }
         Phase getPhase() const noexcept { return phase; }
-        double getLevel() const noexcept { return level; }
+        float getLevel() const noexcept { return level; }
         int getCounter() const noexcept { return phase == Phase::Release ? release.getCounter() : counter; }
         float getCurrentLevel() const noexcept { return static_cast<float>(level)/2048.0f; }
         // Offline diagnostics; callers serialize with rendering.
         std::array<float,3> readGainState() const noexcept { return {currentGain,targetGain,gainScale}; }
-        double getCachedLevel() const noexcept { return lastLevel; }
+        float getCachedLevel() const noexcept { return lastLevel; }
         bool wasSilent() const noexcept { return silent; }
 
         void setGainScale (float value) noexcept
@@ -73,7 +74,7 @@ namespace synth2::dsp
             setGainFactors(1.0f,value);
         }
         // CVca applies the two native factors before normalizing its target.
-        // Their separate products preserve the native float rounding order.
+        // Keep their product order while retaining Float32 signal precision.
         void setGainFactors(float first,float second) noexcept
         {
             first=std::isfinite(first) ? std::max(0.0f,first) : 0.0f;
@@ -81,7 +82,7 @@ namespace synth2::dsp
             if(first!=gainFirst || second!=gainScale){gainFirst=first;gainScale=second;lastLevel=-1;}
         }
 
-        void setModulation (double first,double second) noexcept
+        void setModulation (float first,float second) noexcept
         {
             // A reduced random-LFO depth retains its old target. Native CLFO
             // queries can then be negative; CVca consumes that signed value.
@@ -96,8 +97,8 @@ namespace synth2::dsp
             phase = Phase::Attack;
             // Restart position is discrete compatibility metadata. Keep its
             // whole-level anchor separate from the real audio level/gain.
-            const double restartLevel = std::trunc(level);
-            counter = static_cast<int> (static_cast<double>(attack)*restartLevel/2048);
+            const float restartLevel = std::trunc(level);
+            counter = static_cast<int> (static_cast<float>(attack)*restartLevel/2048);
             release.reset();
         }
         void noteOff() noexcept
@@ -120,7 +121,7 @@ namespace synth2::dsp
             int offset = 0;
             if (phase == Phase::Release)
             {
-                release.advance (frames,[&] (double target,int count)
+                release.advance (frames,[&] (float target,int count)
                 {
                     segment (gains+offset,count,target,release.segmentHorizon());
                     offset += count;
@@ -136,7 +137,7 @@ namespace synth2::dsp
                     if (counter < attack)
                     {
                         const int count = std::min (available,attack-counter);
-                        level = static_cast<double>(counter+count)*2048.0/attack;
+                        level = static_cast<float>(counter+count)*2048.0f/attack;
                         segment (gains+offset,count,level);
                         offset += count; counter += count;
                     }
@@ -152,10 +153,8 @@ namespace synth2::dsp
                     while (offset < frames && counter < decay && level > sustain)
                     {
                         const int count = std::min ({frames-offset,step,decay-counter});
-                        const float remaining = static_cast<float>(decay-counter-count)*(1.0f/static_cast<float>(decay));
-                        const float curve = std::exp ((remaining-1.0f)*8.0f)*remaining;
                         level = compatibleControlCurve(2048-sustain,[&](int range) {
-                            return std::trunc(curve*static_cast<float>(range));
+                            return exponentialEnvelopeKnot(range,decay-counter-count,decay);
                         })+sustain;
                         segment (gains+offset,count,level);
                         offset += count; counter += count;
@@ -188,7 +187,7 @@ namespace synth2::dsp
             step = std::max (1,boundary/2);
         }
 
-        void segment (float* output,int count,double target,int horizon = 0) noexcept
+        void segment (float* output,int count,float target,int horizon = 0) noexcept
         {
             if (count <= 0) return;
             if (lastLevel == target && rampRemaining==0)
@@ -250,9 +249,9 @@ namespace synth2::dsp
         Phase phase {Phase::Idle};
         int attack {},decay {},releaseDuration {};
         int counter {},boundary {},step {1};
-        double sustain {2048},level {},lastLevel {-1};
+        float sustain {2048},level {},lastLevel {-1};
         float currentGain {},targetGain {};
         float gainScale {1.0f},gainFirst {1.0f};
-        double modulation1 {},modulation2 {};
+        float modulation1 {},modulation2 {};
     };
 }

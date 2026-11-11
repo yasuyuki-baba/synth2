@@ -11,11 +11,11 @@ TEST(OutputTonePrecision, FractionalEditsApproachIntegralSettingsContinuously)
         for(int i=0;i<64;++i)seed.process(static_cast<float>(std::sin(i*.13)),i%2);
         auto exact=seed,lower=seed,upper=seed;
         lower.setFractionalDial(dial-.00001f);upper.setFractionalDial(dial+.00001f);
-        float maximum=0;
+        double maximum=0;
         for(int i=0;i<128;++i)
         {
             const float input=static_cast<float>(std::cos(i*.17))*.5f;
-            const float reference=exact.process(input,i%2);
+            const double reference=exact.process(input,i%2);
             maximum=std::max({maximum,std::abs(lower.process(input,i%2)-reference),
                              std::abs(upper.process(input,i%2)-reference)});
         }

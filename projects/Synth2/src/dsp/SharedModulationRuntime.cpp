@@ -4,7 +4,7 @@
 
 namespace synth2::dsp
 {
-    void SharedModulationRuntime::retimeClocks(double sampleRate)
+    void SharedModulationRuntime::retimeClocks(float sampleRate)
     { if(!initial)for(auto& slot:slots)slot.clock.setSampleRate(static_cast<int>(sampleRate)); }
     void SharedModulationRuntime::prepareBlock(int capacity)
     {
@@ -103,7 +103,7 @@ namespace synth2::dsp
         }
     }
 
-    void SharedModulationRuntime::synchronize(const SharedModulationSettings& settings,double sampleRate)
+    void SharedModulationRuntime::synchronize(const SharedModulationSettings& settings,float sampleRate)
     {
         const LfoSettings* lfoControls[] {&settings.lfos[0],&settings.lfos[1]};
         std::array<int,2> routingRateCalls {};
@@ -174,7 +174,7 @@ namespace synth2::dsp
             const bool dualPulse=controls[0]->on && controls[0]->dest == 4 && controls[1]->dest == 4;
             const bool nestedPulse=settings.pulseWidthReceiver && (settings.pitchReceiver || dualPulse);
             const bool followFirstSpan=lfo == 1 && (dualPitch || dualFilter || nestedPulse);
-            int remaining=0;double target=0;
+            int remaining=0;float target=0;
             for (int i = 0; i < count; ++i)
             {
                 if (remaining==0)

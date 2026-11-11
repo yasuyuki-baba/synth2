@@ -8,7 +8,7 @@ namespace synth2::dsp
     class SilenceGate
     {
     public:
-        void prepare(double rate,float seconds,bool preserve=false) noexcept
+        void prepare(float rate,float seconds,bool preserve=false) noexcept
         {
             budget=static_cast<int>(static_cast<float>(static_cast<int>(rate))*seconds);
             if(!preserve)counter=0;

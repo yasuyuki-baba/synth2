@@ -107,12 +107,23 @@
   at root spans of at most32 frames, independently of LFO availability. Voice
   consumes the resolved offset and owns no local bend receiver or alternate slew.
   Keep ordinary bend separate from14-bit routed pitch and CC121 route state.
-- Native mono and poly notes share physical core storage. Mono admission pauses
-  higher groups; logical retirement must not erase their receiver histories.
+- Polyphonic admission collects each timestamp before starting new keys in
+  most-recent order, bounded by the effective voice count. Preserve input/key
+  order separately; cancelled or excess pending keys must not draw phases.
+- Form MIDI input regions before applying the prepared/256-frame workspace
+  limit. Restart the workspace budget per region and retain same-time groups.
+- Native mono and poly notes share physical core storage. Mono admission relinquishes
+  higher groups without erasing receiver histories or resuming those notes on
+  return to poly mode.
   Keep OSC2 coarse exponent, cached frequency and pending-note reset distinct;
   its wrapper partitions FM calls and refreshes differently on legato assignment.
 - A changed effective voice count resets the physical pool allocation cursor;
   it does not erase retained receiver state. Equal-count loads preserve the cursor.
+- Legato group changes retain continuing physical cores and start only newly
+  admitted or released cores. Store held-key status and retained filter note
+  with each physical core. Mono entry releases keys outside the preceding
+  Unison group before applying the new size; resizing does not undo releases.
+  Pedal-up reselects the newest held mono key after mode/state changes.
 - Native ARP stop messages clear held keys/pedal but restart an empty clock and
   consume its shared draw. Absent-key Note Off can also restart that clock; keep
   upstream LFO key/pedal tracking consistent with the ARP keyboard. Deterministic
@@ -138,6 +149,11 @@
   oscillator/FM/Sync and noise state on the base-frame trajectory; reconstruct
   signed intermediate phases for fine waveform reads. Report
   the actual resampling latency and retain prepared, allocation-free callbacks.
+- Preserve ordered Coarse/Fine/Keyboard/FM and filter receiver notifications
+  before MIDI in the shared bounded, generation-tagged queue. Final mapped
+  values alone cannot reproduce equal-value setters or cached frequencies.
+- Keep Float32 delay-time progress relative to its target so long delays do not
+  stall at the precision of their absolute frame coordinate.
 - Preserve real-valued VCA Attack targets. Do not restore integer Attack
   truncation to reduce distortion-sensitive reference errors; keep audio
   comparisons and their unresolved bounds separate from the precision choice.
@@ -180,10 +196,14 @@
   balance factor. Do not restore
   per-voice global pan offsets or re-project using a later host-block depth.
 - Keep logical Voice lifecycle separate from physical VCA/filter/FM history.
+  Snapshot physical VCA activity before each span: render its final release span
+  completely, then freeze idle core clocks/filter history and detach freed lanes
+  from surviving logical notes. Preserve global setter updates and Unison layout.
   Reuse strategies inspect physical VCA activity; logical state alone must not
   reset or skip receiver histories. Preserve pending-transition consumption points.
-  Connected full-gate ARP assignments include observed random order: same-time
-  note-off/on pairs must not release the core between assignments.
+  Same-timestamp legato Off/On replacements, including ARP gate and keyboard
+  binding changes, retain the sounding core across assignment. Flush unmatched
+  releases before rendering and retain panic semantics.
 - OutputPipeline uses only MultiEffect/Phaser, Equalizer and EffectPair; keep
   removed experimental effect and alternate Delay/Chorus implementations out of
   the product. Unsupported wet rates bypass without an alternate algorithm.
@@ -245,6 +265,12 @@ See [source strategies](docs/architecture/source-conversion.md),
 
 ## Compatibility and real-time behavior
 
+- Choose arithmetic and storage precision from numerical requirements and native
+  evidence rather than a blanket Float32 policy. Do not reduce precision below
+  the original calculation merely for type uniformity. Preserve double diode
+  states/sample arithmetic, moving delay positions and coefficient intermediates
+  where required. Keep one processing path, with no precision selector or legacy
+  renderer. Measure audio error and CPU cost when changing precision.
 - Precision changes must preserve DLL-compatible legacy loading: resolve the
   integer parameter state first, then promote those exact words to floating point
   and apply fractional edits afterward. The compatibility boundary is loaded

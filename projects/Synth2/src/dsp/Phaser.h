@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include "FractionalDial.h"
+#include "ControlTables.h"
 
 namespace synth2::dsp
 {
@@ -11,7 +12,7 @@ namespace synth2::dsp
     class Phaser
     {
     public:
-        void prepare(double rate,bool preserve=false) noexcept
+        void prepare(float rate,bool preserve=false) noexcept
         {
             sampleRate=static_cast<int>(rate);frequencyScale=4.0f/static_cast<float>(sampleRate);
             silenceGate.prepare(rate,.025f,preserve);
@@ -25,16 +26,15 @@ namespace synth2::dsp
         void setDepth(float dial) noexcept
         {
             depthDial=std::clamp(dial,0.0f,127.0f);
-            const float n=static_cast<float>(depthDial)*(1.0f/127.0f);
-            maximum=std::pow(10.0f,n)*1000.0f;
-            minimum=std::pow(10.0f,static_cast<float>(127-depthDial)*(1.0f/127.0f))*100.0f;
+            maximum=interpolateDial(depthDial,maximumForDial);
+            minimum=interpolateDial(depthDial,minimumForDial);
             if(frequency==0)frequency=minimum;
             updateFactor();
         }
         void setRate(float dial) noexcept
         {
             rateDial=std::clamp(dial,0.0f,127.0f);
-            speed=interpolateDial(rateDial,[](int value){return value==0 ? .01f : static_cast<float>(std::pow(1000.0,static_cast<double>(value*(1.0f/127.0f)))*.02);});
+            speed=interpolateDial(rateDial,speedForDial);
             updateFactor();
         }
         void setFeedback(float dial) noexcept
@@ -68,7 +68,7 @@ namespace synth2::dsp
 #if defined(__clang__)
 #pragma clang fp contract(off)
 #endif
-            if((frequency>maximum && factor>1.0f) || (frequency<minimum && factor<1.0f))factor=1.0f/factor;
+            if((frequency>maximum && factor>1.0f) || (frequency<minimum && factor<1.0f))factor=sweepFactor(factor<1.0f);
             for(int i=0;i<frames;++i)
             {
                 frequency*=factor;
@@ -88,13 +88,32 @@ namespace synth2::dsp
                 if(right)right[i]=right[i]*.5f+values[1]*.5f;
             }
         }
-        void updateFactor() noexcept
+        // The sweep's multiplicative steps are calibrated control words. Keep
+        // their integer knots before interpolation; audio histories remain Float32.
+        static float maximumForDial(int dial) noexcept
+        {return std::pow(10.0f,dial*(1.0f/127.0f))*1000.0f;}
+        static float minimumForDial(int dial) noexcept
+        {return std::pow(10.0f,(127-dial)*(1.0f/127.0f))*100.0f;}
+        static float speedForDial(int dial) noexcept
+        {return phaserSpeedWords[static_cast<size_t>(std::clamp(dial,0,127))];}
+        float factorWord(float low,float high,float rate,bool rising) const noexcept
         {
-            const float logarithm=std::log(maximum/minimum);
-            const float halfPeriod=(static_cast<float>(sampleRate)/speed)*.5f;
+            const float logarithm=std::log(static_cast<float>(high)/static_cast<float>(low));
+            const float halfPeriod=(static_cast<float>(sampleRate)/static_cast<float>(rate))*.5f;
             const float next=std::exp(logarithm/halfPeriod);
-            factor=factor>1.0f ? next : 1.0f/next;
+            return rising ? next : 1.0f/next;
         }
+        float sweepFactor(bool rising) const noexcept
+        {
+            if(depthDial<0 || rateDial<0)
+                return factorWord(minimum,maximum,speed,rising);
+            return interpolateDial(depthDial,[&](int depth) {
+                return interpolateDial(rateDial,[&](int rate) {
+                    return factorWord(minimumForDial(depth),maximumForDial(depth),speedForDial(rate),rising);
+                });
+            });
+        }
+        void updateFactor() noexcept {factor=sweepFactor(factor>1.0f);}
         std::array<std::array<std::array<float,2>,6>,2> stages {};
         std::array<float,2> feedbackState {};
         SilenceGate silenceGate;

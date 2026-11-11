@@ -19,7 +19,7 @@ namespace synth2::dsp
     };
     struct OutputProcessContext
     {
-        double sampleRate {44100};
+        float sampleRate {44100};
         int gainBlockCapacity {256};
         bool bypassEffects {},inputSilent {};
     };

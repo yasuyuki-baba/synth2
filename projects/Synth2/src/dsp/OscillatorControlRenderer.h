@@ -13,7 +13,7 @@ namespace synth2::dsp
     {
         bool envelopeEnabled {},oscillatorLfo {},applyPortamento {},envelopeFm {},fmLfo {};
         float portamentoDial {-1};
-        double sampleRate {44100.0};
+        float sampleRate {44100.0f};
         float fmAmount {};
         bool ringMod {};
     };
@@ -31,7 +31,7 @@ namespace synth2::dsp
             {
                 int frames=count-position;
                 if(config.oscillatorLfo)frames=lfos.oscillatorFrames(position,frames);
-                state.render(frames,[&](double target,int size) {
+                state.render(frames,[&](float target,int size) {
                     std::fill_n(pitch.data()+position,size,target);
                     for(int i=0;i<size;++i)remaining[position+i]=size-i;
                     position+=size;
@@ -51,7 +51,7 @@ namespace synth2::dsp
             {
                 int frames=remaining[position];
                 if(config.oscillatorLfo)frames=lfos.oscillatorFrames(position,frames);
-                state.render(frames,[&](double control,int size) {
+                state.render(frames,[&](float control,int size) {
                     if(config.applyPortamento)std::fill_n(pitch.data()+position,size,control);
                     // FM dispatch is nested inside each glide region, even
                     // when consecutive pitch values happen to be equal.
@@ -68,7 +68,7 @@ namespace synth2::dsp
             int position=0;
             while(position<count)
             {
-                double control=config.envelopeFm ? envelopePitch[position] : 0;
+                float control=config.envelopeFm ? envelopePitch[position] : 0;
                 int frames=remaining[position];
                 if(config.fmLfo && lfos.available)
                     for(size_t slot=0;slot<2;++slot)if(ReceiverLfoView::reachesOscillator(lfos.receivers[slot]))
@@ -78,9 +78,9 @@ namespace synth2::dsp
                     }
                 if(coarse!=nullptr)frames=coarse->span(frames,static_cast<int>(config.sampleRate));
                 const int start=position;
-                state.render(FrequencyModulation::depth(static_cast<double>(fractionalDial(config.fmAmount)),control),
+                state.render(FrequencyModulation::depth(static_cast<float>(fractionalDial(config.fmAmount)),control),
                     frames,static_cast<int>(config.sampleRate),
-                    [&](double value){depth[position++]=value;},coarse!=nullptr,!config.ringMod);
+                    [&](float value){depth[position++]=value;},coarse!=nullptr,!config.ringMod);
                 if(coarse!=nullptr)
                 {
                     std::fill(exponents->begin()+start,exponents->begin()+position,coarse->cached);
