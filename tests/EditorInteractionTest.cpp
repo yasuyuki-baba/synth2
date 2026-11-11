@@ -222,3 +222,20 @@ TEST(EditorDisplayScale, ActualScaleCanDifferFromTheRequestedPercentage)
     EXPECT_EQ(editorScaleText(*editorResizeScale(2560,1680,2,false)),"100%");
     EXPECT_EQ(editorScaleText(*editorResizeScale(1280,936,1,true)),"100%");
 }
+
+TEST(EditorDisplayScale, RepeatedKeyboardRequestsRetainTheChosenScaleAfterPixelRounding)
+{
+    for(const float dpi:{1.f,1.5f,2.f}) {
+        float scale=.84375f;
+        for(int cycle=0;cycle<20;++cycle) {
+            const bool keyboard=cycle%2;
+            const float logicalHeight=keyboard ? 936.f : 840.f;
+            const int width=static_cast<int>(static_cast<int>(1280.f*scale)*dpi);
+            const int height=static_cast<int>(static_cast<int>(logicalHeight*scale)*dpi);
+            scale=*editorResizeScale(width,height,dpi,keyboard,scale);
+            EXPECT_FLOAT_EQ(scale,.84375f);
+        }
+    }
+    // Actual parent changes still win, even when only one pixel was removed.
+    EXPECT_LT(*editorResizeScale(1600,1049,1,false,1.25f),1.25f);
+}

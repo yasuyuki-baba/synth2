@@ -170,6 +170,8 @@ height, uniform fitting to both parent bounds for every platform and format,
 wide/tall viewports, one-pixel reductions, limits and zero sizes.
 Display-scale tests cover percentage parsing/formatting, invalid/out-of-range
 edits, preset choices and readouts from accepted bounds independently of OS DPI.
+Repeated keyboard-size requests retain their scale across SDK pixel rounding;
+actual one-pixel parent reductions still recompute the fit.
 Native window notifications, dragging and scaled hit testing require manual checks.
 
 `ModulationInputs.RingRetainsPhysicalFmSlewAndResumesWhenDisabled` checks Ring
