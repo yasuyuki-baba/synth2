@@ -42,8 +42,10 @@ for separately. Bounds below the minimum scaled canvas
 size cannot contain the full canvas at the supported minimum scale.
 
 The persistent footer orders **Oversampling**, **Scale**, then **Keyboard**.
-It uses a small muted label without a button frame, keeps the current multiplier
-visible, and opens the existing quality menu on click. Quality remains available
+Oversampling and Scale share a muted label and a bordered value field with a
+dropdown arrow. Oversampling keeps the current multiplier visible and opens the
+existing 1x/2x/4x/8x/16x quality menu on click; it does not accept text entry.
+Quality remains available
 in every view; moving it does not change processing, latency or session recall.
 
 **Scale** is an editable percentage with a dropdown arrow. The arrow offers

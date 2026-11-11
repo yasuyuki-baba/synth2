@@ -150,10 +150,9 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near)),statusTag);
     graphics->AttachControl(new ITextControl(IRECT(542,802,768,826),"Drag corner to scale",
         text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Far)));
-    auto* quality=new ActionButtonControl(IRECT(780,802,928,830),[this](IControl* caller){showOversamplingMenu(caller);},
-        ("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str(),
-        style.WithColor(kBG,background).WithColor(kFG,background).WithColor(kFR,background)
-            .WithDrawFrame(false).WithLabelText(text.WithSize(Typography::auxiliary).WithFGColor(muted)));
+    auto* quality=new FooterChoiceControl(IRECT(780,802,928,830),"Oversampling",90,
+        (std::to_string(processor.oversamplingFactor())+"x").c_str(),
+        [this](IControl* caller){showOversamplingMenu(caller);});
     quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
     graphics->AttachControl(quality,oversamplingTag);
     graphics->AttachControl(new DisplayScaleControl(IRECT(944,802,1088,830),
@@ -256,7 +255,7 @@ void Synth2::refreshOversampling()
     if(auto* graphics=GetUI())
         if(auto* control=graphics->GetControlWithTag(oversamplingTag))
         {
-            control->As<IVButtonControl>()->SetLabelStr(("Oversampling "+std::to_string(processor.oversamplingFactor())+"x").c_str());
+            control->As<FooterChoiceControl>()->setText((std::to_string(processor.oversamplingFactor())+"x").c_str());
             control->SetDirty(false);
         }
     displayedOversampling=processor.oversamplingFactor();

@@ -128,6 +128,20 @@ private:
     std::string placeholder;
 };
 
+class FooterChoiceControl final : public IControl
+{
+public:
+    FooterChoiceControl(const IRECT& bounds,const char* label,float labelWidth,
+                        const char* text,IActionFunction action);
+    void Draw(IGraphics& graphics) override;
+    void OnMouseDown(float x,float y,const IMouseMod& mod) override;
+    void setText(const char* text);
+private:
+    std::string label,text;
+    float labelWidth;
+    IActionFunction action;
+};
+
 // Click the value to type a percentage; the arrow opens the preset menu.
 class DisplayScaleControl final : public IControl
 {
