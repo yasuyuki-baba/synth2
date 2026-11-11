@@ -112,10 +112,14 @@ choice font. Confirm numeric-entry hit areas and menu/full-value tooltips.
 
 Resize the standalone window from its frame horizontally, vertically and at a
 corner, then shrink it again. Text and controls should scale together at a stable
-aspect ratio; test the editor corner handle too. Open/close Keyboard at a changed
-scale and exercise popup, numeric-entry and note hit areas. In a DAW, resize the
-host-owned view and check uniform fit without resize-request loops. Repeat on
-displays with different platform pixel scales.
+aspect ratio and fit both available dimensions within the supported scale range.
+Check wide and tall windows, maximization/restoration and tiling layouts: the
+parent should retain its requested bounds, with unused space when its aspect
+ratio differs from the canvas. Test the editor corner handle too. Open/close
+Keyboard at a changed scale and exercise popup, numeric-entry and note hit areas.
+In a DAW, resize the host-owned view and check the same uniform fit without
+resize-request loops. Repeat on Windows, macOS and Linux and on displays with
+different platform pixel scales.
 
 The bridge caches mapped source snapshots by a published parameter revision and
 random-history validity. Same-value setters, loads and recall publish revisions;

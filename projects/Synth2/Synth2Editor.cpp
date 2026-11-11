@@ -19,15 +19,8 @@ void Synth2::OnParentWindowResize(int width,int height)
 {
     auto* graphics=GetUI();
     if(!graphics || resizingParentWindow)return;
-#if defined(APP_API) && !defined(OS_LINUX)
-    constexpr bool resizeWindow=true;
-#else
-    // Linux tiling WMs own the available bounds and may reject attempts to
-    // resize the parent. Fit both axes instead of expanding beyond its height.
-    constexpr bool resizeWindow=false;
-#endif
-    const auto scale=synth2::editor::editorResizeScale(width,height,graphics->GetPlatformWindowScale(),
-        graphics->GetDrawScale(),keyboardVisible,resizeWindow);
+    const auto scale=synth2::editor::editorResizeScale(width,height,
+        graphics->GetPlatformWindowScale(),keyboardVisible);
     if(!scale)return;
     resizingParentWindow=true;
     // The parent already changed size. Suppress the SDK's relative parent
@@ -35,18 +28,6 @@ void Synth2::OnParentWindowResize(int width,int height)
     graphics->Resize(PLUG_WIDTH,keyboardVisible ? 936 : PLUG_HEIGHT,*scale,false);
     const auto windowWidth=static_cast<int>(graphics->WindowWidth()*graphics->GetPlatformWindowScale());
     const auto windowHeight=static_cast<int>(graphics->WindowHeight()*graphics->GetPlatformWindowScale());
-#if defined(APP_API) && !defined(OS_LINUX)
-#ifdef OS_WIN
-    const auto window=GetAncestor(static_cast<HWND>(graphics->GetWindow()),GA_ROOT);
-    RECT client{},frame{};
-    if(window && GetClientRect(window,&client) && GetWindowRect(window,&frame) &&
-       (client.right!=windowWidth || client.bottom!=windowHeight))
-        SetWindowPos(window,nullptr,0,0,windowWidth+frame.right-frame.left-client.right,
-            windowHeight+frame.bottom-frame.top-client.bottom,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
-#else
-    EditorResizeFromUI(windowWidth,windowHeight,true);
-#endif
-#endif
     SetEditorSize(windowWidth,windowHeight);
     resizingParentWindow=false;
 }

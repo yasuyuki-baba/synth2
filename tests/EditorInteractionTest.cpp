@@ -158,22 +158,23 @@ TEST(EditorLibraryScroll, RevealsOnlyTheNeededRowsAndClampsToAFullLastViewport)
     EXPECT_EQ(editorLibraryReveal(40,16,8.5,24),9);
 }
 
-TEST(EditorResize, ParentDimensionsScaleTheWholeCanvasWithoutResettingForDpiOrKeyboard)
+TEST(EditorResize, ParentDimensionsScaleTheWholeCanvasForDpiAndKeyboard)
 {
-    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1050,1,1,false,false),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(3200,2100,2,1,false,false),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1170,1,1.25f,true,false),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1049,1,1.25f,false,true),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1500,984,1,1.171875f,false,true),1.171875f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1600,840,1,1,false,true),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1280,1050,1,1,false,true),1.25f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1024,840,1,1,false,true),.8f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(1600,840,1,1,false,false),1.f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(100,100,1,1,false,false),.5f);
-    EXPECT_FLOAT_EQ(*editorResizeScale(9000,9000,1,1,false,false),4.f);
-    EXPECT_FALSE(editorResizeScale(0,840,1,1,false,false));
-    EXPECT_FALSE(editorResizeScale(1280,0,1,1,false,false));
-    EXPECT_FALSE(editorResizeScale(1280,840,0,1,false,false));
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1050,1,false),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(3200,2100,2,false),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1170,1,true),1.25f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,840,1,false),1.f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1280,1050,1,false),1.f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1024,840,1,false),.8f);
+    // Even a one-pixel height reduction must fit instead of retaining a scale
+    // from the previous window size. Width and height are equally authoritative.
+    EXPECT_FLOAT_EQ(*editorResizeScale(1600,1049,1,false),1049.f/840.f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(1500,984,1,false),984.f/840.f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(100,100,1,false),.5f);
+    EXPECT_FLOAT_EQ(*editorResizeScale(9000,9000,1,false),4.f);
+    EXPECT_FALSE(editorResizeScale(0,840,1,false));
+    EXPECT_FALSE(editorResizeScale(1280,0,1,false));
+    EXPECT_FALSE(editorResizeScale(1280,840,0,false));
 }
 
 TEST(EditorResize, ParentOwnedBoundsKeepTheEffectsAndFooterVisible)
@@ -183,14 +184,13 @@ TEST(EditorResize, ParentOwnedBoundsKeepTheEffectsAndFooterVisible)
     for (const bool keyboard : {false,true}) {
         const float logicalHeight=keyboard ? 936.f : 840.f;
         for (const float dpi : {1.f,1.5f,2.f}) {
-            for (const auto bounds : {std::pair{1890,990},std::pair{900,1000}}) {
+            for (const auto bounds : {std::pair{1890,990},std::pair{900,1000},
+                                      std::pair{1600,840},std::pair{1280,1050}}) {
                 const int width=static_cast<int>(bounds.first*dpi);
                 const int height=static_cast<int>(bounds.second*dpi);
-                const float scale=*editorResizeScale(width,height,dpi,1.f,keyboard,false);
+                const float scale=*editorResizeScale(width,height,dpi,keyboard);
                 EXPECT_LE(1280.f*scale*dpi,width+.001f);
                 EXPECT_LE(logicalHeight*scale*dpi,height+.001f);
-                // Repeated WM notifications must not grow the requested canvas.
-                EXPECT_FLOAT_EQ(*editorResizeScale(width,height,dpi,scale,keyboard,false),scale);
             }
         }
     }
