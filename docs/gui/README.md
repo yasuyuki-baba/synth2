@@ -30,15 +30,16 @@ Chorus uses three full-width lower-row columns.
 Native drawing and review tools consume the shared typography policy.
 
 Window-frame resizing scales the complete logical canvas, including text and
-input hit areas, rather than enlarging an unscaled drawing area. The standalone
-window on Windows/macOS follows the dragged dimension and adjusts the other axis
-to retain the canvas aspect ratio. Linux standalone windows and plugin views fit
-uniformly within the parent's supplied bounds without requesting a parent-window
-resize from that notification. This keeps the full canvas visible when a tiling
-window manager controls the Linux window size. The corner
-handle also scales the UI. Both paths use the same 0.5–4 scale limits and retain
-the scale when the software keyboard changes the logical height. Platform pixel
-scaling is accounted for separately; there is no zoom selector.
+input hit areas, rather than enlarging an unscaled drawing area. Standalone and
+plugin views on every platform use the largest uniform scale that fits both
+parent-supplied dimensions, subject to the 0.5–4 scale limits. A resize notification
+never requests another parent-window resize. Different parent and canvas aspect
+ratios leave unused space rather than stretching or clipping the canvas. This
+policy applies equally to ordinary dragging, maximization and tiling layouts.
+The corner handle also scales the UI. Both paths retain the scale when the
+software keyboard changes the logical height. Platform pixel scaling is accounted
+for separately; there is no zoom selector. Bounds below the minimum scaled canvas
+size cannot contain the full canvas at the supported minimum scale.
 
 The persistent footer places the oversampling selector just left of **Keyboard**.
 It uses a small muted label without a button frame, keeps the current multiplier

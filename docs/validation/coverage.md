@@ -166,8 +166,8 @@ Bank navigation tests verify menu-order stepping, classification heading skips,
 selectable parent folders, All banks, empty catalogs and non-wrapping ends.
 
 Editor resize tests cover proportional scaling, platform pixel ratios, keyboard
-height, Windows/macOS standalone drag-axis selection, Linux standalone/host-bound
-fitting for wide and tall viewports, limits and zero sizes.
+height, uniform fitting to both parent bounds for every platform and format,
+wide/tall viewports, one-pixel reductions, limits and zero sizes.
 Native window notifications, dragging and scaled hit testing require manual checks.
 
 `ModulationInputs.RingRetainsPhysicalFmSlewAndResumesWhenDisabled` checks Ring
