@@ -545,12 +545,12 @@ TEST(BoundedPrecision, GainAndVelocityInterpolateCompatibleIntegerAnchors)
     EXPECT_LT(Envelope::gainForDial(.25f),Envelope::gainForDial(1));
 }
 
-TEST(BoundedPrecision, SaturationKeepsIntegerResponseAndFractionalDrive)
+TEST(BoundedPrecision, SaturationRoundsAnalyticDriveAfterDoublePreparation)
 {
     for(int dial=0;dial<=127;++dial)
     {
         const float exponent=dial*(1.0f/127.0f)-1.0f;
-        const float curve=std::exp(static_cast<float>(exponent)*5.8f)*dial*(1.0f/127.0f);
+        const float curve=static_cast<float>(std::exp(static_cast<long double>(exponent)*5.8L)*dial/127.L);
         const float expected=curve*100.0f;
         EXPECT_EQ(synth2::dsp::saturationStrength(dial/127.0f),expected);
     }
