@@ -14,13 +14,16 @@ namespace synth2::dsp
         {
             index=std::clamp(index,0.0f,1023.0f);
             if (sampleRate==lastRate && index==lastIndex && resonance==lastResonance) return;
-            lastRate=sampleRate; lastIndex=index; lastResonance=resonance;
-            // Coefficient preparation keeps its double intermediates; storage and recurrence stay Float32.
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
-            const double boundedFrequency=std::min(static_cast<double>(frequency),static_cast<double>(sampleRate)*.5);
-            f=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
-            configureCoefficients(f,resonance);
+            if(sampleRate!=lastRate || index!=lastIndex)
+            {
+                // Coefficient preparation keeps its double intermediates; storage and recurrence stay Float32.
+                const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
+                const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+                const double boundedFrequency=std::min(static_cast<double>(frequency),static_cast<double>(sampleRate)*.5);
+                frequencyCoefficient=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
+            }
+            lastRate=sampleRate;lastIndex=index;lastResonance=resonance;
+            configureCoefficients(frequencyCoefficient,resonance);
         }
         void configureCoefficients (float coefficient,float resonance) noexcept
         {
@@ -57,6 +60,6 @@ namespace synth2::dsp
     private:
         float lastRate {-1}; float lastIndex {-1}; float lastResonance {-1};
         bool clipping {};
-        float f {},damping {-1},gain {1},low {},band {};
+        float frequencyCoefficient{},f {},damping {-1},gain {1},low {},band {};
     };
 }

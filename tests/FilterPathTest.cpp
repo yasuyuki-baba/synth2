@@ -122,3 +122,33 @@ TEST(FilterPath, DiodeRetainsSubFloatImpulseResponseState)
     }
     EXPECT_TRUE(retained);
 }
+
+TEST(FilterPath, ResonanceCacheMatchesForcedFrequencyPreparation)
+{
+    for(int rate:{8000,44100,48000,48001,96000})for(float index:{0.f,128.25f,1023.f})
+    {
+        synth2::dsp::Lp24Kernel lp;lp.prepare(rate);
+        synth2::dsp::StateVariableFilter sv;
+        synth2::dsp::DiodeKernel diode;
+        for(float resonance:{0.f,.5f,.91f,1.f,.1f,1.f,.9f})
+        {
+            SCOPED_TRACE(::testing::Message()<<rate<<" / "<<index<<" / "<<resonance);
+            auto lpReference=lp;auto svReference=sv;auto diodeReference=diode;
+            const float other=index>0 ? index-.5f : index+.5f;
+            lpReference.prepare(rate,true);
+            svReference.configure(static_cast<float>(rate),other,resonance);
+            diodeReference.configure(rate,other,resonance);
+            lp.configure(index,resonance);lpReference.configure(index,resonance);
+            sv.configure(static_cast<float>(rate),index,resonance);svReference.configure(static_cast<float>(rate),index,resonance);
+            diode.configure(rate,index,resonance);diodeReference.configure(rate,index,resonance);
+            for(int i=0;i<64;++i)
+            {
+                const float input=std::sin(i*.13f)*.1f;
+                EXPECT_EQ(lp.process(input),lpReference.process(input));
+                EXPECT_EQ(sv.process(input),svReference.process(input));
+                EXPECT_EQ(diode.process(input),diodeReference.process(input));
+            }
+            EXPECT_EQ(diode.readState(),diodeReference.readState());
+        }
+    }
+}

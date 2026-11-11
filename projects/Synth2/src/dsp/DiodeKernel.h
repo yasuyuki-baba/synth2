@@ -18,33 +18,36 @@ namespace synth2::dsp
 #endif
             index=std::clamp(index,0.0,1023.0);
             if(rate==lastRate && index==lastIndex && resonance==lastResonance)return;
-            lastRate=rate;lastIndex=index;lastResonance=resonance;
-            oversampling=rate<=48000 ? 2 : 1;
-            const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
-            const double cutoff=std::min(static_cast<double>(frequency)*1.5,(static_cast<double>(rate)*.5)*.9);
-            const double inverseRate=1.0/static_cast<double>(rate*oversampling);
-            const double g=std::tan((cutoff*3.141592653589793)*inverseRate);
-            a=1.0/(g+1.0);G=a*g;p=G*.5;
-            const double bBase=1.0/(1.0-p*p);
-            b=bBase*p;c=b*p;
-            const double dBase=1.0/(1.0-c);
-            d=dBase*p;e=(p*2.0)/(1.0-(p*2.0)*d);
-            f=c*d;
-            const double hBase=1.0/(1.0-d*p);
-            h=(p*2.0)*hBase;
-            ib=bBase*a;ic=dBase*a;ia=hBase*a;
-            double highpass=30.0;
-            if(cutoff>=300.0)highpass=120.0;
-            else if(cutoff>=100.0)
+            if(rate!=lastRate || index!=lastIndex)
             {
-                const double lo=std::log(100.0);
-                const double fraction=(std::log(cutoff)-lo)/(std::log(300.0)-lo);
-                highpass=std::exp(fraction*(std::log(120.0)-std::log(30.0))+std::log(30.0));
+                oversampling=rate<=48000 ? 2 : 1;
+                const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
+                const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+                const double cutoff=std::min(static_cast<double>(frequency)*1.5,(static_cast<double>(rate)*.5)*.9);
+                const double inverseRate=1.0/static_cast<double>(rate*oversampling);
+                const double g=std::tan((cutoff*3.141592653589793)*inverseRate);
+                a=1.0/(g+1.0);G=a*g;p=G*.5;
+                const double bBase=1.0/(1.0-p*p);
+                b=bBase*p;c=b*p;
+                const double dBase=1.0/(1.0-c);
+                d=dBase*p;e=(p*2.0)/(1.0-(p*2.0)*d);
+                f=c*d;
+                const double hBase=1.0/(1.0-d*p);
+                h=(p*2.0)*hBase;
+                ib=bBase*a;ic=dBase*a;ia=hBase*a;
+                double highpass=30.0;
+                if(cutoff>=300.0)highpass=120.0;
+                else if(cutoff>=100.0)
+                {
+                    const double lo=std::log(100.0);
+                    const double fraction=(std::log(cutoff)-lo)/(std::log(300.0)-lo);
+                    highpass=std::exp(fraction*(std::log(120.0)-std::log(30.0))+std::log(30.0));
+                }
+                const double hpG=std::tan((highpass*3.141592653589793)*inverseRate);
+                hpA=1.0/(hpG+1.0);
+                hpB=(hpG*2.0)*hpA;hpNegative=-hpA;
             }
-            const double hpG=std::tan((highpass*3.141592653589793)*inverseRate);
-            const double hpA=1.0/(hpG+1.0);
-            hpB=(hpG*2.0)*hpA;hpNegative=-hpA;
+            lastRate=rate;lastIndex=index;lastResonance=resonance;
             k=static_cast<double>(resonance)*15.0;
             feedback=hpA*k;denominator=1.0/(1.0+feedback*(f*e));
             scale=static_cast<double>(static_cast<float>(oversampling)*0.6499999761581421f)*(1.0+k*0.20000000298023224);
@@ -81,6 +84,6 @@ namespace synth2::dsp
     private:
         std::array<double,5> state{};
         int lastRate{-1},oversampling{1};double lastIndex{-1};float lastResonance{};
-        double a{},G{},p{},b{},c{},d{},e{},f{},h{},ib{},ic{},ia{},hpB{},hpNegative{},k{},feedback{},denominator{},scale{};
+        double a{},G{},p{},b{},c{},d{},e{},f{},h{},ib{},ic{},ia{},hpA{},hpB{},hpNegative{},k{},feedback{},denominator{},scale{};
     };
 }

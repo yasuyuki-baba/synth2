@@ -152,9 +152,12 @@ namespace synth2::dsp
         }
         float continuousTap(double position,int channel) const noexcept
         {
-            position=std::fmod(position,131072.0);if(position<0)position+=131072.0f;
-            const int at=static_cast<int>(position),next=(at+1)&mask;
-            const float fraction=static_cast<float>(position-at);
+            // Bounded delay coordinates are less than one ring away from write.
+            if(position<0)position+=131072.0;
+            const int whole=static_cast<int>(position);
+            // Negative positions near zero can round to the ring length.
+            const int at=whole&mask,next=(at+1)&mask;
+            const float fraction=static_cast<float>(position-whole);
             const float a=kind==2 ? ring[(channel==0 ? 0 : second)+at] : ring[2*at+channel];
             if(fraction==0)return a;
             const float b=kind==2 ? ring[(channel==0 ? 0 : second)+next] : ring[2*next+channel];

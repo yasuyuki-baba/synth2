@@ -450,3 +450,8 @@ per-core/unison positions; OutputPipelineSettings carries no history-based stati
 enable. Preserve native region timing and multiplication order. Mono static
 balance retains the average of the two compatible static coefficients; this does
 not extend the separate stereo-only PanLfo receiver.
+
+Filter preparation caches frequency-dependent coefficients separately from
+resonance-dependent terms, preserving calculation order and state on edits.
+Delay ring wrapping handles coordinates rounded to the ring length without
+reading beyond either channel view.

@@ -142,3 +142,20 @@ TEST(DelayPath, LongDelaySlewsReachTheirTargetWithoutRoundingStalls)
         EXPECT_EQ(delay->getCurrentLeft(),target);EXPECT_EQ(delay->getCurrentRight(),target);
     }
 }
+
+TEST(DelayPath, NegativeTapRoundingAtRingEndWrapsToFirstSample)
+{
+    for(int kind:{0,1,2})
+    {
+        auto delay=std::make_unique<DelayKernel>();
+        ASSERT_TRUE(delay->configure(44100,kind,256.f/44100,0,0,127,64));
+        ASSERT_TRUE(delay->setFrameTargets(256.,std::nextafter(256.,257.)));
+        delay->reset();
+        std::array<float,514> dry{},send{};dry[0]=1;dry[1]=.5f;
+        delay->process(dry.data(),send.data(),257);
+        // The tiny negative coordinate rounds to the ring length on wrapping.
+        // It must read slot zero, including type2's separate right-hand view.
+        EXPECT_EQ(send[512],kind==0 ? 1.f : kind==1 ? .5f : .75f);
+        EXPECT_EQ(send[513],kind==0 ? .5f : kind==1 ? 1.f : 0.f);
+    }
+}
