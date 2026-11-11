@@ -10,12 +10,22 @@ class OversamplingFilter
 public:
     OversamplingFilter() noexcept { (void)coefficients(); }
     void reset() noexcept { history={};head=64; }
-    void push(float value) noexcept { head=(head+1)%65;history[head]=value; }
+    void push(float value) noexcept { if(++head==65)head=0;history[head]=value; }
     float value() const noexcept
     {
         const auto& h=coefficients();
-        float result=h[32]*history[(head+33)%65];
-        for(int i=1;i<65;i+=2)result+=h[i]*history[(head+65-i)%65];
+        int center=head+33;
+        if(center>=65)center-=65;
+        float result=h[32]*history[center];
+        int index=head-1;
+        if(index<0)index+=65;
+        // Visit odd taps in coefficient order, wrapping within one ring.
+        for(int i=1;i<65;i+=2)
+        {
+            result+=h[i]*history[index];
+            index-=2;
+            if(index<0)index+=65;
+        }
         return result;
     }
     static const std::array<float,65>& coefficients() noexcept

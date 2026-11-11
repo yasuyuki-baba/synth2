@@ -8,6 +8,36 @@
 #include <cmath>
 #include <memory>
 #include <vector>
+#include <bit>
+#include <limits>
+
+TEST(Oversampling, FirMatchesOrderedConvolutionAcrossEveryCursorAndReset)
+{
+    synth2::dsp::OversamplingFilter filter;
+    const auto& weights=synth2::dsp::OversamplingFilter::coefficients();
+    uint32_t random=1;
+    for(int epoch=0;epoch<3;++epoch)
+    {
+        filter.reset();
+        EXPECT_EQ(std::bit_cast<uint32_t>(filter.value()),0u);
+        std::vector<float> input;
+        for(int frame=0;frame<65*6;++frame)
+        {
+            random=random*1664525u+1013904223u;
+            float sample=(static_cast<int>(random>>16)-32768)/65536.f;
+            if(frame%17==0)sample=std::numeric_limits<float>::min();
+            if(frame%53==0)sample=-0.f;
+            input.push_back(sample);filter.push(sample);
+            // Linear input history is independent of the filter's ring layout.
+            const auto delayed=[&](int tap){return frame>=tap ? input[static_cast<size_t>(frame-tap)] : 0.f;};
+            float expected=weights[32]*delayed(32);
+            for(int tap=1;tap<65;tap+=2)expected+=weights[tap]*delayed(tap);
+            const auto word=std::bit_cast<uint32_t>(expected);
+            EXPECT_EQ(std::bit_cast<uint32_t>(filter.value()),word)<<epoch<<" / "<<frame;
+            EXPECT_EQ(std::bit_cast<uint32_t>(filter.value()),word);
+        }
+    }
+}
 
 TEST(Oversampling, ImpulseDelayMatchesReportedLatencyAndDCGainStaysUnity)
 {

@@ -55,6 +55,10 @@ an index to test sources, not a record of successive implementation changes.
 | Pan and stage order | [StereoBalance](../../tests/DspBasicsTest.cpp), [PanInputs](../../tests/DspBasicsTest.cpp), [StaticPanInputs](../../tests/DspBasicsTest.cpp), [OutputPipelinePath](../../tests/OutputPipelinePathTest.cpp) | Static coefficient bounds, real per-slot pan selection/depth/offsets, read-only subregion consumption and core/unison placement; mono/stereo balance after nonlinear stages and cubic-pan order versus independent stage composition |
 | Output lifecycle | [OutputPipelinePath](../../tests/OutputPipelinePathTest.cpp), [EffectsBehavior](../../tests/EffectsBehaviorTest.cpp), [EffectLifecycle](../../tests/EffectLifecycleTest.cpp) | Common wet kernels at integer/fractional supported-rate endpoints, unsupported-rate bypass, EQ retention/reset, startup gain through silence, nonlinear/EQ/pan/wet order and surrounding-buffer sentinels |
 
+The FIR convolution regression uses linear generated input history to check
+every ring cursor over repeated wraps and resets, including signed zero and
+small normal inputs. Repeated reads must preserve the same output bits.
+
 Oscillator pitch uses generated sine tables at multiple, including fractional,
 sample rates with a 0.02 Hz tolerance for zero crossings and phase quantization.
 GeneratedInput varies controls, play modes, unison, rates, callback lengths, MIDI
