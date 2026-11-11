@@ -27,7 +27,9 @@ Deterministic LFO waveforms do not by themselves invalidate the running ARP cloc
 
 Polyphonic admission collects the keyboard state for one timestamp before
 starting voices. Admit new keys most-recent first, up to the effective physical
-voice count; older pending keys must not consume cores or phase draws. A repeated
+voice count after accounting for Unison groups; older pending keys must not
+consume cores or phase draws. Admit complete groups, or one partial group if
+Unison exceeds the entire physical budget. A repeated
 pending key retains its latest velocity/order, and a key cancelled before
 admission must not start a voice. Preserve a pending key released under sustain
 until pedal-up. Input traces and upstream keyboard order remain unchanged.
@@ -91,3 +93,7 @@ a workspace boundary across an intervening MIDI event.
 
 A MIDI event at the workspace end remains owned by the next region. Its known
 position still caps the preceding projected ARP amplitude-gain horizon.
+
+Mono Note Off and pedal-up reselection use the current primary physical owner
+for shared native input, including the first Poly-to-Mono program/state recall.
+A prior Mono note is not required to establish that ownership.

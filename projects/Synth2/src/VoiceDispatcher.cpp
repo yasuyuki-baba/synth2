@@ -68,7 +68,7 @@ namespace synth2
             return;
         }
         const size_t channel = static_cast<size_t> (midiChannel - 1);
-        auto* voice = nativeOmniInput && corePool!=nullptr ? corePool->primaryOwner() : monoVoices[channel];
+        auto* voice = soundingMonoVoice(midiChannel);
         const bool continuing = voice != nullptr && voice->isVoiceActive() && voice->isPlayingChannel (midiChannel);
         if (! continuing)
             voice = dynamic_cast<SynthVoice*> (findFreeVoice (getSound(0), midiChannel, midiNoteNumber, true));
@@ -79,6 +79,12 @@ namespace synth2
         voice->setNextTransition({transition,params->sourcePortamentoDial>0.0f && (!params->portamentoAuto || overlapping)});
         startVoice (voice, getSound(0), midiChannel, midiNoteNumber, velocity);
         monoVoices[channel] = voice;
+    }
+
+    SynthVoice* VoiceDispatcher::soundingMonoVoice(int channel) const noexcept
+    {
+        return nativeOmniInput && corePool!=nullptr ? corePool->primaryOwner()
+            : monoVoices[static_cast<size_t>(channel-1)];
     }
 
     bool VoiceDispatcher::resumeHeldMonoKey(int channel,SynthVoice& voice)
@@ -117,7 +123,7 @@ namespace synth2
             ::synth2::audio::VoiceBank::noteOff(channel,note,velocity,tail);return;
         }
         heldOrder[c][note] = 0;
-        auto* voice = monoVoices[c];
+        auto* voice = soundingMonoVoice(channel);
         if (voice != nullptr && voice->isVoiceActive() && voice->isPlayingChannel (channel)
             && voice->getCurrentlyPlayingNote() == note)
         {
@@ -136,7 +142,7 @@ namespace synth2
             if(!down && params!=nullptr && params->playMode!=0)
             {
                 for(int key=0;key<128;++key)if(!physicalKeys[c][key])heldOrder[c][key]=0;
-                auto* voice=monoVoices[c];
+                auto* voice=soundingMonoVoice(channel);
                 if(voice!=nullptr && voice->isVoiceActive() && voice->getCurrentlyPlayingNote()>=0
                     && !resumeHeldMonoKey(channel,*voice)
                     && !physicalKeys[c][voice->getCurrentlyPlayingNote()])
@@ -334,7 +340,11 @@ namespace synth2
         };
         const auto flushPolyOns=[&] {
             const ::synth2::audio::ScopedValueSetter<bool> generated(dispatchingArpeggiator,true);
-            const int count=std::min(pendingPolyCount,params!=nullptr ? std::clamp(params->polyphony,1,32) : 32);
+            const int physical=params!=nullptr ? std::clamp(params->polyphony,1,32) : 32;
+            const int group=params!=nullptr ? std::clamp(params->unisonVoices,1,8) : 1;
+            // Admit complete groups; one partial group remains possible when
+            // the requested Unison itself exceeds the physical budget.
+            const int count=std::min(pendingPolyCount,std::max(1,physical/group));
             for(int i=0;i<count;++i)
             {
                 const auto& message=pendingPolyOns[pendingPolyCount-1-i];

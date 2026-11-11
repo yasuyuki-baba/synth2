@@ -6,6 +6,7 @@
 #include "patch/PatchFormat.h"
 #include <array>
 #include <vector>
+#include <set>
 
 namespace
 {
@@ -651,5 +652,62 @@ TEST(PerformanceBehavior, IdleLanesFreezeAndLeaveTheSurvivingVoiceBeforeReuse)
             ASSERT_TRUE(synth2::readPhysicalCoreEnvelopeWords(*processor,2,restarted));
             EXPECT_GT(restarted[8],continuing[8]);
         }
+    }
+}
+
+TEST(PerformanceBehavior, UnisonAdmissionKeepsNewestNotesWithinPhysicalBudget)
+{
+    for(int unison:{2,3,8})for(int budget:{4,5,32})for(int frames:{64,127})
+    {
+        SCOPED_TRACE(::testing::Message()<<unison<<" / "<<budget<<" / "<<frames);
+        auto p=hostvalidation::processor();
+        hostvalidation::load(*p,hostvalidation::patch(unison)+"94,"+std::to_string(budget)+"\n");
+        p->prepare(48000,frames);
+        for(int key=48;key<72;++key)ASSERT_TRUE(p->enqueueMidi(13,144,key,100));
+        std::vector<float> left(frames),right(frames);
+        ASSERT_TRUE(p->process(left.data(),right.data(),frames,120));
+        std::set<int> actual,expected;
+        const int admitted=std::max(1,budget/unison);
+        for(int key=72-admitted;key<72;++key)expected.insert(key);
+        int cores=0;
+        for(int voice=0;voice<32;++voice)for(int lane=0;lane<8;++lane)
+        {
+            std::array<uint32_t,16> words{};
+            if(synth2::readRenderingCoreWords(*p,voice,lane,words) && words[0])
+            {actual.insert(static_cast<int>(words[1]));++cores;}
+        }
+        EXPECT_EQ(actual,expected);
+        EXPECT_EQ(cores,std::min(budget,admitted*unison));
+    }
+}
+
+TEST(PerformanceBehavior, FirstPolyToMonoEntryReselectsHeldKeyOnNoteOffAndPedalUp)
+{
+    for(int mode:{1,2})for(bool pedal:{false,true})for(bool restore:{false,true})
+    {
+        SCOPED_TRACE(::testing::Message()<<mode<<" / pedal="<<pedal<<" / restore="<<restore);
+        auto p=hostvalidation::processor();hostvalidation::load(*p,hostvalidation::patch());p->prepare(48000,64);
+        if(pedal)ASSERT_TRUE(p->enqueueMidi(0,176,64,127));
+        ASSERT_TRUE(p->enqueueMidi(0,144,60,100));ASSERT_TRUE(p->enqueueMidi(0,144,67,100));
+        std::array<float,64> left{},right{};
+        ASSERT_TRUE(p->process(left.data(),right.data(),64,120));
+        const auto mono=hostvalidation::patch(1,mode);
+        if(restore)
+        {
+            auto saved=hostvalidation::processor();hostvalidation::load(*saved,mono);
+            const auto state=saved->saveState();
+            ASSERT_TRUE(p->tryRestoreState(state.data(),static_cast<int>(state.size())));
+        }
+        else {std::string error;ASSERT_TRUE(p->loadProgram(mono,1,error))<<error;}
+        ASSERT_TRUE(p->process(left.data(),right.data(),64,120));
+        ASSERT_TRUE(p->enqueueMidi(0,128,67,0));ASSERT_TRUE(p->process(left.data(),right.data(),64,120));
+        if(pedal){ASSERT_TRUE(p->enqueueMidi(0,176,64,0));ASSERT_TRUE(p->process(left.data(),right.data(),64,120));}
+        std::set<int> notes;
+        for(int voice=0;voice<32;++voice)
+        {
+            std::array<uint32_t,16> words{};
+            if(synth2::readRenderingCoreWords(*p,voice,0,words)&&words[0])notes.insert(static_cast<int>(words[1]));
+        }
+        EXPECT_EQ(notes,(std::set<int>{60}));
     }
 }
