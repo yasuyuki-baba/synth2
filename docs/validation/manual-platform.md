@@ -121,6 +121,15 @@ In a DAW, resize the host-owned view and check the same uniform fit without
 resize-request loops. Repeat on Windows, macOS and Linux and on displays with
 different platform pixel scales.
 
+In Synth, MIDI and Library, verify the footer order Oversampling / Scale /
+Keyboard. Select 75/100/125% from the Scale arrow, then click the numeric field
+and enter `112.5%`. Enter commits; Escape and invalid inputs retain the scale.
+Check the actual readout after ordinary resizing, maximization and Keyboard
+open/close. Requests exceeding the work area or rejected by a plugin host must
+fit accepted bounds and display the accepted scale. Close/reopen the editor in
+the same instance and confirm its scale is retained. Sound automation, patch
+exports and project sound state must not acquire a display-scale parameter.
+
 The bridge caches mapped source snapshots by a published parameter revision and
 random-history validity. Same-value setters, loads and recall publish revisions;
 history notifications, pending filter edits, phase resets and master volume remain

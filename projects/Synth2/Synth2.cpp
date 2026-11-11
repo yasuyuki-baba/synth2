@@ -24,7 +24,7 @@ Synth2::Synth2(const InstanceInfo& info)
 #if IPLUG_EDITOR
     mMakeGraphicsFunc = [this]() {
         return MakeGraphics(*this, PLUG_WIDTH, PLUG_HEIGHT, PLUG_FPS,
-                            GetScaleForScreen(PLUG_WIDTH, PLUG_HEIGHT));
+                            editorScale);
     };
     mLayoutFunc = [this](igraphics::IGraphics* graphics) { layoutEditor(graphics); };
 #endif

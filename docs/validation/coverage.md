@@ -168,6 +168,8 @@ selectable parent folders, All banks, empty catalogs and non-wrapping ends.
 Editor resize tests cover proportional scaling, platform pixel ratios, keyboard
 height, uniform fitting to both parent bounds for every platform and format,
 wide/tall viewports, one-pixel reductions, limits and zero sizes.
+Display-scale tests cover percentage parsing/formatting, invalid/out-of-range
+edits, preset choices and readouts from accepted bounds independently of OS DPI.
 Native window notifications, dragging and scaled hit testing require manual checks.
 
 `ModulationInputs.RingRetainsPhysicalFmSlewAndResumesWhenDisabled` checks Ring
