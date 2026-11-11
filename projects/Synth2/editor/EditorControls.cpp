@@ -343,6 +343,37 @@ void SearchControl::OnTextEntryCompletion(const char* text, int value) {
     onChange(text);
 }
 
+namespace {
+void drawFooterDropdown(IGraphics& g,const IRECT& bounds,const char* title,float labelWidth,const char* value)
+{
+    const IText label{Typography::auxiliary,muted,"Synth2UI"};
+    g.DrawText(label,title,IRECT(bounds.L,bounds.T,bounds.L+labelWidth-2,bounds.B));
+    const auto box=IRECT(bounds.L+labelWidth,bounds.T,bounds.R,bounds.B);
+    g.FillRoundRect(panel,box,3.f);
+    g.DrawRoundRect(color(appearance.controlEdge),box,3.f,nullptr,.5f);
+    g.DrawText(label.WithFGColor(ink),value,IRECT(box.L,box.T,box.R-22,box.B));
+    const float x=bounds.R-11,y=bounds.MH();
+    g.FillTriangle(muted,x-4,y-2,x+4,y-2,x,y+3);
+}
+}
+
+FooterChoiceControl::FooterChoiceControl(const IRECT& bounds,const char* title,float width,
+                                       const char* value,IActionFunction callback)
+    : IControl(bounds),label(title),text(value),labelWidth(width),action(std::move(callback)) {}
+
+void FooterChoiceControl::Draw(IGraphics& g) {
+    drawFooterDropdown(g,mRECT,label.c_str(),labelWidth,text.c_str());
+}
+
+void FooterChoiceControl::OnMouseDown(float,float,const IMouseMod&) {
+    if(action)action(this);
+}
+
+void FooterChoiceControl::setText(const char* value) {
+    if(text==value)return;
+    text=value;SetDirty(false);
+}
+
 DisplayScaleControl::DisplayScaleControl(const IRECT& bounds,std::function<void(float)> change)
     : IControl(bounds),onChange(std::move(change))
 {
@@ -362,14 +393,7 @@ void DisplayScaleControl::setScale(float next) {
 }
 
 void DisplayScaleControl::Draw(IGraphics& g) {
-    const IText label{Typography::auxiliary,muted,"Synth2UI"};
-    g.DrawText(label,"Scale",IRECT(mRECT.L,mRECT.T,mRECT.L+40,mRECT.B));
-    const auto box=IRECT(mRECT.L+42,mRECT.T,mRECT.R,mRECT.B);
-    g.FillRoundRect(panel,box,3.f);
-    g.DrawRoundRect(color(appearance.controlEdge),box,3.f,nullptr,.5f);
-    g.DrawText(label.WithFGColor(ink),text.c_str(),valueBounds());
-    const float x=mRECT.R-11,y=mRECT.MH();
-    g.FillTriangle(muted,x-4,y-2,x+4,y-2,x,y+3);
+    drawFooterDropdown(g,mRECT,"Scale",42,text.c_str());
 }
 
 void DisplayScaleControl::OnMouseDown(float x,float,const IMouseMod&) {
