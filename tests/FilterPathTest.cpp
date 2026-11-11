@@ -78,3 +78,32 @@ TEST(FilterPath, LowRateCutoffSweepsStayFiniteWithoutChangingKernels)
         for(int frame=0;frame<64;++frame)EXPECT_EQ(filter.processSample(0,0),0);
     }
 }
+
+TEST(FilterPath, CoefficientPreparationPreservesAnalyticPrecisionBeforeFloatStorage)
+{
+    for(int rate:{8000,44100,48000,96000})for(float index:{0.f,63.5f,333.25f,511.f,900.f,1023.f})
+    {
+        SCOPED_TRACE(::testing::Message()<<"rate="<<rate<<" index="<<index);
+        const float frequency=static_cast<float>(15.L*std::exp(std::log(1066.6666666666667L)*(index/1024.L)));
+        const float f=std::min(frequency*2.f/rate,1.f);
+        const float limit=std::nextafter(1.f,0.f);
+        const float expectedPole=std::clamp(static_cast<float>(3.6L*f-1.6L*f*f-1.L),-limit,limit);
+        const float square=(f*2.5f)*f;
+        const float expectedFeedback=static_cast<float>(std::exp(1.386249L*(1.L-(4.3L*f-square)/2.L)));
+        synth2::dsp::Lp24Kernel lp;
+        lp.prepare(rate);lp.configure(index,1.f);
+        EXPECT_EQ(lp.getA(),expectedPole);
+        EXPECT_EQ(lp.getFeedback(),expectedFeedback);
+        if(index<=511)
+        {
+            synth2::dsp::StateVariableFilter svf;
+            for(float resonance:{0.f,.125f,.7f,1.f})
+            {
+                svf.configure(static_cast<float>(rate),index,resonance);
+                const float expectedStep=static_cast<float>(2.L*std::sin(static_cast<long double>(frequency)*3.1415926535897932384626433832795L/(rate*2.L)));
+                EXPECT_EQ(svf.getCoefficient(),expectedStep);
+                EXPECT_EQ(svf.getGain(),static_cast<float>(1.L-.7L*resonance));
+            }
+        }
+    }
+}

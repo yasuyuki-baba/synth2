@@ -15,10 +15,11 @@ namespace synth2::dsp
             index=std::clamp(index,0.0f,1023.0f);
             if (sampleRate==lastRate && index==lastIndex && resonance==lastResonance) return;
             lastRate=sampleRate; lastIndex=index; lastResonance=resonance;
+            // Coefficient preparation keeps its double intermediates; storage and recurrence stay Float32.
             const float exponent=static_cast<float>(index)*(1.0f/1024.0f);
-            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667f)*static_cast<float>(exponent))*15.0f);
-            const float boundedFrequency=std::min(static_cast<float>(frequency),sampleRate*.5f);
-            f=static_cast<float>(2.0f*std::sin(boundedFrequency*3.141592653589793f/(static_cast<int>(sampleRate)*2)));
+            const float frequency=static_cast<float>(std::exp(std::log(1066.6666666666667)*static_cast<double>(exponent))*15.0);
+            const double boundedFrequency=std::min(static_cast<double>(frequency),static_cast<double>(sampleRate)*.5);
+            f=static_cast<float>(2.0*std::sin(boundedFrequency*3.141592653589793/(static_cast<int>(sampleRate)*2)));
             configureCoefficients(f,resonance);
         }
         void configureCoefficients (float coefficient,float resonance) noexcept
@@ -32,7 +33,7 @@ namespace synth2::dsp
             const float d=damping;
             const float limit=std::nextafter(static_cast<float>(d+std::sqrt(d*d+4.0f)),0.0f);
             f=std::min(coefficient,limit);
-            gain=static_cast<float>(1.0f-static_cast<float>(r)*.7f);
+            gain=static_cast<float>(1.0-static_cast<double>(r)*.7);
         }
         float process (float input,int mode=0) noexcept
         {
