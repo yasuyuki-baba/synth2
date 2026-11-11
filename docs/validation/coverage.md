@@ -239,3 +239,8 @@ during a polyphonic interval and a mono state was recalled.
 physical phase/controller/filter-memory retention with a partially idle Unison
 group at 1x/4x, continued held-core progress, legato reactivation and unique
 physical-core views when a new polyphonic note claims the freed lanes.
+
+Poly admission regressions cover newest-note identity for Unison groups within
+physical budgets, including non-divisible budgets and partial groups. Mono
+reselection covers first entry from Poly through program and state recall,
+Note Off and pedal-up, for Mono and Legato modes.
