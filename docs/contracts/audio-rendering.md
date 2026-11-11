@@ -167,6 +167,8 @@ to 16 fractional bits. Integer settings retain the native oscillator recurrence,
 phase update and retirement timing. The Chorus recursive modulation clock retains
 its FP32 phase/coefficient words: its block reset comparison depends on those words.
 Audio delay lines, tap interpolation and feedback signal histories remain Float32.
+Keep Chorus ring indices separate from fractional tap offsets so the integer
+cursor and ring wrapping do not reduce sub-sample interpolation precision.
 Ring frequency/phase-step knots and Phaser sweep-factor knots retain compatible
 word definitions before fractional interpolation. Phaser direction changes select
 the opposite compatible factor rather than inverting a widened factor.

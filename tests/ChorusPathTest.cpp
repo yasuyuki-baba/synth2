@@ -88,3 +88,32 @@ TEST(ChorusPath, ModulationAndAudioRingUseFloatWords)
         if(block==10)EXPECT_EQ(audio[2*(666-640)],input);
     }
 }
+
+TEST(ChorusPath, FractionalImpulseWeightsDoNotDependOnRingCursor)
+{
+    for(int voices:{1,2,4})for(int start:{0,4095,8191,16381})for(float dial:{64.1f,64.9f})
+    {
+        SCOPED_TRACE(::testing::Message()<<"voices="<<voices<<" start="<<start<<" dial="<<dial);
+        auto chorus=std::make_unique<synth2::dsp::ChorusKernel>();
+        ASSERT_TRUE(chorus->configure(44100,voices,64,0,0,64,127));
+        chorus->setTimeDial(dial);chorus->reset();
+        const float delay=chorus->getDelayFramesContinuous();
+        const int frames=static_cast<int>(delay);
+        const float fraction=delay-frames;
+        ASSERT_GT(fraction,0);ASSERT_LT(fraction,1);
+        const int count=start+frames+3;
+        std::vector<float> audio(2*count);
+        audio[2*start]=1;audio[2*start+1]=-.5f;
+        for(int at=0;at<count;at+=64)
+            chorus->process(audio.data()+2*at,nullptr,std::min(64,count-at));
+        const float leftGain=voices==4 ? .5f : 1.f;
+        const float rightGain=voices==4 ? .5f : -.5f;
+        for(int i=start+1;i<count;++i)
+        {
+            const float expected=i==start+frames ? 1-fraction
+                : i==start+frames+1 ? fraction : 0.f;
+            EXPECT_NEAR(audio[2*i],expected*leftGain,0.000001f)<<"frame="<<i;
+            EXPECT_NEAR(audio[2*i+1],expected*rightGain,0.000001f)<<"frame="<<i;
+        }
+    }
+}
