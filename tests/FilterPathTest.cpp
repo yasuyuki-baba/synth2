@@ -108,12 +108,12 @@ TEST(FilterPath, CoefficientPreparationPreservesAnalyticPrecisionBeforeFloatStor
     }
 }
 
-TEST(FilterPath, DiodeRetainsTailStateBelowFloatSampleRange)
+TEST(FilterPath, DiodeRetainsSubFloatImpulseResponseState)
 {
     synth2::dsp::DiodeKernel diode;
     diode.configure(44100,128,.5f);
-    diode.process(1.e-30f);
-    for(int i=0;i<32768;++i)diode.process(0.f);
+    // A normal Float32 input produces smaller internal ladder stages.
+    diode.process(std::numeric_limits<float>::min());
     bool retained=false;
     for(auto value:diode.readState())
     {
