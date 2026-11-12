@@ -25,6 +25,7 @@ void Synth2::OnParentWindowResize(int width,int height)
     const auto scale=synth2::editor::editorResizeScale(width,height,
         graphics->GetPlatformWindowScale(),keyboardVisible,graphics->GetDrawScale());
     if(!scale)return;
+    observedParentWidth=width;observedParentHeight=height;
     resizingParentWindow=true;
     // The parent already changed size. Suppress the SDK's relative parent
     // adjustment, which would otherwise apply the size delta a second time.
@@ -309,7 +310,14 @@ void Synth2::showOversamplingMenu(IControl* caller)
 }
 void Synth2::OnIdle()
 {
-    if(reconcileEditorScale && GetUI()) {
+    bool checkParentSize=reconcileEditorScale;
+#if defined(__APPLE__) && defined(AU_API)
+    // AU hosts can resize the Cocoa parent without an SDK resize callback.
+    // Read its geometry on the existing UI timer; unchanged bounds do no work.
+    checkParentSize=true;
+#endif
+    if(checkParentSize && GetUI()) {
+        const bool requested=reconcileEditorScale;
         reconcileEditorScale=false;
 #if defined(APP_API)
         constexpr bool standalone=true;
@@ -317,7 +325,8 @@ void Synth2::OnIdle()
         constexpr bool standalone=false;
 #endif
         if(const auto bounds=editorWindowBounds(GetUI()->GetWindow(),standalone))
-            OnParentWindowResize(bounds->width,bounds->height);
+            if(requested || bounds->width!=observedParentWidth || bounds->height!=observedParentHeight)
+                OnParentWindowResize(bounds->width,bounds->height);
     }
     refreshEditorScale();
     refreshDelayTiming();
@@ -401,6 +410,7 @@ void Synth2::OnIdle()
 void Synth2::OnUIOpen()
 {
     releaseKeyboardNotes();
+    observedParentWidth=observedParentHeight=0;
     dialogLifetime=std::make_shared<int>(0);
     iplug::Plugin::OnUIOpen();
     setKeyboardVisible(keyboardVisible);
