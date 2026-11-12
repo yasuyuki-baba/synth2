@@ -51,6 +51,7 @@ private:
     synth2::editor::ComputerKeyboard computerKeyboard;
     bool keyboardVisible = false;
     bool resizingParentWindow = false;
+    int observedParentWidth=0,observedParentHeight=0;
     void refreshBrowser();
     void showPresetMenu(iplug::igraphics::IControl* caller);
     void promptForBank();

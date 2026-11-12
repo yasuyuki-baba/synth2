@@ -62,7 +62,10 @@ std::optional<EditorWindowBounds> editorWindowBounds(void* view,bool standalone)
 #elif defined(__APPLE__)
     NSView* editor=static_cast<NSView*>(view);
     NSWindow* window=[editor window];
-    NSView* parent=standalone ? [window contentView] : [editor superview];
+    NSView* content=[window contentView];
+    // An AU editor may itself be the content view. Its superview then includes
+    // the window frame, which is not available editor space.
+    NSView* parent=(standalone || editor==content) ? content : [editor superview];
     if(!parent)return {};
     const auto size=[parent bounds].size;
     bounds.width=static_cast<int>(size.width);bounds.height=static_cast<int>(size.height);
