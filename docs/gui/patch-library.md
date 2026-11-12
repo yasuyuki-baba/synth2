@@ -12,7 +12,7 @@ count and its tooltip lists the selections. Selections survive session recall;
 older single-tag sessions remain readable. All search
 words match independently against the title, relative file/ZIP entry location and
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
-bytes. The result viewport fits 16 rows at the standard editor size, preserving font sizes
+bytes. The result viewport fits 17 rows at the standard editor size, preserving font sizes
 with compact 30-unit row spacing. A right-hand scrollbar shows the position within
 all matching sounds; drag its thumb or click its track to jump. The mouse wheel
 scrolls continuously (including fractional trackpad deltas), with a short visual

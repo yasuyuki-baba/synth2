@@ -197,7 +197,7 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::nameLeft,204,20+Columns::nameRight,226),"SOUND",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4011);
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::bankLeft,204,20+Columns::bankRight,226),"BANK",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4012);
     graphics->AttachControl(new ITextControl(IRECT(20+Columns::tagsLeft,204,1252,226),"TAGS",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),4013);
-    graphics->AttachControl(new CatalogListControl(IRECT(20,228,1260,708),catalog,selectedPatchId,keyboardPatchId,
+    graphics->AttachControl(new CatalogListControl(IRECT(20,228,1260,738),catalog,selectedPatchId,keyboardPatchId,
         [this](std::size_t index) { loadLibraryPatch(index); },
         [this](const std::string& id,bool favorite) {
             std::string error;if(!catalog.setFavorite(id,favorite,error))browserStatus=error;
@@ -206,18 +206,17 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](double offset) {
             resultOffset=offset;refreshBrowser();
         },[this](const char* path) { importBank(path); }),libraryListTag);
-    graphics->AttachControl(new ITextControl(IRECT(20,724,112,752),"Manual tags",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),selectedNameTag);
-    graphics->AttachControl(new SearchControl(IRECT(116,724,1128,752),"",text.WithSize(Typography::button).WithAlign(EAlign::Near),[this](const char* tags) {
+    graphics->AttachControl(new ITextControl(IRECT(20,754,112,782),"Manual tags",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),selectedNameTag);
+    graphics->AttachControl(new SearchControl(IRECT(116,754,1128,782),"",text.WithSize(Typography::button).WithAlign(EAlign::Near),[this](const char* tags) {
         std::string error;
         if(!selectedPatchId.empty() && !catalog.setTags(selectedPatchId,tags,error))browserStatus=error;
         else browserStatus="Tags saved. Separate tags with commas.";
         refreshBrowser();
     }),tagsEditTag);
-    graphics->AttachControl(new ActionButtonControl(IRECT(1140,724,1260,752),[this](IControl* caller) {
+    graphics->AttachControl(new ActionButtonControl(IRECT(1140,754,1260,782),[this](IControl* caller) {
         showAutomaticTagMenu(caller);
     },"Auto tags...",style.WithColor(kFG,background).WithColor(kFR,background)
         .WithLabelText(text.WithSize(Typography::auxiliary).WithFGColor(muted))),4016);
-    graphics->AttachControl(new ITextControl(IRECT(20,760,1260,780),"",text.WithSize(Typography::auxiliary).WithFGColor(muted).WithAlign(EAlign::Near)),resultsTag);
     if(!catalogLoaded)reloadCatalog();
     showPage(page);
     refreshBrowser();

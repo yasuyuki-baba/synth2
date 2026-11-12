@@ -73,7 +73,6 @@ void Synth2::refreshBrowser()
     if(auto* c=graphics->GetControlWithTag(presetTag))
         c->As<PresetDisplayControl>()->setDisplay(display);
     setText(statusTag,browserStatus);
-    setText(libraryMatchesTag,std::to_string(matches.size())+" matching sounds");
     setText(librarySearchTag, libraryFilter.query);
     std::string bankLabel = "All banks";
     for (const auto &bank : banks)
@@ -120,7 +119,7 @@ void Synth2::refreshBrowser()
     if(auto* control=graphics->GetControlWithTag(4016))
         control->SetTooltip("Hide or restore automatic tags for the selected sound.");
     const auto first = matches.empty() ? 0 : static_cast<std::size_t>(resultOffset) + 1;
-    setText(resultsTag, std::to_string(first) + " - " +
+    setText(libraryMatchesTag, std::to_string(first) + " - " +
                             std::to_string(std::min(static_cast<std::size_t>(std::ceil(resultOffset + visibleRows)), matches.size())) + " of " +
                             std::to_string(matches.size()) + " sounds");
 }
