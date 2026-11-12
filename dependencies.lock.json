@@ -5,8 +5,8 @@
   },
   "iplug2": {
     "repository": "https://github.com/yasuyuki-baba/iPlug2",
-    "branch": "fix/linux-pr1336-app-build",
-    "revision": "9979d442dd393b546c8fe5d9210f4c121ee8a3c8"
+    "branch": "feature/linux-support-2",
+    "revision": "15297433f27c0a4217b6aa9188b9808f049cb461"
   },
   "tinyxml2": {
     "repository": "https://github.com/leethomason/tinyxml2",
