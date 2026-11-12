@@ -22,6 +22,7 @@ namespace synth2::dsp
         void prepareProcessors(float rate,bool preserve);
         void prepareEffects(const ::synth2::audio::ProcessSpec&,bool preserveVoices,bool rateChanged);
         void release(bool retainTone);
+        std::array<float,2> delayMilliseconds() const noexcept {return wetEffects.delayMilliseconds();}
         std::array<float,7> multiEffectState() const noexcept { return nativeMultiEffect.snapshot(); }
         void process(::synth2::audio::AudioBuffer<float>&,int start,int frames,const OutputPipelineSettings&,
             const OutputProcessContext&,const ReceiverLfoView& panControls);

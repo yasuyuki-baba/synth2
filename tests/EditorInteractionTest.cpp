@@ -97,9 +97,9 @@ TEST(EditorInteraction, HostAutomationAndStateRecallReachChoiceAndNumericPresent
 TEST(EditorInteraction, EditingStepsDistinguishSelectorsCountsAndContinuousDials)
 {
     using namespace synth2::host;
-    for(int parameter : {0,1,4,14,31,33,38,40,64,86,87,88,89,93,94,96,126})
+    for(int parameter : {0,1,4,14,31,33,35,38,40,64,86,87,88,89,93,94,96,126})
     { SCOPED_TRACE(parameter); EXPECT_TRUE(parameterUsesIntegerSteps(parameter)); }
-    for(int parameter : {5,8,15,19,20,25,29,35,43,52,61,62,63,75,50,51,90,128})
+    for(int parameter : {5,8,15,19,20,25,29,43,52,61,62,63,75,50,51,90,128})
     { SCOPED_TRACE(parameter); EXPECT_FALSE(parameterUsesIntegerSteps(parameter)); }
     // Sparse source words and the full legacy range are not replaced by ordinals.
     EXPECT_EQ(editorSelectedSourceValue(editorChoices(64),2),4);
@@ -238,4 +238,23 @@ TEST(EditorDisplayScale, RepeatedKeyboardRequestsRetainTheChosenScaleAfterPixelR
     }
     // Actual parent changes still win, even when only one pixel was removed.
     EXPECT_LT(*editorResizeScale(1600,1049,1,false,1.25f),1.25f);
+}
+
+TEST(EditorInteraction, DelayNotesPreserveSourceWordsAndFractionalRecall)
+{
+    const auto choices=editorChoices(35);
+    ASSERT_EQ(choices.size(),19u);
+    EXPECT_EQ(editorSelectedSourceValue(choices,0),1);
+    EXPECT_EQ(editorChoiceDisplay(false,3,choices),"1/32");
+    EXPECT_EQ(editorChoiceDisplay(false,7,choices),"1/16 dotted");
+    EXPECT_EQ(editorChoiceDisplay(false,12,choices),"1/4");
+    EXPECT_EQ(editorChoiceDisplay(false,19,choices),"1/1");
+    EXPECT_TRUE(parameterUsesIntegerSteps(35));
+    ProcessorBridge processor;submitSource(processor,35,7.25);
+    const auto saved=processor.saveState();
+    ProcessorBridge restored;restored.restoreState(saved.data(),static_cast<int>(saved.size()));
+    EXPECT_NEAR(sourceValue(restored,35),7.25,1e-4);
+    EXPECT_EQ(editorChoiceDisplay(false,sourceValue(restored,35),choices),"Custom");
+    EXPECT_EQ(restored.parameter(35).minimum,0);
+    EXPECT_EQ(restored.parameter(35).maximum,127);
 }

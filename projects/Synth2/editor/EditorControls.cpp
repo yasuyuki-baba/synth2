@@ -131,12 +131,12 @@ void PanelKnobControl::DrawIndicatorTrack(IGraphics& g,float angle,float cx,floa
     g.DrawArc(GetParamIdx()==19 ? accent : color(appearance.pointer),cx,cy,radius,-135.f,angle,nullptr,1.25f);
 }
 
-SourceChoiceControl::SourceChoiceControl(const IRECT& bounds,int parameter,const char* label)
-    : IControl(bounds,parameter), label(label), toggle(synth2::editor::editorToggle(parameter)),
+SourceChoiceControl::SourceChoiceControl(const IRECT& bounds,int parameter,const char* label,std::function<double()> sourceValue)
+    : IControl(bounds,parameter), sourceValue(std::move(sourceValue)), label(label), toggle(synth2::editor::editorToggle(parameter)),
       choices(synth2::editor::editorChoices(parameter)) {}
 
 void SourceChoiceControl::Draw(IGraphics& g) {
-    const auto raw=GetParam()->FromNormalized(GetValue());
+    const auto raw=sourceValue();
     const auto value=synth2::editor::editorChoiceDisplay(toggle,raw,choices);
     g.DrawText(IText(Typography::label,muted,"Synth2UI"),label,
                IRECT(mRECT.L,mRECT.T,mRECT.R,mRECT.T+16));
@@ -158,7 +158,7 @@ void SourceChoiceControl::Draw(IGraphics& g) {
 
 void SourceChoiceControl::OnMouseDown(float,float,const IMouseMod&) {
     if (toggle)
-        SetValueFromUserInput(GetParam()->ToNormalized(synth2::editor::editorToggledSourceValue(GetParam()->FromNormalized(GetValue()))));
+        SetValueFromUserInput(GetParam()->ToNormalized(synth2::editor::editorToggledSourceValue(sourceValue())));
     else
     {
         menu.Clear();

@@ -71,11 +71,12 @@ public:
 class SourceChoiceControl final : public IControl
 {
 public:
-    SourceChoiceControl(const IRECT& bounds,int parameter,const char* label);
+    SourceChoiceControl(const IRECT& bounds,int parameter,const char* label,std::function<double()> sourceValue);
     void Draw(IGraphics& graphics) override;
     void OnMouseDown(float x,float y,const IMouseMod& modifiers) override;
     void OnPopupMenuSelection(IPopupMenu* selection,int value) override;
 private:
+    std::function<double()> sourceValue;
     const char* label;
     bool toggle;
     std::vector<EditorChoice> choices;
