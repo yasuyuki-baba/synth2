@@ -67,6 +67,8 @@ std::optional<EditorWindowBounds> editorWindowBounds(void* view,bool standalone)
     // the window frame, which is not available editor space.
     NSView* parent=(standalone || editor==content) ? content : [editor superview];
     if(!parent)return {};
+    const auto viewSize=[editor bounds].size;
+    bounds.viewWidth=static_cast<int>(viewSize.width);bounds.viewHeight=static_cast<int>(viewSize.height);
     const auto size=[parent bounds].size;
     bounds.width=static_cast<int>(size.width);bounds.height=static_cast<int>(size.height);
     NSScreen* screen=[window screen];
