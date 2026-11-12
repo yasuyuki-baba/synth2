@@ -159,3 +159,29 @@ TEST(DelayPath, NegativeTapRoundingAtRingEndWrapsToFirstSample)
         EXPECT_EQ(send[513],kind==0 ? .5f : kind==1 ? 1.f : 0.f);
     }
 }
+
+TEST(DelayPath, TimingReadoutTracksTempoSpreadAndTheActualSlewingTap)
+{
+    synth2::DelaySettings d;
+    d.enable=true;d.time=7.0f/127;d.spread=d.tone=64.0f/127;d.feedback=0;d.level=1;
+    synth2::ChorusSettings c;c.enabled=false;
+    auto effects=std::make_unique<synth2::dsp::EffectPair>();effects->prepare(48000);
+    effects->setParams(d,c,120);
+    EXPECT_FLOAT_EQ(effects->delayMilliseconds()[0],187.5f);
+    EXPECT_FLOAT_EQ(effects->delayMilliseconds()[1],187.5f);
+    float impulse=1,rightImpulse=0;effects->process(&impulse,&rightImpulse,1);
+    effects->setParams(d,c,60);
+    // Report the current tap while it glides, rather than the new nominal target.
+    EXPECT_FLOAT_EQ(effects->delayMilliseconds()[0],187.5f);
+    std::array<float,256> left{},right{};
+    for(int block=0;block<1200;++block)effects->process(left.data(),right.data(),256);
+    EXPECT_NEAR(effects->delayMilliseconds()[0],375.0f,.001f);
+    d.spread=100.0f/127;effects->setParams(d,c,60);
+    for(int block=0;block<1200;++block)effects->process(left.data(),right.data(),256);
+    const auto actual=effects->delayMilliseconds();
+    EXPECT_NE(actual[0],actual[1]);
+    EXPECT_NEAR(std::min(actual[0],actual[1]),375.0f,.001f);
+    d.time=19.0f/127;d.spread=64.0f/127;effects->setParams(d,c,10);
+    for(int block=0;block<1200;++block)effects->process(left.data(),right.data(),256);
+    EXPECT_NEAR(effects->delayMilliseconds()[0],(131072.0-256.0)/48.0,.001f);
+}

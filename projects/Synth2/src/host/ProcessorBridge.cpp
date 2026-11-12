@@ -63,6 +63,7 @@ struct ProcessorBridge::Impl
 {
     SynthEngine engine;
     std::atomic<int> requestedOversampling{1};
+    std::atomic<float> displayedTempo{},displayedDelayLeft{},displayedDelayRight{};
     int fadeOut=0,fadeIn=0;float fadeFrom=1,fadeGain=1;
     std::array<std::atomic<float>,parameterCount> values{};
     std::array<ParameterInfo,parameterCount> info{};
@@ -417,6 +418,10 @@ struct ProcessorBridge::Impl
         if(desired!=engine.getOversamplingFactor() && fadeOut==0)
         {fadeOut=64;fadeFrom=fadeGain;fadeIn=0;}
         engine.render(buffer,midi,0,frames);
+        const auto delayTimes=engine.delayMilliseconds();
+        displayedTempo.store(tempo,std::memory_order_relaxed);
+        displayedDelayLeft.store(delayTimes[0],std::memory_order_relaxed);
+        displayedDelayRight.store(delayTimes[1],std::memory_order_relaxed);
         const bool changing=fadeOut>0;
         for(int i=0;i<frames;++i)
         {
@@ -447,6 +452,12 @@ bool ProcessorBridge::setOversamplingFactor(int factor) noexcept
 {if(!dsp::OversamplingSettings::valid(factor))return false;impl->requestedOversampling.store(factor);return true;}
 int ProcessorBridge::oversamplingFactor() const noexcept {return impl->requestedOversampling.load();}
 int ProcessorBridge::latencySamples() const noexcept {return dsp::OversamplingSettings::latency(oversamplingFactor());}
+DelayTimingView ProcessorBridge::delayTiming() const noexcept
+{
+    return {impl->displayedTempo.load(std::memory_order_relaxed),
+            impl->displayedDelayLeft.load(std::memory_order_relaxed),
+            impl->displayedDelayRight.load(std::memory_order_relaxed)};
+}
 void ProcessorBridge::release(){impl->engine.releaseResources();impl->capacity=0;impl->eventCount=0;impl->overflow=false;impl->midi.clear();}
 void ProcessorBridge::setEditorNote(int note,int velocity,EditorNoteSource source)noexcept {impl->editorMidi.set(note,velocity,source);}
 void ProcessorBridge::releaseEditorNotes()noexcept {impl->editorMidi.release();}

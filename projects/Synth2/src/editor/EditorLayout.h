@@ -42,6 +42,11 @@ inline std::vector<EditorChoice> editorChoices(int index)
                          {5,"1/4+1/8"},{6,"1/1 triplet"},{7,"1/4"},{8,"1/8+1/16+1/32"},{9,"1/8+1/16"},
                          {10,"1/2 triplet"},{11,"1/8"},{12,"1/16+1/32"},{13,"1/4 triplet"},{14,"1/16"},
                          {15,"1/8 triplet"},{16,"1/32"},{17,"1/16 triplet"},{18,"1/32 triplet"}};
+        case 35: return {{1,"1/64 triplet"},{2,"1/32 triplet"},{3,"1/32"},{4,"1/16 triplet"},
+                         {5,"1/16"},{6,"1/8 triplet"},{7,"1/16 dotted"},{8,"1/8"},
+                         {9,"1/4 triplet"},{10,"1/8 dotted"},{11,"1/8+1/16+1/32"},{12,"1/4"},
+                         {13,"1/2 triplet"},{14,"1/4 dotted"},{15,"1/4+1/8+1/16"},{16,"1/2"},
+                         {17,"1/2 dotted"},{18,"1/2+1/4+1/8"},{19,"1/1"}};
         case 38: return {{0,"Poly"},{1,"Mono"},{2,"Legato"}};
         case 41: case 46: return {{1,"OSC2"},{2,"OSC1 + 2"},{3,"Filter"},{4,"Amp"},{5,"Width"},{6,"FM"},{7,"Pan"}};
         case 42: case 47: return {{0,"Saw"},{1,"Triangle"},{2,"Square"},{3,"Random S&H"},{4,"Random smooth"},{5,"Sine"}};

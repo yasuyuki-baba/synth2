@@ -117,3 +117,24 @@ TEST(ProcessorBridge, PublicParameterIdentityAndSourceBounds)
     EXPECT_EQ(bridge.parameter(86).maximum,65535);
     EXPECT_EQ(bridge.parameter(128).id,"masterVolume");
 }
+
+TEST(ProcessorBridge, DelayTimingTelemetryUsesTheProcessedHostTempo)
+{
+    ProcessorBridge p;
+    EXPECT_FLOAT_EQ(p.delayTiming().bpm,0);
+    const auto edit=[&](int index,double value) {
+        const auto& range=p.parameter(index);
+        p.setNormalizedValue(index,(value-range.minimum)/(range.maximum-range.minimum));
+    };
+    edit(35,7);edit(83,64);edit(98,64);edit(65,1);
+    p.prepare(48000,64);
+    float left[64]{},right[64]{};
+    ASSERT_TRUE(p.process(left,right,64,120));
+    const auto timing=p.delayTiming();
+    EXPECT_FLOAT_EQ(timing.bpm,120);
+    EXPECT_NEAR(timing.leftMilliseconds,187.5f,.01f);
+    EXPECT_NEAR(timing.rightMilliseconds,187.5f,.01f);
+    ASSERT_TRUE(p.process(left,right,64,60));EXPECT_FLOAT_EQ(p.delayTiming().bpm,60);
+    ASSERT_TRUE(p.process(left,right,64,std::numeric_limits<double>::quiet_NaN()));
+    EXPECT_FLOAT_EQ(p.delayTiming().bpm,120);
+}

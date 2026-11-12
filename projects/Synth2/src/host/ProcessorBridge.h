@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParameterInfo.h"
+#include "DelayTimingView.h"
 #include "EditorMidiInput.h"
 
 #include <cstddef>
@@ -39,6 +40,8 @@ public:
     bool setOversamplingFactor(int factor) noexcept;
     int oversamplingFactor() const noexcept;
     int latencySamples() const noexcept;
+    // Display telemetry only; fields may come from adjacent audio blocks.
+    DelayTimingView delayTiming() const noexcept;
     // Channel messages only; status includes the zero-based MIDI channel nibble.
     // Editor thread only; audio applies desired UI ownership at block boundaries.
     void setEditorNote(int note, int velocity, EditorNoteSource source) noexcept;

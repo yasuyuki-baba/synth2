@@ -29,6 +29,7 @@ namespace synth2
         void releaseResources();
         void setOversamplingFactor(int factor) noexcept;
         int getOversamplingFactor() const noexcept {return audioFactor;}
+        std::array<float,2> delayMilliseconds() const noexcept {return outputPipeline.delayMilliseconds();}
         void requestPhaseReset();
         void restartFilterCutoff() noexcept;
         void applyReceiverParameter(int index,float normalized) noexcept;

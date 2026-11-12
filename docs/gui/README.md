@@ -152,3 +152,8 @@ Momentary editor actions use the shared native ActionButtonControl, which starts
 the SDK completion animation before invoking application code. Click feedback
 must return to idle even when a menu or dialog captures the release event.
 Tab and source-selection controls retain their independent selected-state behavior.
+
+Delay Time uses host-synchronized note choices while preserving source values on
+patch/state recall. The Delay panel displays the playback tempo and current left
+and right tap times in milliseconds, including Spread, buffer limits and tempo
+glides. The readout is audio-thread telemetry; before processing it is unavailable.

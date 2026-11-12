@@ -4,6 +4,7 @@
 #include "PatchCatalog.h"
 #include "editor/ComputerKeyboard.h"
 #include <atomic>
+#include <array>
 #include <memory>
 #include <future>
 #include <mutex>
@@ -32,6 +33,8 @@ private:
     void syncParametersFromProcessor();
     void syncQualityLatency();
     void refreshOversampling();
+    void refreshDelayTiming();
+    std::array<std::string,3> displayedDelayTiming;
     void showOversamplingMenu(iplug::igraphics::IControl* caller);
     void requestEditorScale(float scale);
     void refreshEditorScale();

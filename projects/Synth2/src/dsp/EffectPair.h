@@ -67,6 +67,11 @@ namespace synth2::dsp
         {
             processInternal(left,right,frames,&silent);
         }
+        std::array<float,2> delayMilliseconds() const noexcept
+        {
+            return {static_cast<float>(delay->getCurrentLeft()*1000.0/sampleRate),
+                    static_cast<float>(delay->getCurrentRight()*1000.0/sampleRate)};
+        }
         std::array<uint32_t,9> snapshot() const noexcept
         {
             std::array<uint32_t,9> words {static_cast<uint32_t>(delay->getSilentFrames()),static_cast<uint32_t>(delay->getTailFrames()),

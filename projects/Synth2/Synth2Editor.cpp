@@ -11,6 +11,7 @@
 #include "editor/EditorKeyboardFocus.h"
 #include "editor/EditorWindowBounds.h"
 #include <algorithm>
+#include <cstdio>
 
 using namespace iplug;
 using namespace iplug::igraphics;
@@ -125,13 +126,26 @@ void Synth2::layoutEditor(IGraphics* graphics)
             const auto tint=color(section.accent);
             IControl* control=nullptr;
             if (synth2::editor::editorToggle(item.parameter) || !synth2::editor::editorChoices(item.parameter).empty())
-                control=new SourceChoiceControl(bounds,item.parameter,item.label);
+                control=new SourceChoiceControl(bounds,item.parameter,item.label,[this,index=item.parameter] {
+                    const auto& range=processor.parameter(index);
+                    return range.minimum+processor.normalizedValue(index)*(range.maximum-range.minimum);
+                });
             else control=new PanelKnobControl(bounds,item.parameter,item.label,style.WithColor(kPR,tint));
             const auto tooltip=processor.parameter(item.parameter).name;
             control->SetTooltip(tooltip.c_str());
             graphics->AttachControl(control,parameterTag+item.parameter);
         }
     }
+    // The final Delay cell is reserved for tempo and actual stereo tap times.
+    displayedDelayTiming={};
+    for(int line=0;line<3;++line)
+    {
+        auto* timing=new ITextControl(IRECT(803,722+line*17,880,739+line*17),"",
+            text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near));
+        timing->SetTooltip("Playback tempo and current left/right delay times, including Spread. Invalid host tempo uses 120 BPM.");
+        graphics->AttachControl(timing,delayTimingTag+line);
+    }
+    refreshDelayTiming();
     // Controller assignments remain available without
     // displacing the ordinary sound-design controls from the main surface.
     for (std::size_t group=5;group<synth2::editor::editorPages().size();++group)
@@ -230,6 +244,8 @@ void Synth2::showPage(int next)
     if (auto* graphics=GetUI())
     {
         if(auto* tabs=graphics->GetControlWithTag(tabsTag)){tabs->SetValue(static_cast<double>(page)/(synth2::editor::editorViews.size()-1));tabs->SetDirty(false);}
+        for(int line=0;line<3;++line)
+            if(auto* control=graphics->GetControlWithTag(delayTimingTag+line))control->Hide(page!=0);
         for(int tag=libraryFirstTag;tag<=libraryLastTag;++tag)
             if(auto* control=graphics->GetControlWithTag(tag))control->Hide(page!=synth2::editor::editorLibraryView);
         for (std::size_t i=0;i<synth2::editor::editorPanels().size();++i)
@@ -246,6 +262,24 @@ void Synth2::showPage(int next)
         // Do not push parameter values or invoke control actions while repainting.
         graphics->SetAllControlsDirty();
     }
+}
+
+void Synth2::refreshDelayTiming()
+{
+    auto* graphics=GetUI();if(!graphics)return;
+    const auto timing=processor.delayTiming();
+    std::array<std::string,3> labels {"-- BPM","L -- ms","R -- ms"};
+    if(timing.bpm>0)
+    {
+        char text[64];
+        std::snprintf(text,sizeof(text),"%.2f BPM",static_cast<double>(timing.bpm));labels[0]=text;
+        std::snprintf(text,sizeof(text),"L %.2f ms",static_cast<double>(timing.leftMilliseconds));labels[1]=text;
+        std::snprintf(text,sizeof(text),"R %.2f ms",static_cast<double>(timing.rightMilliseconds));labels[2]=text;
+    }
+    for(int line=0;line<3;++line)if(labels[line]!=displayedDelayTiming[line])
+        if(auto* control=graphics->GetControlWithTag(delayTimingTag+line))
+            control->As<ITextControl>()->SetStr(labels[line].c_str());
+    displayedDelayTiming=std::move(labels);
 }
 
 void Synth2::refreshOversampling()
@@ -286,6 +320,7 @@ void Synth2::OnIdle()
             OnParentWindowResize(bounds->width,bounds->height);
     }
     refreshEditorScale();
+    refreshDelayTiming();
     if(displayedOversampling!=processor.oversamplingFactor())refreshOversampling();
     updateKeyboardInput();
     if (importPrompt && !conflictShown && GetUI())
