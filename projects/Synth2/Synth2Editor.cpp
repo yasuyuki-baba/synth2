@@ -324,9 +324,25 @@ void Synth2::OnIdle()
 #else
         constexpr bool standalone=false;
 #endif
-        if(const auto bounds=editorWindowBounds(GetUI()->GetWindow(),standalone))
-            if(requested || bounds->width!=observedParentWidth || bounds->height!=observedParentHeight)
+        if(const auto bounds=editorWindowBounds(GetUI()->GetWindow(),standalone)) {
+            const bool parentChanged=bounds->width!=observedParentWidth || bounds->height!=observedParentHeight;
+#if defined(__APPLE__) && defined(AU_API)
+            // Some AU hosts resize the returned editor view directly while its
+            // container stays fixed. Do not mistake our own fitted view for a
+            // new parent resize on the following tick.
+            const auto* graphics=GetUI();
+            const auto dpi=graphics->GetPlatformWindowScale();
+            const bool viewChanged=bounds->viewWidth!=static_cast<int>(graphics->WindowWidth()*dpi) ||
+                bounds->viewHeight!=static_cast<int>(graphics->WindowHeight()*dpi);
+            if(requested || parentChanged)
                 OnParentWindowResize(bounds->width,bounds->height);
+            else if(viewChanged)
+                OnParentWindowResize(bounds->viewWidth,bounds->viewHeight);
+            observedParentWidth=bounds->width;observedParentHeight=bounds->height;
+#else
+            if(requested || parentChanged)OnParentWindowResize(bounds->width,bounds->height);
+#endif
+        }
     }
     refreshEditorScale();
     refreshDelayTiming();
