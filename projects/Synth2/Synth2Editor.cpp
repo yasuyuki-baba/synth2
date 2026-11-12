@@ -148,6 +148,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
         }
     }
     graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near)),statusTag);
+    graphics->AttachControl(new ITextControl(IRECT(540,802,764,830),"v" PLUG_VERSION_STR,
+        text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Far)));
     auto* quality=new FooterChoiceControl(IRECT(780,802,928,830),"Oversampling",90,
         (std::to_string(processor.oversamplingFactor())+"x").c_str(),
         [this](IControl* caller){showOversamplingMenu(caller);});
