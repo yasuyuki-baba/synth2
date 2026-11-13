@@ -144,11 +144,11 @@ void Synth2::layoutEditor(IGraphics* graphics)
             graphics->AttachControl(control,parameterTag+item.parameter);
         }
     }
-    // The final Delay cell is reserved for tempo and actual stereo tap times.
+    // Group tempo and actual stereo tap times directly below Delay Time.
     displayedDelayTiming={};
     for(int line=0;line<3;++line)
     {
-        auto* timing=new ITextControl(IRECT(803,722+line*17,880,739+line*17),"",
+        auto* timing=new ITextControl(IRECT(718,722+line*17,795,739+line*17),"",
             text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near));
         timing->SetTooltip("Playback tempo and current left/right delay times, including Spread. Invalid host tempo uses 120 BPM.");
         graphics->AttachControl(timing,delayTimingTag+line);
