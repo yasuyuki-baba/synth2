@@ -138,6 +138,9 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
     const int rows=(static_cast<int>(panel.controls.size())+panel.columns-1)/panel.columns;
     const int width=(panel.bounds.width-16)/panel.columns;
     const int height=(panel.bounds.height-44)/rows;
+    // Reserve the cell below Time for tempo and actual stereo delay times.
+    if(std::string(panel.title)=="DELAY" && panel.controls[cell].parameter==98)
+        return {panel.bounds.x+8+3*width,panel.bounds.y+38+height,width,height};
     return {panel.bounds.x+8+static_cast<int>(cell%panel.columns)*width,
             panel.bounds.y+38+static_cast<int>(cell/panel.columns)*height,width,height};
 }
