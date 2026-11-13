@@ -64,32 +64,32 @@ inline std::vector<EditorChoice> editorChoices(int index)
 inline const std::vector<EditorPanel>& editorPanels()
 {
     static const std::vector<EditorPanel> panels {
-        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#d9aaa2",{20,124,500,264},6,
+        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#d9aaa2",{20,124,548,312},6,
             {{0,"Wave 1"},{76,"Detune 1"},{45,"FM"},{95,"Sub level"},{96,"Sub wave"},{97,"Sub octave"},
              {1,"Wave 2"},{2,"Pitch 2"},{3,"Fine 2"},{4,"Track"},{6,"Sync"},{7,"Ring"},
              {10,"Mod env"},{71,"Env to"},{12,"Attack"},{13,"Decay"},{11,"Amount"},
              {5,"Mix"},{8,"Width"},{9,"Key shift"},{72,"Fine"},{91,"Phase"}}},
-        {"FILTER","Tone & filter envelope","#ed8b88",{532,124,356,264},4,
+        {"FILTER","Tone & filter envelope","#ed8b88",{580,124,356,272},4,
             {{14,"Type"},{19,"Cutoff"},{20,"Resonance"},{23,"Drive"},{15,"Attack"},{16,"Decay"},
              {17,"Sustain"},{18,"Release"},{21,"Env depth"},{22,"Key track"},{24,"Velocity"}}},
-        {"AMPLIFIER","Level & amplitude envelope","#d9aaa2",{900,124,360,264},4,
+        {"AMPLIFIER","Level & amplitude envelope","#d9aaa2",{580,404,356,200},4,
             {{25,"Attack"},{26,"Decay"},{27,"Sustain"},{28,"Release"},{29,"Level"},{30,"Velocity"}}},
-        {"LFO 1","Independent modulation","#d9aaa2",{20,396,244,208},3,
+        {"LFO 1","Independent modulation","#d9aaa2",{20,444,268,160},3,
             {{57,"Enabled"},{42,"Wave"},{41,"To"},{43,"Rate"},{44,"Amount"},{67,"Tempo"},{68,"Key sync"}}},
-        {"LFO 2","Independent modulation","#d9aaa2",{276,396,244,208},3,
+        {"LFO 2","Independent modulation","#d9aaa2",{300,444,268,160},3,
             {{58,"Enabled"},{47,"Wave"},{46,"To"},{48,"Rate"},{49,"Amount"},{69,"Tempo"},{70,"Key sync"}}},
-        {"VOICE","Play mode, glide & Unison","#d9aaa2",{532,396,356,208},4,
+        {"VOICE","Play mode, glide & Unison","#d9aaa2",{948,124,312,272},4,
             {{38,"Mode"},{39,"Glide"},{74,"Auto glide"},{40,"Bend range"},{94,"Polyphony"},
              {73,"Unison"},{93,"Voices"},{75,"Detune"},{84,"Spread"},{85,"Pitch"},{92,"Phase"}}},
-        {"ARPEGGIATOR","Tempo-based note motion","#d9aaa2",{900,396,360,208},3,
+        {"ARPEGGIATOR","Tempo-based note motion","#d9aaa2",{948,404,312,200},3,
             {{59,"Enabled"},{31,"Pattern"},{32,"Range"},{33,"Rate"},{34,"Gate"}}},
-        {"EFFECT","Drive & character","#d9aaa2",{20,612,244,178},3,
+        {"EFFECT","Drive & character","#d9aaa2",{20,612,268,178},3,
             {{77,"Enabled"},{78,"Type"},{81,"Output"},{79,"Control 1"},{80,"Control 2"}}},
-        {"CHORUS","Width & movement","#d9aaa2",{276,612,244,178},4,
+        {"CHORUS","Width & movement","#d9aaa2",{300,612,268,178},4,
             {{66,"Enabled"},{64,"Voices"},{52,"Time"},{53,"Depth"},{54,"Rate"},{55,"Feedback"},{56,"Level"}}},
-        {"DELAY","Space & repeats","#d9aaa2",{532,612,356,178},4,
+        {"DELAY","Space & repeats","#d9aaa2",{580,612,356,178},4,
             {{65,"Enabled"},{82,"Type"},{35,"Time"},{36,"Feedback"},{37,"Mix"},{83,"Spread"},{98,"Tone"}}},
-        {"EQ / PAN","Final tone & stereo placement","#d9aaa2",{900,612,360,178},3,
+        {"EQ / PAN","Final tone & stereo placement","#d9aaa2",{948,612,312,178},3,
             {{61,"Frequency"},{62,"Level"},{63,"Q"},{60,"Tone"},{90,"Pan"}}}
     };
     return panels;
@@ -109,18 +109,25 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
     if (std::string(panel.title)=="AMPLIFIER")
     {
         const int width=(panel.bounds.width-16)/(cell<4 ? 4 : 2);
+        const int height=(panel.bounds.height-44)/2;
         return {panel.bounds.x+8+static_cast<int>(cell<4 ? cell : cell-4)*width,
-                panel.bounds.y+(cell<4 ? 38 : 154),width,100};
+                panel.bounds.y+38+(cell<4 ? 0 : height),width,height};
     }
     if (std::string(panel.title)=="VOICE")
     {
         // Play mode/glide on the left; all Unison controls on the right.
         const int x=panel.bounds.x+8,y=panel.bounds.y+38;
-        const int width=(panel.bounds.width-16)/4,height=(panel.bounds.height-44)/3;
-        if(cell==0)return {x,y,width*2,height};
-        const int column=cell<5 ? static_cast<int>(cell-1)%2 : 2+static_cast<int>(cell-5)%2;
-        const int row=cell<5 ? 1+static_cast<int>(cell-1)/2 : static_cast<int>(cell-5)/2;
-        return {x+column*width,y+row*height,width,height};
+        const int inner=panel.bounds.width-16,height=(panel.bounds.height-44)/3;
+        // Longer play-setting labels need more width than the Unison labels.
+        const int playWidth=(inner+24)/2;
+        if(cell==0)return {x,y,playWidth,height};
+        if(cell<5)
+        {
+            const int width=playWidth/2,column=static_cast<int>(cell-1)%2;
+            return {x+column*width,y+(1+static_cast<int>(cell-1)/2)*height,width,height};
+        }
+        const int width=(inner-playWidth)/2,column=static_cast<int>(cell-5)%2;
+        return {x+playWidth+column*width,y+static_cast<int>(cell-5)/2*height,width,height};
     }
     if (std::string(panel.title)=="ARPEGGIATOR")
     {
@@ -143,9 +150,9 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
         if (parameter==20) return {x+156,y+38,96,98};
         if (parameter==14) return {x+256,y+38,92,44};
         if (parameter==23) return {x+256,y+82,92,54};
-        if (parameter>=15 && parameter<=18) return {x+8+(parameter-15)*85,y+136,85,58};
+        if (parameter>=15 && parameter<=18) return {x+8+(parameter-15)*85,y+136,85,64};
         const int column=parameter==21 ? 0 : parameter==22 ? 1 : 2;
-        return {x+8+column*113,y+194,113,60};
+        return {x+8+column*113,y+200,113,66};
     }
     if (std::string(panel.title)=="EFFECT")
     {
@@ -159,14 +166,14 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
     {
         const int x=panel.bounds.x+8,y=panel.bounds.y+38;
         const int inner=panel.bounds.width-16;
-        if (cell==0 || cell==5 || cell==6)
+        if(cell<3)
         {
-            const int column=cell==0 ? 0 : static_cast<int>(cell)-4;
-            return {x+column*(inner/3),y,inner/3,44};
+            const int enabledWidth=60,choiceWidth=(inner-enabledWidth)/2;
+            return {x+(cell==0 ? 0 : enabledWidth+static_cast<int>(cell-1)*choiceWidth),
+                    y,cell==0 ? enabledWidth : choiceWidth,48};
         }
-        const bool knob=cell==3 || cell==4;
-        const int column=knob ? static_cast<int>(cell)-3 : static_cast<int>(cell)-1;
-        return {x+column*(inner/2),y+(knob ? 88 : 44),inner/2,knob ? 74 : 44};
+        const int width=inner/4;
+        return {x+static_cast<int>(cell-3)*width,y+48,width,panel.bounds.height-92};
     }
     if(std::string(panel.title)=="CHORUS" && cell>=4)
     {
@@ -191,10 +198,10 @@ inline std::vector<EditorBounds> editorPanelDividers(const EditorPanel& panel)
         return {{x+8+3*width,y+40,1,height-4},{x+8+3*width,y+40+height,1,height-4}};
     }
     if(std::string(panel.title)=="VOICE")
-        return {{x+panel.bounds.width/2,y+38,1,panel.bounds.height-46}};
+        return {{x+8+(panel.bounds.width+8)/2,y+38,1,panel.bounds.height-46}};
     if(std::string(panel.title)=="AMPLIFIER")
-        return {{x+12,y+144,panel.bounds.width-24,1}};
+        return {{x+12,y+38+(panel.bounds.height-44)/2-6,panel.bounds.width-24,1}};
     return {};
 }
-inline constexpr EditorBounds editorDelayTimingBounds {718,722,77,51};
+inline constexpr EditorBounds editorDelayTimingBounds {766,722,77,51};
 }
