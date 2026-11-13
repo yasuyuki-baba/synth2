@@ -30,6 +30,13 @@ target_compile_features(Synth2Vst3PatchTest PRIVATE cxx_std_20)
 target_compile_definitions(Synth2Vst3PatchTest PRIVATE NO_IGRAPHICS IPLUG_EDITOR=0 _USE_MATH_DEFINES)
 target_precompile_headers(Synth2Vst3PatchTest PRIVATE
     "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/HeadlessEditor.h>")
+# Only the Synth2/test translation units need the editor type declarations.
+# Vendor sources manage their own Windows Unicode/UTF-8 include ordering.
+get_target_property(vst3_sources iPlug2::VST3 INTERFACE_SOURCES)
+get_target_property(iplug_sources iPlug2::IPlug INTERFACE_SOURCES)
+set_source_files_properties(${vst3_sources} ${iplug_sources}
+    "${VST3_SDK_DIR}/public.sdk/source/vst/hosting/parameterchanges.cpp"
+    PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 target_include_directories(Synth2Vst3PatchTest PRIVATE "${SYNTH2_ROOT}/projects/Synth2"
     "${CMAKE_CURRENT_BINARY_DIR}/core/generated/version" "${IPLUG2_DIR}/IGraphics")
 target_link_libraries(Synth2Vst3PatchTest PRIVATE Synth2Core iPlug2::VST3)
