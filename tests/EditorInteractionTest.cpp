@@ -258,3 +258,31 @@ TEST(EditorInteraction, DelayNotesPreserveSourceWordsAndFractionalRecall)
     EXPECT_EQ(restored.parameter(35).minimum,0);
     EXPECT_EQ(restored.parameter(35).maximum,127);
 }
+
+TEST(EditorResize, ExplicitScaleSurvivesTheOldAuParentUntilActualGeometryChanges)
+{
+    const EditorResizeSize oldParent{1280,840},chosen{1600,1050};
+    // The request already resized the editor. The host has not acknowledged it.
+    EXPECT_FALSE(editorObservedResize(oldParent,oldParent,chosen,chosen));
+    EXPECT_FALSE(editorObservedResize(oldParent,oldParent,{640,420},{640,420}));
+    const auto acknowledged=editorObservedResize(chosen,oldParent,chosen,chosen);
+    ASSERT_TRUE(acknowledged);EXPECT_EQ(*acknowledged,chosen);
+    EXPECT_FLOAT_EQ(*editorResizeScale(acknowledged->width,acknowledged->height,1,false,1.25f),1.25f);
+    EXPECT_FALSE(editorObservedResize(chosen,chosen,chosen,chosen));
+    // A later frame drag still wins, including a one-pixel height reduction.
+    const auto dragged=editorObservedResize({1600,1049},chosen,chosen,chosen);
+    ASSERT_TRUE(dragged);EXPECT_EQ(dragged->height,1049);
+    EXPECT_LT(*editorResizeScale(dragged->width,dragged->height,1,false,1.25f),1.25f);
+}
+
+TEST(EditorResize, DirectAuViewResizeDoesNotBounceBackToTheUnchangedContainer)
+{
+    const EditorResizeSize parent{1280,840},hostView{900,600},fitted{900,590};
+    const auto target=editorObservedResize(parent,parent,hostView,parent);
+    ASSERT_TRUE(target);EXPECT_EQ(*target,hostView);
+    // Fitting the child does not turn its unchanged container into a new event.
+    EXPECT_FALSE(editorObservedResize(parent,parent,fitted,fitted));
+    EXPECT_FALSE(editorObservedResize({0,0},parent,hostView,parent));
+    const auto constrained=editorObservedResize({1200,800},parent,{1600,1050},{1600,1050});
+    ASSERT_TRUE(constrained);EXPECT_EQ(constrained->width,1200);
+}
