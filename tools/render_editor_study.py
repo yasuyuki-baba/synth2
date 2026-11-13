@@ -56,6 +56,8 @@ def render(model):
         box(x,y,w,h,a["filterPanel"] if section["title"]=="FILTER" else a["panel"],3,a["border"])
         text(x+12,y+22,section["title"],t["heading"],tone,weight="bold")
         nodes.append(f'<path d="M{x+12},{y+30} H{x+w-10}" stroke="{a["border"]}" stroke-width=".5"/>')
+        for dx,dy,dw,dh in section["dividers"]:
+            nodes.append(f'<rect x="{dx}" y="{dy}" width="{dw}" height="{dh}" fill="{a["border"]}"/>')
         for control in section["controls"]:
             x,y,w,h = control["bounds"]
             index = control["parameter"]
@@ -89,6 +91,9 @@ def render(model):
                 nodes.append(f'<path d="M{x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f}" stroke="{a["pointer"]}" stroke-width="1.8"/>')
                 readout = meta["unitDisplay"][max(0,min(127,int(value+.5)))] if meta["unitDisplay"] else f"{value:g}"
                 text(cx,y+29+diameter,readout,t["value"],a["muted"],"middle")
+    x,y,w,h = model["delayTimingBounds"]
+    for line,label in enumerate(("-- BPM","L -- ms","R -- ms")):
+        text(x,y+12+line*17,label,t["auxiliary"],a["muted"])
     text(20,818,"No sounds yet. Use Add sounds...",11,a["muted"])
     text(1090,818,"Click a value to type  /  Drag corner to scale",10,a["muted"],"end")
     box(1100,802,160,28,a["control"],4,a["accent"])

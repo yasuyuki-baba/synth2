@@ -146,9 +146,11 @@ void Synth2::layoutEditor(IGraphics* graphics)
     }
     // Group tempo and actual stereo tap times directly below Delay Time.
     displayedDelayTiming={};
+    const auto timingBounds=synth2::editor::editorDelayTimingBounds;
     for(int line=0;line<3;++line)
     {
-        auto* timing=new ITextControl(IRECT(718,722+line*17,795,739+line*17),"",
+        auto* timing=new ITextControl(IRECT(timingBounds.x,timingBounds.y+line*17,
+            timingBounds.x+timingBounds.width,timingBounds.y+(line+1)*17),"",
             text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near));
         timing->SetTooltip("Playback tempo and current left/right delay times, including Spread. Invalid host tempo uses 120 BPM.");
         graphics->AttachControl(timing,delayTimingTag+line);

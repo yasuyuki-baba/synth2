@@ -38,7 +38,14 @@ int main()
         if (!firstPanel) std::cout << ','; firstPanel=false;
         std::cout << "{\"title\":" << std::quoted(panel.title) << ",\"description\":" << std::quoted(panel.description)
                   << ",\"accent\":" << std::quoted(panel.accent) << ",\"bounds\":[" << panel.bounds.x << ','
-                  << panel.bounds.y << ',' << panel.bounds.width << ',' << panel.bounds.height << "],\"controls\":[";
+                  << panel.bounds.y << ',' << panel.bounds.width << ',' << panel.bounds.height << "],\"dividers\":[";
+        bool firstDivider=true;
+        for(const auto& b:synth2::editor::editorPanelDividers(panel))
+        {
+            if(!firstDivider)std::cout << ',';firstDivider=false;
+            std::cout << '[' << b.x << ',' << b.y << ',' << b.width << ',' << b.height << ']';
+        }
+        std::cout << "],\"controls\":[";
         bool first=true;
         for (std::size_t cell=0;cell<panel.controls.size();++cell)
         {
@@ -52,7 +59,9 @@ int main()
         }
         std::cout << "]}";
     }
-    std::cout << "],\"parameters\":[";
+    const auto timing=synth2::editor::editorDelayTimingBounds;
+    std::cout << "],\"delayTimingBounds\":[" << timing.x << ',' << timing.y << ','
+              << timing.width << ',' << timing.height << "],\"parameters\":[";
     for (int index=0;index<128;++index)
     {
         if (index) std::cout << ',';

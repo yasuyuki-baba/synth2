@@ -60,6 +60,20 @@ TEST(EditorLayout, ControlsFitWithoutCollidingWithPanelsOrTheBrowserAndKeyboard)
     {
         const auto& panel=panels[p]; SCOPED_TRACE(panel.title);
         ASSERT_FALSE(panel.controls.empty()); ASSERT_GT(panel.columns,0);
+        if(std::string(panel.title)=="DELAY")
+        {
+            EXPECT_GE(editorDelayTimingBounds.x,panel.bounds.x+8);
+            EXPECT_GE(editorDelayTimingBounds.y,panel.bounds.y+38);
+            EXPECT_LE(editorDelayTimingBounds.x+editorDelayTimingBounds.width,panel.bounds.x+panel.bounds.width-8);
+            EXPECT_LE(editorDelayTimingBounds.y+editorDelayTimingBounds.height,panel.bounds.y+panel.bounds.height-6);
+        }
+        for(const auto& divider:editorPanelDividers(panel))
+        {
+            EXPECT_GE(divider.width,1); EXPECT_GE(divider.height,1);
+            EXPECT_GE(divider.x,panel.bounds.x+8); EXPECT_GE(divider.y,panel.bounds.y+38);
+            EXPECT_LE(divider.x+divider.width,panel.bounds.x+panel.bounds.width-8);
+            EXPECT_LE(divider.y+divider.height,panel.bounds.y+panel.bounds.height-6);
+        }
         EXPECT_GE(panel.bounds.x,20); EXPECT_GE(panel.bounds.y,124);
         EXPECT_LE(panel.bounds.x+panel.bounds.width,1260); EXPECT_LE(panel.bounds.y+panel.bounds.height,790);
         for (std::size_t next=p+1;next<panels.size();++next) EXPECT_FALSE(overlaps(panel.bounds,panels[next].bounds));
@@ -67,6 +81,7 @@ TEST(EditorLayout, ControlsFitWithoutCollidingWithPanelsOrTheBrowserAndKeyboard)
         {
             SCOPED_TRACE(panel.controls[cell].parameter);
             const auto bounds=editorControlBounds(panel,cell);
+            EXPECT_FALSE(overlaps(bounds,editorDelayTimingBounds));
             EXPECT_GE(bounds.width,50); EXPECT_GE(bounds.height,44);
             EXPECT_GE(bounds.x,panel.bounds.x); EXPECT_GE(bounds.y,panel.bounds.y+38);
             EXPECT_LE(bounds.x+bounds.width,panel.bounds.x+panel.bounds.width);

@@ -91,6 +91,8 @@ void SectionControl::Draw(IGraphics& g) {
     const auto heading=IRECT(mRECT.L+12,mRECT.T+8,mRECT.R-10,mRECT.T+26);
     g.DrawText(IText(Typography::heading,color(section.accent),"Synth2UIBold",EAlign::Near),section.title,heading);
     g.DrawLine(color(appearance.border),heading.L,mRECT.T+30,heading.R,mRECT.T+30,nullptr,0.5f);
+    for(const auto& divider:synth2::editor::editorPanelDividers(section))
+        g.FillRect(color(appearance.border),rect(divider));
 }
 
 PanelKnobControl::PanelKnobControl(const IRECT& bounds,int parameter,const char* label,const IVStyle& style)

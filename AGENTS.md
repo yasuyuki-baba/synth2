@@ -38,7 +38,9 @@
   source ranges and recalled bridge values rather than reindexing sparse enums.
   See the [shared native/preview layout](docs/gui/README.md).
 - The GUI should suggest Nord Lead 2 subtly through restrained red accents,
-  warm white legends and black controls. Keep Synth2's own identity and give
+  warm white legends and black controls. Retain the oversized Cutoff and use
+  Synth1's original functional groups and separators as layout references.
+  Keep Synth2's own identity and give
   high-use controls visual priority; keep oversampling as a quiet footer selector
   beside Keyboard; use shared readable type sizes across Synth/MIDI/Library,
   reserving room for labels and values rather than shrinking choice text.
