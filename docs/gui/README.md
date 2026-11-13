@@ -1,9 +1,12 @@
 # Editor behavior and visual contract
 
 Ordinary sound design belongs on one Synth surface with Synth1-inspired functional
-groups. Oscillators, Filter and Amplifier occupy the top; two LFOs, Voice/Unison
-and ARP occupy the middle; effects and EQ/Pan occupy the bottom. MIDI routing uses
-a supplementary view. Serialized metadata and reserved fields stay outside the
+groups. Oscillators occupy the wider left column above the two LFOs. Filter
+and Amplifier share the center column; Voice/Unison and ARP share the right.
+Effects and EQ/Pan occupy the bottom. Allocate panel space by control density
+rather than forcing every column into identical row heights. Ordinary knobs
+retain similar readable sizes; Cutoff remains the dominant larger control.
+MIDI routing uses a supplementary view. Serialized metadata and reserved fields stay outside the
 editor; their host IDs, patch values and state serialization remain supported.
 There is no Advanced tab. Preset browsing and master
 volume remain visible. The supplementary [Library view](patch-library.md) accumulates
@@ -25,8 +28,9 @@ measured ellipsis at a fixed size, with full values in tooltips; Random smooth
 uses the short display name Rnd smooth. Source words and saved controls are unchanged.
 The standard 1280-by-840 view remains supported. Knob label/value bands reserve
 space for the larger text. Panel side padding is 8 units and controls start 38
-units below the panel top; the middle row uses the available space between panels.
-Chorus uses three full-width lower-row columns.
+units below the panel top. Both LFOs use a selector row followed by Rate, Amount,
+Tempo and Key sync, with full-size Rate/Amount knobs. Chorus uses three full-width
+lower-row columns.
 Use Synth1's original functional groupings as a reference while retaining the
 larger Nord Lead 2-inspired Cutoff and its filter emphasis. Oscillator rows group
 OSC1/Sub, OSC2, Mod Env and shared mix/tuning controls. Voice separates play/glide

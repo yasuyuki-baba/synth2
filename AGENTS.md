@@ -40,6 +40,8 @@
 - The GUI should suggest Nord Lead 2 subtly through restrained red accents,
   warm white legends and black controls. Retain the oversized Cutoff and use
   Synth1's original functional groups and separators as layout references.
+  Allocate panel space by control density and keep ordinary knobs similar in size;
+  do not force every column into identical row heights at the expense of spacing.
   Keep Synth2's own identity and give
   high-use controls visual priority; keep oversampling as a quiet footer selector
   beside Keyboard; use shared readable type sizes across Synth/MIDI/Library,
