@@ -45,6 +45,7 @@ private:
     void layoutEditor(iplug::igraphics::IGraphics* graphics);
     void showPage(int page);
     void setKeyboardVisible(bool visible);
+    void sendComputerNote(int note,int velocity);
     void releaseComputerNotes();
     void releaseKeyboardNotes();
     void updateKeyboardInput();

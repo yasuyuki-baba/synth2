@@ -7,7 +7,7 @@
 #include "editor/EditorStyle.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorFonts.h"
-#include "editor/EditorKeyboardControl.h"
+#include "IVKeyboardControl.h"
 #include "editor/EditorKeyboardFocus.h"
 #include "editor/EditorWindowBounds.h"
 #include <algorithm>
@@ -181,7 +181,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
         [this](IControl* caller){showOversamplingMenu(caller);});
     quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
     graphics->AttachControl(quality,oversamplingTag);
-    auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
+    auto* keyboard=new IVKeyboardControl(IRECT(20,844,1260,924),36,84,true,
+        IColor(255,218,215,205),color(appearance.control),accent,color(appearance.border),ink);
     keyboard->SetText(text);
     graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
     graphics->AttachControl(new IVToggleControl(rect(synth2::editor::editorKeyboardToggleBounds),[this](IControl* control) {
@@ -194,9 +195,8 @@ void Synth2::layoutEditor(IGraphics* graphics)
         if(handleLibraryKey(key,up))return true;
         if(!keyboardVisible){releaseComputerNotes();return false;}
         const bool handled=computerKeyboard.key(key.VK,up,key.C || key.A,[this](int note,int velocity) {
-            processor.setEditorNote(note,velocity,synth2::host::EditorNoteSource::computer);
+            sendComputerNote(note,velocity);
         });
-        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->refresh();
         return handled;
     });
     // A supplementary browser keeps sound-design controls on the main surface.
@@ -468,18 +468,25 @@ void Synth2::setKeyboardVisible(bool visible)
         graphics->SetAllControlsDirty();
     }
 }
+void Synth2::sendComputerNote(int note,int velocity)
+{
+    IMidiMsg message;
+    if(velocity>0)message.MakeNoteOnMsg(note,velocity,0);
+    else message.MakeNoteOffMsg(note,0);
+    SendMidiMsgFromUI(message);
+    SendMidiMsgFromDelegate(message);
+}
 void Synth2::releaseComputerNotes()
 {
     computerKeyboard.release([this](int note,int velocity) {
-        processor.setEditorNote(note,velocity,synth2::host::EditorNoteSource::computer);
+        sendComputerNote(note,velocity);
     });
 }
 void Synth2::releaseKeyboardNotes()
 {
     releaseComputerNotes();
-    processor.releaseEditorNotes();
     if(auto* graphics=GetUI())
-        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->releaseMouse();
+        if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<IVKeyboardControl>()->OnMouseUp(0,0,IMouseMod{});
 }
 void Synth2::updateKeyboardInput()
 {
@@ -487,5 +494,4 @@ void Synth2::updateKeyboardInput()
     if(!graphics || !keyboardVisible)return;
     if(!editorKeyboardHasFocus(graphics->GetWindow()))releaseKeyboardNotes();
     else if(graphics->GetControlInTextEntry())releaseComputerNotes();
-    if(auto* control=graphics->GetControlWithTag(keyboardTag))control->As<EditorKeyboardControl>()->refresh();
 }

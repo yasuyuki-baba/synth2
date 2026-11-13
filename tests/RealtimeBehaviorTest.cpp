@@ -169,30 +169,6 @@ TEST(RealtimeBehavior, SaturatedHistoryDrainAndSubsequentEditAvoidHeapActivity)
 }
 
 
-TEST(RealtimeBehavior, EditorNotesAndOverlapWithHostMidiDoNotAllocateOrLoseRelease)
-{
-    using namespace synth2::host;
-    ProcessorBridge processor;processor.prepare(44100,64);
-    std::array<float,64> left{},right{};
-    for(int block=0;block<8;++block) {
-        testheap::Counts counts;bool processed;
-        {
-            testheap::Scope scope(counts);
-            if(block==0)processor.setEditorNote(60,127,EditorNoteSource::computer);
-            if(block==1)processor.setEditorNote(60,80,EditorNoteSource::mouse);
-            if(block==2)processor.enqueueMidi(13,0x91,60,95);
-            if(block==3)processor.setEditorNote(60,0,EditorNoteSource::computer);
-            if(block==4)processor.enqueueMidi(29,0x81,60,0);
-            if(block==5)processor.releaseEditorNotes();
-            processed=processor.process(left.data(),right.data(),64,120);
-        }
-        EXPECT_TRUE(processed);
-        EXPECT_EQ(counts.allocations,0u);EXPECT_EQ(counts.deallocations,0u);
-        EXPECT_EQ(counts.cAllocations,0u);EXPECT_EQ(counts.cDeallocations,0u);
-    }
-    EXPECT_FALSE(processor.editorNotePressed(60));
-}
-
 TEST(RealtimeBehavior, OversamplingAndLiveFactorChangesAvoidHeapActivity)
 {
     synth2::host::ProcessorBridge processor;

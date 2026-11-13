@@ -63,6 +63,57 @@ struct Synth2Vst3PatchTest
         }
         return result;
     }
+    static void checkEditorMidi(const std::string& patch)
+    {
+        // Use the same public queue as IVKeyboardControl, then the real VST3
+        // process callback. No editor-to-core note-ownership path is involved.
+        Host host;
+        Synth2 plugin {iplug::InstanceInfo{}};host.plugin=&plugin;
+        require(plugin.initialize(&host)==Steinberg::kResultOk,"UI MIDI VST3 initialize failed");
+        synth2::host::ProcessorBridge reference;
+        std::string error;
+        require(plugin.processor.loadProgram(patch,0,error),"UI MIDI patch load failed");
+        require(reference.loadProgram(patch,0,error),"Reference MIDI patch load failed");
+        Steinberg::Vst::ProcessSetup setup {};
+        setup.sampleRate=48000;setup.maxSamplesPerBlock=128;setup.symbolicSampleSize=Steinberg::Vst::kSample64;
+        require(plugin.setupProcessing(setup)==Steinberg::kResultOk,"UI MIDI VST3 setup failed");
+        plugin.setActive(true);reference.prepare(48000,128);
+        plugin.activateBus(Steinberg::Vst::kAudio,Steinberg::Vst::kOutput,0,true);
+        plugin.setProcessing(true);
+        std::array<double,128> left{},right{},expectedLeft{},expectedRight{};
+        double* outputs[] {left.data(),right.data()};
+        Steinberg::Vst::AudioBusBuffers bus {};
+        bus.numChannels=2;bus.channelBuffers64=outputs;
+        Steinberg::Vst::ProcessData data {};
+        data.numSamples=128;data.numOutputs=1;data.outputs=&bus;
+        data.symbolicSampleSize=Steinberg::Vst::kSample64;
+        double sounding=0;
+        for(int block=0;block<512;++block)
+        {
+            if(block==0 || block==4 || block==6 || block==8)
+            {
+                iplug::IMidiMsg message;
+                if(block==0 || block==6)message.MakeNoteOnMsg(60,100,0);
+                else message.MakeNoteOffMsg(60,0);
+                plugin.SendMidiMsgFromUI(message);
+                require(reference.enqueueMidi(message.mOffset,message.mStatus,message.mData1,message.mData2),
+                        "Reference MIDI queue rejected a note");
+            }
+            if(block==0) {
+                data.numSamples=0;
+                require(plugin.process(data)==Steinberg::kResultOk,"Zero-frame VST3 callback failed");
+                data.numSamples=128;
+            }
+            require(plugin.process(data)==Steinberg::kResultOk,"VST3 UI MIDI callback failed");
+            require(reference.process(expectedLeft.data(),expectedRight.data(),128,120),"Reference MIDI render failed");
+            require(left==expectedLeft && right==expectedRight,"Framework UI MIDI differs from ordinary MIDI audio");
+            if(block<4)for(int i=0;i<128;++i)sounding+=left[i]*left[i]+right[i]*right[i];
+        }
+        require(sounding>1e-8,"Framework UI MIDI did not produce audio");
+        for(int i=0;i<128;++i)require(left[i]==0 && right[i]==0,"Framework UI note-off did not release the note");
+        plugin.setProcessing(false);plugin.setActive(false);plugin.terminate();
+        std::cout << "Framework UI MIDI: audio matches ordinary MIDI; note release passed\n";
+    }
     static void run()
     {
         Host host;
@@ -129,6 +180,7 @@ struct Synth2Vst3PatchTest
             plugin.syncQualityLatency();plugin.syncQualityLatency();
             require(host.latencyChanges==notifications+(previous!=next),"Unchanged latency requested another restart");
         }
+        checkEditorMidi(patch(100));
         plugin.setActive(false);
         plugin.setComponentHandler(nullptr);plugin.terminate();
     }

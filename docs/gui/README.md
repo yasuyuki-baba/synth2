@@ -89,11 +89,16 @@ base by an octave within MIDI notes 24–96. Held PC keys are released before an
 octave change; key repeat does not retrigger notes or repeatedly change octaves.
 Ctrl/Command/Alt shortcuts remain available. Text entry releases and suspends PC
 notes. Hiding the keyboard, losing editor focus or closing the editor releases
-its UI notes. Mouse and PC ownership are independent, and releasing UI notes does
-not release externally held MIDI notes of the same pitch. External MIDI timing,
-channels and repeated note behavior remain intact when no UI note owns the pitch.
-UI ownership is published atomically and consumed without allocation at audio
-block boundaries; it never enters patch/session sound state.
+PC notes and the mouse key retained by the standard control.
+
+The on-screen keyboard uses iPlug2's `IVKeyboardControl` for drawing, hit testing,
+dragging and velocity. Mouse and PC notes enter the framework's
+`SendMidiMsgFromUI()` queue and reach the same `ProcessMidiMsg()` path as host
+MIDI. PC note messages also update the standard control through
+`SendMidiMsgFromDelegate()`; incoming host MIDI uses the framework's UI delivery.
+There is no separate ownership arbitration for mouse, PC and external notes of
+the same pitch: ordinary MIDI note-on/off ordering applies. Keyboard input is
+transient and never enters patch/session sound state.
 
 Use restrained red accents, warm-white legends and black controls, with subtle
 Nord Lead 2 influence and Synth2's own identity. Prioritize high-use controls,
@@ -129,11 +134,12 @@ with native host parameter registration without depending on ProcessorBridge.
 
 The native adapter is split by responsibility: `Synth2Editor.cpp` coordinates
 layout, page visibility and editor lifetime; `editor/EditorControls` owns drawing
-and control input, including software keyboard mouse ownership; `editor/Synth2LibraryEditor.cpp` owns catalog/menu/dialog actions
+and control input; `editor/Synth2LibraryEditor.cpp` owns catalog/menu/dialog actions
 and host notification after a successful sound transaction. The native keyboard
 focus helper checks the editor view on Windows/macOS; `ComputerKeyboard` owns the
-SDK-independent PC key map and release behavior. Shared native tags and
-appearance helpers keep layout and library updates consistent. Catalog, selection
+SDK-independent PC key map and release behavior. The standard iPlug2 keyboard
+owns mouse interaction; ProcessorBridge receives only MIDI messages. Shared
+native tags and appearance helpers keep layout and library updates consistent. Catalog, selection
 and dialog lifetime remain owned by Synth2; controls borrow them. Both native
 build paths consume the same editor source list.
 

@@ -95,7 +95,8 @@ with a headless editor delegate. It verifies host readback during patch
 notifications, an audible-to-silent patch change followed by a host parameter
 readback/echo, preservation of recalled fractional controls, and one latency
 notification per oversampling change with no repeat notifications for unchanged
-latency. Only window/UI callbacks are omitted. It does not exercise a DAW or GUI interaction.
+latency. It also checks framework UI MIDI queue delivery against the same
+ordinary MIDI sequence, including note release. Only window/UI callbacks are omitted. It does not exercise a DAW or GUI interaction.
 
 After initializing iPlug2, prepare the pinned format SDKs and run:
 
