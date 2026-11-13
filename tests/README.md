@@ -93,8 +93,9 @@ portable core preset remains independent of the submodule.
 The SDK test compiles the production Synth2 wrapper and pinned iPlug2/VST3 sources
 with a headless editor delegate. It verifies host readback during patch
 notifications, an audible-to-silent patch change followed by a host parameter
-readback/echo, and preservation of recalled fractional controls. Only window/UI
-callbacks are omitted. It does not exercise a DAW or GUI interaction.
+readback/echo, preservation of recalled fractional controls, and one latency
+notification per oversampling change with no repeat notifications for unchanged
+latency. Only window/UI callbacks are omitted. It does not exercise a DAW or GUI interaction.
 
 After initializing iPlug2, prepare the pinned format SDKs and run:
 

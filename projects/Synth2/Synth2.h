@@ -35,13 +35,12 @@ private:
     void syncQualityLatency();
     void refreshOversampling();
     void refreshDelayTiming();
-    std::array<std::string,3> displayedDelayTiming;
     void showOversamplingMenu(iplug::igraphics::IControl* caller);
     void requestEditorScale(float scale);
     void refreshEditorScale();
     float editorScale=1.f;
     bool reconcileEditorScale=false;
-    int displayedOversampling=0,reportedLatency=0;
+    int displayedOversampling=0;
     std::unique_ptr<iplug::igraphics::IPopupMenu> qualityMenu;
     void layoutEditor(iplug::igraphics::IGraphics* graphics);
     void showPage(int page);

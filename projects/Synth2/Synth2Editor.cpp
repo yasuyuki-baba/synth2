@@ -148,7 +148,6 @@ void Synth2::layoutEditor(IGraphics* graphics)
         }
     }
     // Group tempo and actual stereo tap times directly below Delay Time.
-    displayedDelayTiming={};
     const auto timingBounds=synth2::editor::editorDelayTimingBounds;
     for(int line=0;line<3;++line)
     {
@@ -286,10 +285,9 @@ void Synth2::refreshDelayTiming()
         std::snprintf(text,sizeof(text),"L %.2f ms",static_cast<double>(timing.leftMilliseconds));labels[1]=text;
         std::snprintf(text,sizeof(text),"R %.2f ms",static_cast<double>(timing.rightMilliseconds));labels[2]=text;
     }
-    for(int line=0;line<3;++line)if(labels[line]!=displayedDelayTiming[line])
+    for(int line=0;line<3;++line)
         if(auto* control=graphics->GetControlWithTag(delayTimingTag+line))
             control->As<ITextControl>()->SetStr(labels[line].c_str());
-    displayedDelayTiming=std::move(labels);
 }
 
 void Synth2::refreshOversampling()
