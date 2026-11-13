@@ -117,18 +117,8 @@ int Synth2::UnserializeState(const IByteChunk& chunk,int start)
 void Synth2::notifyHostOfPatch()
 {
     syncParametersFromProcessor();
-#if defined(VST3_API)
-    // The VST3 controller owns a separate readback store. Publish the entire
-    // patch before the host can query values from an edit notification.
-    IPlugVST3ControllerBase::UpdateParams(this,GetBypassed());
-#endif
-    // Reflect the transaction to the host and editor without invoking
-    // SetParameterValue/OnParamChange for every already-loaded source word.
-    for (int index = 0; index < NParams(); ++index)
-    {
-        BeginInformHostOfParamChange(index);
-        InformHostOfParamChange(index, GetParam(index)->GetNormalized());
-        EndInformHostOfParamChange(index);
-    }
+    // The framework synchronizes format-specific host readback before sending
+    // notifications, without replaying setters into the loaded processor.
+    DirtyParametersFromUI();
     SendCurrentParamValuesFromDelegate();
 }
