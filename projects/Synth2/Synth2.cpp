@@ -57,7 +57,7 @@ void Synth2::OnActivate(bool active)
 void Synth2::syncQualityLatency()
 {
     const int next=processor.latencySamples();
-    if(next!=reportedLatency){reportedLatency=next;SetLatency(next);}
+    if(next!=GetLatency())SetLatency(next);
 }
 void Synth2::OnParamChange(int index)
 {

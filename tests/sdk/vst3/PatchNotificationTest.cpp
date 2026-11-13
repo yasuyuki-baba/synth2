@@ -22,7 +22,7 @@ void require(bool condition,const char* message)
 struct Host final : Steinberg::Vst::IComponentHandler
 {
     Synth2* plugin{};
-    unsigned reads=0,mismatches=0;
+    unsigned reads=0,mismatches=0,latencyChanges=0;
     Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid,void** result) override
     {
         if(Steinberg::FUnknownPrivate::iidEqual(iid,Steinberg::Vst::IComponentHandler::iid) ||
@@ -41,7 +41,11 @@ struct Host final : Steinberg::Vst::IComponentHandler
         return Steinberg::kResultOk;
     }
     Steinberg::tresult PLUGIN_API endEdit(Steinberg::Vst::ParamID) override { return Steinberg::kResultOk; }
-    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32) override { return Steinberg::kResultOk; }
+    Steinberg::tresult PLUGIN_API restartComponent(Steinberg::int32 flags) override
+    {
+        if(flags & Steinberg::Vst::kLatencyChanged)++latencyChanges;
+        return Steinberg::kResultOk;
+    }
 };
 }
 
@@ -110,6 +114,21 @@ struct Synth2Vst3PatchTest
         const auto fractionalBefore=plugin.processor.saveState();
         plugin.notifyHostOfPatch();
         require(plugin.processor.saveState()==fractionalBefore,"Notification rounded fractional recalled values");
+        // Repeated UI ticks must not repeatedly request a latency restart.
+        for(int factor:{4,1})
+        {
+            const int previous=plugin.GetLatency();
+            plugin.processor.setOversamplingFactor(factor);
+            energy(plugin);
+            const int next=plugin.processor.latencySamples();
+            require(factor==1 ? next==0 : next>0,"Oversampling did not reach the requested latency");
+            const auto notifications=host.latencyChanges;
+            plugin.syncQualityLatency();
+            require(plugin.GetLatency()==next,"SDK latency differs from the processor latency");
+            require(host.latencyChanges==notifications+(previous!=next),"Latency change was not published once");
+            plugin.syncQualityLatency();plugin.syncQualityLatency();
+            require(host.latencyChanges==notifications+(previous!=next),"Unchanged latency requested another restart");
+        }
         plugin.setActive(false);
         plugin.setComponentHandler(nullptr);plugin.terminate();
     }
