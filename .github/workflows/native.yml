@@ -58,6 +58,12 @@ jobs:
           -DIGRAPHICS_BACKEND=NANOVG
       - name: Build all selected formats
         run: cmake --build build --config Release --parallel 4
+      - name: Check VST3 patch host synchronization
+        if: matrix.platform != 'macos'
+        run: |
+          cmake -S tests/sdk/vst3 -B build-vst3-test -DCMAKE_BUILD_TYPE=Release "-DPython3_EXECUTABLE=${{ steps.python.outputs.python-path }}"
+          cmake --build build-vst3-test --config Release --parallel 4
+          ctest --test-dir build-vst3-test -C Release --output-on-failure
       - name: Verify Apple Silicon products
         if: matrix.platform == 'macos'
         shell: bash

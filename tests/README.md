@@ -88,6 +88,26 @@ build/parameter-sdk/ParameterSetupTest
 This is an SDK parameter-class check, not native plugin/host acceptance. The
 portable core preset remains independent of the submodule.
 
+## VST3 patch host check
+
+The SDK test compiles the production Synth2 wrapper and pinned iPlug2/VST3 sources
+with a headless editor delegate. It verifies host readback during patch
+notifications, an audible-to-silent patch change followed by a host parameter
+readback/echo, and preservation of recalled fractional controls. Only window/UI
+callbacks are omitted. It does not exercise a DAW or GUI interaction.
+
+After initializing iPlug2, prepare the pinned format SDKs and run:
+
+```sh
+python3 tools/prepare_native_sdks.py --output build/dependencies.json
+cmake -S tests/sdk/vst3 -B build-vst3-test -DCMAKE_BUILD_TYPE=Release
+cmake --build build-vst3-test --config Release --parallel 4
+ctest --test-dir build-vst3-test -C Release --output-on-failure
+```
+
+The existing native CI jobs run this check on Windows and Linux. It is separate
+from the SDK-free portable suite.
+
 ## Callback heap checks
 
 `Synth2RealtimeTests` is a separate executable with thread-local interception of

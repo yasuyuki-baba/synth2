@@ -38,3 +38,5 @@ __pycache__/
 
 # Local native capture process logs
 docs/gui/*.log
+
+/build-vst3-test/

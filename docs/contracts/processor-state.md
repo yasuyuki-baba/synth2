@@ -65,6 +65,12 @@ history. Prepared capacity, zero-frame MIDI and oversized-callback rejection
 follow the process contract above; conditional voice/output retention is defined
 by the [output pipeline](../architecture/output-pipeline.md).
 
+After an internal patch recall, synchronize the native format's host-readable
+parameter state before emitting edit notifications. A host querying a reported
+parameter must receive the loaded value. Publishing the patch must not replay
+SDK parameter setters into the already-loaded processor or round fractional
+recalled controls back through discrete SDK presentation.
+
 ## Verification
 
 The public `ParameterContract` in

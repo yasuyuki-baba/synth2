@@ -29,6 +29,7 @@ public:
     void OnUIClose() override;
 
 private:
+    friend struct Synth2Vst3PatchTest;
     static constexpr int qualityParameter=synth2::host::ProcessorBridge::parameterCount;
     void syncParametersFromProcessor();
     void syncQualityLatency();
