@@ -346,9 +346,10 @@ void SearchControl::OnTextEntryCompletion(const char* text, int value) {
 }
 
 namespace {
-void drawFooterDropdown(IGraphics& g,const IRECT& bounds,const char* title,float labelWidth,const char* value)
+void drawChoiceField(IGraphics& g,const IRECT& bounds,const char* title,float labelWidth,const char* value,
+                     const IColor& labelColor=muted)
 {
-    const IText label{Typography::auxiliary,muted,"Synth2UI"};
+    const IText label{Typography::auxiliary,labelColor,"Synth2UI"};
     g.DrawText(label,title,IRECT(bounds.L,bounds.T,bounds.L+labelWidth-2,bounds.B));
     const auto box=IRECT(bounds.L+labelWidth,bounds.T,bounds.R,bounds.B);
     g.FillRoundRect(panel,box,3.f);
@@ -364,7 +365,7 @@ FooterChoiceControl::FooterChoiceControl(const IRECT& bounds,const char* title,f
     : IControl(bounds),label(title),text(value),labelWidth(width),action(std::move(callback)) {}
 
 void FooterChoiceControl::Draw(IGraphics& g) {
-    drawFooterDropdown(g,mRECT,label.c_str(),labelWidth,text.c_str());
+    drawChoiceField(g,mRECT,label.c_str(),labelWidth,text.c_str());
 }
 
 void FooterChoiceControl::OnMouseDown(float,float,const IMouseMod&) {
@@ -395,7 +396,7 @@ void DisplayScaleControl::setScale(float next) {
 }
 
 void DisplayScaleControl::Draw(IGraphics& g) {
-    drawFooterDropdown(g,mRECT,"Scale",42,text.c_str());
+    drawChoiceField(g,mRECT,"Scale",42,text.c_str(),ink);
 }
 
 void DisplayScaleControl::OnMouseDown(float x,float,const IMouseMod&) {

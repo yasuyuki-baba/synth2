@@ -53,9 +53,12 @@ software keyboard changes the logical height. Platform pixel scaling is accounte
 for separately. Bounds below the minimum scaled canvas
 size cannot contain the full canvas at the supported minimum scale.
 
-The persistent footer orders **Oversampling**, **Scale**, then **Keyboard**.
-Oversampling and Scale share a muted label and a bordered value field with a
-dropdown arrow. Oversampling keeps the current multiplier visible and opens the
+The persistent header places **Scale** below the logo on the left, so it stays
+accessible when an enlarged view extends beyond the screen. The library sound
+count is below the patch display, aligned with its left edge. The footer groups
+**Oversampling** and **Keyboard** on the right, beside the version label.
+Oversampling and Scale use a bordered value field with a dropdown arrow; Scale
+uses a light header label and Oversampling a muted footer label. Oversampling keeps the current multiplier visible and opens the
 existing 1x/2x/4x/8x/16x quality menu on click; it does not accept text entry.
 Quality remains available
 in every view; moving it does not change processing, latency or session recall.

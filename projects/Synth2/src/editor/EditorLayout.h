@@ -204,4 +204,10 @@ inline std::vector<EditorBounds> editorPanelDividers(const EditorPanel& panel)
     return {};
 }
 inline constexpr EditorBounds editorDelayTimingBounds {766,722,77,51};
+// Persistent controls stay outside the Synth/MIDI/Library view groups.
+inline constexpr EditorBounds editorDisplayScaleBounds {20,82,144,28};
+inline constexpr EditorBounds editorLibrarySummaryBounds {250,82,484,30};
+inline constexpr EditorBounds editorVersionBounds {700,802,224,28};
+inline constexpr EditorBounds editorOversamplingBounds {940,802,148,28};
+inline constexpr EditorBounds editorKeyboardToggleBounds {1100,802,160,28};
 }

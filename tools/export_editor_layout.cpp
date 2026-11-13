@@ -1,4 +1,5 @@
 #include "editor/EditorLayout.h"
+#include "BuildVersion.h"
 #include "editor/EditorPages.h"
 #include "editor/EditorAppearance.h"
 #include "editor/EditorTypography.h"
@@ -16,7 +17,20 @@ int main()
 {
     synth2::host::ProcessorBridge processor;
     const auto& a=synth2::editor::editorAppearance();
-    std::cout << "{\"width\":1280,\"height\":920,\"appearance\":{";
+    std::cout << "{\"width\":1280,\"height\":920,\"version\":" << std::quoted(SYNTH2_VERSION_STR)
+              << ",\"chrome\":{";
+    bool firstBounds=true;
+    for(const auto& [name,b]:std::initializer_list<std::pair<const char*,synth2::editor::EditorBounds>>{
+        {"displayScale",synth2::editor::editorDisplayScaleBounds},
+        {"librarySummary",synth2::editor::editorLibrarySummaryBounds},
+        {"version",synth2::editor::editorVersionBounds},
+        {"oversampling",synth2::editor::editorOversamplingBounds},
+        {"keyboardToggle",synth2::editor::editorKeyboardToggleBounds}})
+    {
+        if(!firstBounds)std::cout << ',';firstBounds=false;
+        std::cout << std::quoted(name) << ":[" << b.x << ',' << b.y << ',' << b.width << ',' << b.height << ']';
+    }
+    std::cout << "},\"appearance\":{";
     bool firstColor=true;
     for (const auto& color:std::initializer_list<std::pair<const char*,const char*>>{
         {"background",a.background},{"header",a.header},{"headerEdge",a.headerEdge},{"panel",a.panel},
