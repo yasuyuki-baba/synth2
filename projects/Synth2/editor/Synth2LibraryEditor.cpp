@@ -304,20 +304,6 @@ void Synth2::stepPatch(int direction)
     loadLibraryPatch(matches[next]);
 }
 
-void Synth2::notifyHostOfPatch()
-{
-    syncParametersFromProcessor();
-    // Reflect the transaction to the host and editor without invoking
-    // SetParameterValue/OnParamChange for every already-loaded source word.
-    for (int index = 0; index < NParams(); ++index)
-    {
-        BeginInformHostOfParamChange(index);
-        InformHostOfParamChange(index, GetParam(index)->GetNormalized());
-        EndInformHostOfParamChange(index);
-    }
-    SendCurrentParamValuesFromDelegate();
-}
-
 void Synth2::loadLibraryPatch(std::size_t index)
 {
     if (index >= catalog.patches().size() || libraryJob.valid())

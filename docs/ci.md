@@ -90,3 +90,8 @@ A native compile/package result does not establish plugin scanning, GUI interact
 DAW session compatibility, device behavior or hard real-time guarantees. Those
 remain outside the automated-test inventory; use the separate
 [manual platform guide](validation/manual-platform.md) when that work is requested.
+
+The Windows/Linux native jobs also run the headless VST3 patch-publication check
+from `tests/sdk/vst3`. It exercises the actual wrapper and controller readback,
+including an audio render after a host readback/echo; it does not exercise a DAW
+or GUI. See [the test guide](../tests/README.md#vst3-patch-host-check).
