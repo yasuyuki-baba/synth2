@@ -58,6 +58,11 @@ jobs:
           -DIGRAPHICS_BACKEND=NANOVG
       - name: Build all selected formats
         run: cmake --build build --config Release --parallel 4
+      - name: Check framework VST3 MIDI input
+        run: |
+          cmake -S iPlug2/Tests/IPlugVST3Midi -B build-vst3-midi -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-vst3-midi --config Release --parallel 4
+          ctest --test-dir build-vst3-midi -C Release --output-on-failure
       - name: Check VST3 patch host synchronization
         if: matrix.platform != 'macos'
         run: |

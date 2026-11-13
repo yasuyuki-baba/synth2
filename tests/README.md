@@ -88,6 +88,23 @@ build/parameter-sdk/ParameterSetupTest
 This is an SDK parameter-class check, not native plugin/host acceptance. The
 portable core preset remains independent of the submodule.
 
+## Framework VST3 MIDI input check
+
+The pinned framework includes a headless SDK regression for MIDI input conversion.
+It checks integer velocity/CC/pressure round trips, all 14-bit pitch-bend values,
+exact pitch center, original controller point offsets, multiple points in one
+callback, empty queues and unchanged ordinary-parameter automation. It runs in
+native CI on Windows, macOS and Linux and requires the pinned VST3 SDK.
+
+```sh
+cmake -S iPlug2/Tests/IPlugVST3Midi -B build-vst3-midi -DCMAKE_BUILD_TYPE=Release
+cmake --build build-vst3-midi --config Release --parallel 4
+ctest --test-dir build-vst3-midi -C Release --output-on-failure
+```
+
+These checks exercise the framework input boundary; they do not certify a DAW
+or a third-party format wrapper.
+
 ## VST3 patch host check
 
 The SDK test compiles the production Synth2 wrapper and pinned iPlug2/VST3 sources

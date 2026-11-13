@@ -5,8 +5,8 @@
   },
   "iplug2": {
     "repository": "https://github.com/yasuyuki-baba/iPlug2",
-    "branch": "feature/linux-support-2",
-    "revision": "15297433f27c0a4217b6aa9188b9808f049cb461"
+    "branch": "fix/vst3-midi-input-linux",
+    "revision": "203859f312ee8be4246a117335fc599f9282caad"
   },
   "tinyxml2": {
     "repository": "https://github.com/leethomason/tinyxml2",

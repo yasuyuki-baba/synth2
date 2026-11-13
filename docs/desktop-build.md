@@ -50,8 +50,8 @@ C++11 requirement; C ZIP support is independent of C++ settings.
 
 `iPlug2/` is a Git submodule pinned to the revision in
 [dependencies.lock.json](../dependencies.lock.json). Windows, macOS and Linux all
-use [yasuyuki-baba/iPlug2](https://github.com/yasuyuki-baba/iPlug2/tree/feature/linux-support-2),
-branch `feature/linux-support-2`. This SDK branch is under development; use
+use [yasuyuki-baba/iPlug2](https://github.com/yasuyuki-baba/iPlug2). The development
+branch and exact revision are recorded in the lock file. Use
 the recorded commit rather than its moving tip. Initialize the recorded
 revision from the product repository root:
 

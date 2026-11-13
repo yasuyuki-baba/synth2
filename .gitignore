@@ -40,3 +40,4 @@ __pycache__/
 docs/gui/*.log
 
 /build-vst3-test/
+/build-vst3-midi/
