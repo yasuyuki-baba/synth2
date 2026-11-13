@@ -27,6 +27,14 @@ The standard 1280-by-840 view remains supported. Knob label/value bands reserve
 space for the larger text. Panel side padding is 8 units and controls start 38
 units below the panel top; the middle row uses the available space between panels.
 Chorus uses three full-width lower-row columns.
+Use Synth1's original functional groupings as a reference while retaining the
+larger Nord Lead 2-inspired Cutoff and its filter emphasis. Oscillator rows group
+OSC1/Sub, OSC2, Mod Env and shared mix/tuning controls. Voice separates play/glide
+settings from Unison; Amplifier separates ADSR from level/velocity. EQ keeps
+Frequency, Level and Q together. Muted rose headings and thin internal dividers
+provide hierarchy without reducing label sizes or moving controls off the main
+surface. Native drawing and review studies share divider and delay readout bounds;
+studies use placeholders for live tempo and stereo delay times.
 Native drawing and review tools consume the shared typography policy.
 
 Window-frame resizing scales the complete logical canvas, including text and

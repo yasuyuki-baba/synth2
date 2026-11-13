@@ -64,39 +64,77 @@ inline std::vector<EditorChoice> editorChoices(int index)
 inline const std::vector<EditorPanel>& editorPanels()
 {
     static const std::vector<EditorPanel> panels {
-        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#ded7cc",{20,124,500,264},6,
-            {{0,"Wave 1"},{76,"Detune 1"},{45,"FM"},{1,"Wave 2"},{2,"Pitch 2"},{3,"Fine 2"},
-             {4,"Track"},{6,"Sync"},{7,"Ring"},{5,"Mix"},{8,"Width"},{9,"Key shift"},
-             {10,"Mod env"},{71,"Env to"},{11,"Amount"},{12,"Attack"},{13,"Decay"},{72,"Fine"},
-             {95,"Sub level"},{96,"Sub wave"},{97,"Sub octave"},{91,"Phase"}}},
+        {"OSCILLATORS","OSC1 + OSC2  /  FM, Ring & Sub","#d9aaa2",{20,124,500,264},6,
+            {{0,"Wave 1"},{76,"Detune 1"},{45,"FM"},{95,"Sub level"},{96,"Sub wave"},{97,"Sub octave"},
+             {1,"Wave 2"},{2,"Pitch 2"},{3,"Fine 2"},{4,"Track"},{6,"Sync"},{7,"Ring"},
+             {10,"Mod env"},{71,"Env to"},{12,"Attack"},{13,"Decay"},{11,"Amount"},
+             {5,"Mix"},{8,"Width"},{9,"Key shift"},{72,"Fine"},{91,"Phase"}}},
         {"FILTER","Tone & filter envelope","#ed8b88",{532,124,356,264},4,
             {{14,"Type"},{19,"Cutoff"},{20,"Resonance"},{23,"Drive"},{15,"Attack"},{16,"Decay"},
              {17,"Sustain"},{18,"Release"},{21,"Env depth"},{22,"Key track"},{24,"Velocity"}}},
-        {"AMPLIFIER","Level & amplitude envelope","#ded7cc",{900,124,360,264},4,
+        {"AMPLIFIER","Level & amplitude envelope","#d9aaa2",{900,124,360,264},4,
             {{25,"Attack"},{26,"Decay"},{27,"Sustain"},{28,"Release"},{29,"Level"},{30,"Velocity"}}},
-        {"LFO 1","Independent modulation","#ded7cc",{20,396,244,208},3,
+        {"LFO 1","Independent modulation","#d9aaa2",{20,396,244,208},3,
             {{57,"Enabled"},{42,"Wave"},{41,"To"},{43,"Rate"},{44,"Amount"},{67,"Tempo"},{68,"Key sync"}}},
-        {"LFO 2","Independent modulation","#ded7cc",{276,396,244,208},3,
+        {"LFO 2","Independent modulation","#d9aaa2",{276,396,244,208},3,
             {{58,"Enabled"},{47,"Wave"},{46,"To"},{48,"Rate"},{49,"Amount"},{69,"Tempo"},{70,"Key sync"}}},
-        {"VOICE","Play mode, glide & Unison","#ded7cc",{532,396,356,208},4,
-            {{38,"Mode"},{39,"Glide"},{74,"Auto glide"},{40,"Bend range"},{73,"Unison"},{93,"Voices"},
-             {75,"Detune"},{84,"Spread"},{85,"Pitch"},{92,"Phase"},{94,"Polyphony"}}},
-        {"ARPEGGIATOR","Tempo-based note motion","#ded7cc",{900,396,360,208},3,
+        {"VOICE","Play mode, glide & Unison","#d9aaa2",{532,396,356,208},4,
+            {{38,"Mode"},{39,"Glide"},{74,"Auto glide"},{40,"Bend range"},{94,"Polyphony"},
+             {73,"Unison"},{93,"Voices"},{75,"Detune"},{84,"Spread"},{85,"Pitch"},{92,"Phase"}}},
+        {"ARPEGGIATOR","Tempo-based note motion","#d9aaa2",{900,396,360,208},3,
             {{59,"Enabled"},{31,"Pattern"},{32,"Range"},{33,"Rate"},{34,"Gate"}}},
-        {"EFFECT","Drive & character","#ded7cc",{20,612,244,178},3,
+        {"EFFECT","Drive & character","#d9aaa2",{20,612,244,178},3,
             {{77,"Enabled"},{78,"Type"},{81,"Output"},{79,"Control 1"},{80,"Control 2"}}},
-        {"CHORUS","Width & movement","#ded7cc",{276,612,244,178},4,
+        {"CHORUS","Width & movement","#d9aaa2",{276,612,244,178},4,
             {{66,"Enabled"},{64,"Voices"},{52,"Time"},{53,"Depth"},{54,"Rate"},{55,"Feedback"},{56,"Level"}}},
-        {"DELAY","Space & repeats","#ded7cc",{532,612,356,178},4,
+        {"DELAY","Space & repeats","#d9aaa2",{532,612,356,178},4,
             {{65,"Enabled"},{82,"Type"},{35,"Time"},{36,"Feedback"},{37,"Mix"},{83,"Spread"},{98,"Tone"}}},
-        {"EQ / PAN","Final tone & stereo placement","#ded7cc",{900,612,360,178},3,
-            {{60,"Tone"},{61,"Frequency"},{62,"Level"},{63,"Q"},{90,"Pan"}}}
+        {"EQ / PAN","Final tone & stereo placement","#d9aaa2",{900,612,360,178},3,
+            {{61,"Frequency"},{62,"Level"},{63,"Q"},{60,"Tone"},{90,"Pan"}}}
     };
     return panels;
 }
 
 inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cell)
 {
+    if (std::string(panel.title)=="OSCILLATORS")
+    {
+        // OSC1/Sub, OSC2, Mod Env, then shared mix/tuning controls.
+        const int row=cell<12 ? static_cast<int>(cell)/6 : cell<17 ? 2 : 3;
+        const int columns=row<2 ? 6 : 5;
+        const int column=static_cast<int>(cell)-(row<2 ? row*6 : row==2 ? 12 : 17);
+        const int width=(panel.bounds.width-16)/columns,height=(panel.bounds.height-44)/4;
+        return {panel.bounds.x+8+column*width,panel.bounds.y+38+row*height,width,height};
+    }
+    if (std::string(panel.title)=="AMPLIFIER")
+    {
+        const int width=(panel.bounds.width-16)/(cell<4 ? 4 : 2);
+        return {panel.bounds.x+8+static_cast<int>(cell<4 ? cell : cell-4)*width,
+                panel.bounds.y+(cell<4 ? 38 : 154),width,100};
+    }
+    if (std::string(panel.title)=="VOICE")
+    {
+        // Play mode/glide on the left; all Unison controls on the right.
+        const int x=panel.bounds.x+8,y=panel.bounds.y+38;
+        const int width=(panel.bounds.width-16)/4,height=(panel.bounds.height-44)/3;
+        if(cell==0)return {x,y,width*2,height};
+        const int column=cell<5 ? static_cast<int>(cell-1)%2 : 2+static_cast<int>(cell-5)%2;
+        const int row=cell<5 ? 1+static_cast<int>(cell-1)/2 : static_cast<int>(cell-5)/2;
+        return {x+column*width,y+row*height,width,height};
+    }
+    if (std::string(panel.title)=="ARPEGGIATOR")
+    {
+        const int x=panel.bounds.x+8,y=panel.bounds.y+38;
+        const int width=(panel.bounds.width-16)/3,height=(panel.bounds.height-44)/2;
+        if(cell==0)return {x,y,width,height};
+        if(cell==1)return {x+width,y,width*2,height};
+        return {x+static_cast<int>(cell-2)*width,y+height,width,height};
+    }
+    if (std::string(panel.title)=="EQ / PAN" && cell>=3)
+    {
+        const int width=(panel.bounds.width-16)/2,height=(panel.bounds.height-44)/2;
+        return {panel.bounds.x+8+static_cast<int>(cell-3)*width,panel.bounds.y+38+height,width,height};
+    }
     if (std::string(panel.title)=="FILTER")
     {
         const int x=panel.bounds.x,y=panel.bounds.y;
@@ -144,4 +182,19 @@ inline EditorBounds editorControlBounds(const EditorPanel& panel,std::size_t cel
     return {panel.bounds.x+8+static_cast<int>(cell%panel.columns)*width,
             panel.bounds.y+38+static_cast<int>(cell/panel.columns)*height,width,height};
 }
+inline std::vector<EditorBounds> editorPanelDividers(const EditorPanel& panel)
+{
+    const int x=panel.bounds.x,y=panel.bounds.y;
+    if(std::string(panel.title)=="OSCILLATORS")
+    {
+        const int width=(panel.bounds.width-16)/6,height=(panel.bounds.height-44)/4;
+        return {{x+8+3*width,y+40,1,height-4},{x+8+3*width,y+40+height,1,height-4}};
+    }
+    if(std::string(panel.title)=="VOICE")
+        return {{x+panel.bounds.width/2,y+38,1,panel.bounds.height-46}};
+    if(std::string(panel.title)=="AMPLIFIER")
+        return {{x+12,y+144,panel.bounds.width-24,1}};
+    return {};
+}
+inline constexpr EditorBounds editorDelayTimingBounds {718,722,77,51};
 }
