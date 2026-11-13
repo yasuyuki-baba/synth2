@@ -20,6 +20,7 @@ if(SYNTH2_BUILD_TOOLS)
     target_link_libraries(Synth2LoadingProbe PRIVATE Synth2Core)
     add_executable(ExportEditorLayout tools/export_editor_layout.cpp)
     target_link_libraries(ExportEditorLayout PRIVATE Synth2Core)
+    target_include_directories(ExportEditorLayout PRIVATE "${SYNTH2_VERSION_DIR}")
     add_executable(Synth2HostBenchmark tools/synth2_host_benchmark.cpp)
     target_link_libraries(Synth2HostBenchmark PRIVATE Synth2Core)
     list(APPEND synth2_tool_targets Synth2LoadingProbe ExportEditorLayout

@@ -31,18 +31,26 @@ def render(model):
         values[int(index)] = value
     text(20, 53, "SYNTH", 29, weight="bold")
     text(126, 53, "2", 29, weight="bold")
-    text(20, 74, "VIRTUAL ANALOG SYNTHESIZER", 9)
-    box(240, 20, 638, 46, a["display"])
-    text(256, 48, "Init", t["patchTitle"],a["displayText"],font="monospace")
-    text(858, 48, "⌄", 14, a["muted"], "middle")
+    text(20, 74, "VIRTUAL ANALOG SYNTHESIZER", 11)
+    box(240, 16, 638, 62, a["display"])
+    text(250, 54, "Init", t["patchTitle"],a["displayText"],font="monospace")
+    text(858, 54, "⌄", 14, a["muted"], "middle")
     for x, label in [(890, "‹"), (944, "›")]:
-        box(x, 20, 44, 46)
-        text(x+22, 49, label, 21, align="middle")
+        box(x, 16, 44, 62)
+        text(x+22, 54, label, 21, align="middle")
     text(1020, 30, "MASTER VOLUME", 10)
     text(1260, 30, "100%", 10, align="end")
     box(1020, 46, 240, 4, a["text"], 2, "none")
     nodes.append(f'<circle cx="1253" cy="48" r="6" fill="{a["text"]}"/>')
-    text(20, 102, "0 sounds in library", 12)
+    def dropdown(bounds,label,label_width,value,label_color=None):
+        x,y,w,h=bounds
+        text(x,y+h/2+4,label,t["auxiliary"],label_color)
+        box(x+label_width,y,w-label_width,h,a["panel"])
+        text(x+label_width+(w-label_width-22)/2,y+h/2+4,value,t["auxiliary"],align="middle")
+        nodes.append(f'<path d="M{x+w-15},{y+h/2-2} h8 l-4,5 z" fill="{a["muted"]}"/>')
+    dropdown(model["chrome"]["displayScale"],"Scale",42,"100%")
+    x,y,w,h=model["chrome"]["librarySummary"]
+    text(x,y+h/2+5,"0 sounds in library",t["label"])
     for x, w, label in [(756,64,"Add..."),(826,52,"Save")]:
         box(x, 82, w, 30)
         text(x+w/2, 101, label, 11, align="middle")
@@ -95,7 +103,9 @@ def render(model):
     for line,label in enumerate(("-- BPM","L -- ms","R -- ms")):
         text(x,y+12+line*17,label,t["auxiliary"],a["muted"])
     text(20,818,"No sounds yet. Use Add sounds...",11,a["muted"])
-    text(1090,818,"Click a value to type  /  Drag corner to scale",10,a["muted"],"end")
+    x,y,w,h=model["chrome"]["version"]
+    text(x+w,y+h/2+4,"v"+model["version"],t["auxiliary"],a["muted"],"end")
+    dropdown(model["chrome"]["oversampling"],"Oversampling",90,"1x",a["muted"])
     box(1100,802,160,28,a["control"],4,a["accent"])
     text(1180,820,"Keyboard",12,a["text"],"middle")
     text(20,914,"Play: A W S E D F T G Y H U J K O L   /   Octave: Z down, X up",11,a["muted"])

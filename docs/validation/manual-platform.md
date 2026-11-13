@@ -121,8 +121,10 @@ In a DAW, resize the host-owned view and check the same uniform fit without
 resize-request loops. Repeat on Windows, macOS and Linux and on displays with
 different platform pixel scales.
 
-In Synth, MIDI and Library, verify the footer order Oversampling / Scale /
-Keyboard. Select 75/100/125% from the Scale arrow, then click the numeric field
+In Synth, MIDI and Library, verify Scale stays below the header logo, the sound
+count aligns below the patch display, and the footer orders Oversampling /
+Keyboard. Enlarge the view beyond the screen and reduce it through the header
+Scale control. Select 75/100/125% from its arrow, then click the numeric field
 and enter `112.5%`. Enter commits; Escape and invalid inputs retain the scale.
 Check the actual readout after ordinary resizing, maximization and Keyboard
 open/close. Requests exceeding the work area or rejected by a plugin host must

@@ -106,7 +106,10 @@ void Synth2::layoutEditor(IGraphics* graphics)
     graphics->AttachControl(new ITextControl(IRECT(20,16,214,65),"SYNTH2",text.WithFont("Synth2UIBold").WithSize(29.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new ITextControl(IRECT(20,62,214,78),"VIRTUAL ANALOG SYNTHESIZER",text.WithSize(11.f).WithAlign(EAlign::Near)));
     graphics->AttachControl(new IVSliderControl(IRECT(1020,16,1260,72),128,"Master volume",style,true,EDirection::Horizontal));
-    graphics->AttachControl(new ITextControl(IRECT(20,82,592,112),"",text.WithSize(Typography::label).WithAlign(EAlign::Near)),bankTag);
+    graphics->AttachControl(new DisplayScaleControl(rect(synth2::editor::editorDisplayScaleBounds),
+        [this](float scale){requestEditorScale(scale);}),displayScaleTag);
+    refreshEditorScale();
+    graphics->AttachControl(new ITextControl(rect(synth2::editor::editorLibrarySummaryBounds),"",text.WithSize(Typography::label).WithAlign(EAlign::Near)),bankTag);
     graphics->AttachControl(new ActionButtonControl(IRECT(756,82,820,112),[this](IControl* caller) { showImportMenu(caller); },"Add...",style));
     graphics->AttachControl(new ActionButtonControl(IRECT(826,82,878,112),[this](IControl* caller){showSaveMenu(caller);},"Save",style));
     graphics->AttachControl(new PresetDisplayControl(IRECT(240,16,878,78),[this](IControl* caller) {
@@ -172,20 +175,17 @@ void Synth2::layoutEditor(IGraphics* graphics)
         }
     }
     graphics->AttachControl(new ITextControl(IRECT(20,802,530,826),"",text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Near)),statusTag);
-    graphics->AttachControl(new ITextControl(IRECT(540,802,764,830),"v" PLUG_VERSION_STR,
+    graphics->AttachControl(new ITextControl(rect(synth2::editor::editorVersionBounds),"v" PLUG_VERSION_STR,
         text.WithFGColor(muted).WithSize(Typography::auxiliary).WithAlign(EAlign::Far)));
-    auto* quality=new FooterChoiceControl(IRECT(780,802,928,830),"Oversampling",90,
+    auto* quality=new FooterChoiceControl(rect(synth2::editor::editorOversamplingBounds),"Oversampling",90,
         (std::to_string(processor.oversamplingFactor())+"x").c_str(),
         [this](IControl* caller){showOversamplingMenu(caller);});
     quality->SetTooltip("Click to choose oversampling. Higher factors reduce aliasing and use more CPU. Saved with the project.");
     graphics->AttachControl(quality,oversamplingTag);
-    graphics->AttachControl(new DisplayScaleControl(IRECT(944,802,1088,830),
-        [this](float scale){requestEditorScale(scale);}),displayScaleTag);
-    refreshEditorScale();
     auto* keyboard=new EditorKeyboardControl(IRECT(20,844,1260,924),processor);
     keyboard->SetText(text);
     graphics->AttachControl(keyboard,keyboardTag)->Hide(!keyboardVisible);
-    graphics->AttachControl(new IVToggleControl(IRECT(1100,802,1260,830),[this](IControl* control) {
+    graphics->AttachControl(new IVToggleControl(rect(synth2::editor::editorKeyboardToggleBounds),[this](IControl* control) {
         setKeyboardVisible(control->GetValue()>.5);
     },"",style,"Keyboard","Keyboard"),keyboardToggleTag);
     graphics->SetKeyHandlerFunc([this,graphics](const IKeyPress& key,bool up) {
