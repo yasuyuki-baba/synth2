@@ -176,6 +176,8 @@ Display-scale tests cover percentage parsing/formatting, invalid/out-of-range
 edits, preset choices and readouts from accepted bounds independently of OS DPI.
 Repeated keyboard-size requests retain their scale across SDK pixel rounding;
 actual one-pixel parent reductions still recompute the fit.
+Resize-observation tests retain explicit scale edits while parent acknowledgement
+is delayed and handle direct view changes without bouncing to an unchanged container.
 Native window notifications, dragging and scaled hit testing require manual checks.
 
 `ModulationInputs.RingRetainsPhysicalFmSlewAndResumesWhenDisabled` checks Ring

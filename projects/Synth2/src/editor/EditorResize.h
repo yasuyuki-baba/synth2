@@ -7,6 +7,23 @@ namespace synth2::editor
 {
 inline constexpr float editorMinimumScale=.5f,editorMaximumScale=4.f;
 
+struct EditorResizeSize
+{
+    int width {},height {};
+    bool operator==(const EditorResizeSize&) const = default;
+};
+
+// Only observed geometry changes are authoritative. A scale request can resize
+// the child before an AU host acknowledges it by changing the parent.
+inline std::optional<EditorResizeSize> editorObservedResize(EditorResizeSize parent,
+    EditorResizeSize previousParent,EditorResizeSize view,EditorResizeSize rendered)
+{
+    if(parent.width<=0 || parent.height<=0)return {};
+    if(parent!=previousParent)return parent;
+    if(view.width>0 && view.height>0 && view!=rendered)return view;
+    return {};
+}
+
 // Parent sizes are platform pixels; every platform fits the complete logical
 // canvas within both bounds without requesting another parent-window resize.
 inline std::optional<float> editorResizeScale(int width,int height,float platformScale,

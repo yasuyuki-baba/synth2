@@ -48,6 +48,13 @@ void Synth2::requestEditorScale(float scale)
             graphics->GetPlatformWindowScale(),keyboardVisible))scale=std::min(scale,*fit);
 #endif
     releaseComputerNotes();
+#if defined(__APPLE__) && defined(AU_API)
+    // Remember the pre-request parent even before the first UI timer tick.
+    // Its unchanged size must not undo the explicitly resized editor view.
+    if(const auto bounds=editorWindowBounds(graphics->GetWindow(),false)) {
+        observedParentWidth=bounds->width;observedParentHeight=bounds->height;
+    }
+#endif
     reconcileEditorScale=true;
 #if defined(APP_API)
     // Request an exact client size, including when the old parent contains
@@ -310,14 +317,14 @@ void Synth2::showOversamplingMenu(IControl* caller)
 }
 void Synth2::OnIdle()
 {
-    bool checkParentSize=reconcileEditorScale;
+    const bool requested=reconcileEditorScale;
+    bool checkParentSize=requested;
 #if defined(__APPLE__) && defined(AU_API)
     // AU hosts can resize the Cocoa parent without an SDK resize callback.
     // Read its geometry on the existing UI timer; unchanged bounds do no work.
     checkParentSize=true;
 #endif
     if(checkParentSize && GetUI()) {
-        const bool requested=reconcileEditorScale;
         reconcileEditorScale=false;
 #if defined(APP_API)
         constexpr bool standalone=true;
@@ -325,22 +332,21 @@ void Synth2::OnIdle()
         constexpr bool standalone=false;
 #endif
         if(const auto bounds=editorWindowBounds(GetUI()->GetWindow(),standalone)) {
-            const bool parentChanged=bounds->width!=observedParentWidth || bounds->height!=observedParentHeight;
 #if defined(__APPLE__) && defined(AU_API)
             // Some AU hosts resize the returned editor view directly while its
             // container stays fixed. Do not mistake our own fitted view for a
             // new parent resize on the following tick.
             const auto* graphics=GetUI();
             const auto dpi=graphics->GetPlatformWindowScale();
-            const bool viewChanged=bounds->viewWidth!=static_cast<int>(graphics->WindowWidth()*dpi) ||
-                bounds->viewHeight!=static_cast<int>(graphics->WindowHeight()*dpi);
-            if(requested || parentChanged)
-                OnParentWindowResize(bounds->width,bounds->height);
-            else if(viewChanged)
-                OnParentWindowResize(bounds->viewWidth,bounds->viewHeight);
+            const auto target=synth2::editor::editorObservedResize(
+                {bounds->width,bounds->height},{observedParentWidth,observedParentHeight},
+                {bounds->viewWidth,bounds->viewHeight},
+                {static_cast<int>(graphics->WindowWidth()*dpi),static_cast<int>(graphics->WindowHeight()*dpi)});
+            if(target)OnParentWindowResize(target->width,target->height);
             observedParentWidth=bounds->width;observedParentHeight=bounds->height;
 #else
-            if(requested || parentChanged)OnParentWindowResize(bounds->width,bounds->height);
+            if(requested || bounds->width!=observedParentWidth || bounds->height!=observedParentHeight)
+                OnParentWindowResize(bounds->width,bounds->height);
 #endif
         }
     }
