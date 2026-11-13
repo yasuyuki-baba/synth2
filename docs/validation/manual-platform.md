@@ -89,7 +89,11 @@ Enter. Move with arrows, pages and Home/End: the candidate outline should move
 without changing the sounding title. Enter should load it; Escape should return
 to the sounding entry if still in the results. Check empty results, invalid
 sources, catalog refresh, mouse selection, software-keyboard performance, and
-ordinary text editing/host shortcuts while the editor is unfocused.
+ordinary text editing/host shortcuts while the editor is unfocused. On the
+standard keyboard, click white/black keys at different heights and drag between
+keys; verify note release on mouse-up. Check PC note release on hiding, focus
+loss and editor close. Mouse, PC and external notes share ordinary MIDI ordering
+rather than independent ownership of the same pitch.
 
 Scroll the Library with wheel/trackpad input and drag the scrollbar thumb from
 top to bottom; click the track to jump. Check a short/empty list, fractional

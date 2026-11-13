@@ -58,6 +58,10 @@
   features merely to match a reference panel. Bundle the editor fonts rather than
   depending on installed system font families; see the
   [editor contract](docs/gui/README.md).
+- Use iPlug2's standard keyboard control and MIDI delivery for software-keyboard
+  audition. Keep mouse hit testing, drag/velocity behavior and MIDI queueing in
+  the framework; do not add source-specific note ownership to ProcessorBridge.
+  The PC key map may retain editor focus, text-entry and library shortcut rules.
 - Imported sounds accumulate in a user library. Keep tags/favorites separate
   from original `.sy1` files and DAW sound state; combine bank, tag and keyword
   filters without loading a sound. Infer tags on the catalog worker from names and
