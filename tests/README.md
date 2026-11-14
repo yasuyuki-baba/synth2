@@ -110,6 +110,14 @@ ctest --test-dir build-vst3-test -C Release --output-on-failure
 The existing native CI jobs run this check on Windows and Linux. It is separate
 from the SDK-free portable suite.
 
+## Built-plugin audio smoke
+
+The existing native CI matrix also loads the built VST3/CLAP modules and macOS
+AUv2 component through public state/MIDI/audio APIs. Authored tone/mute patches
+must change the rendered output at 1x/8x, release notes and produce finite samples.
+See [native smoke instructions and limits](native/README.md). This optional test
+is independent of the portable suite and opens no editor or audio device.
+
 ## Callback heap checks
 
 `Synth2RealtimeTests` is a separate executable with thread-local interception of

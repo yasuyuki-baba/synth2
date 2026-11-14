@@ -22,6 +22,14 @@ deployment target. Windows/macOS use their NanoVG default renderers (GL2/Metal).
 WIL/WebView2 downloads do not enter configuration. Plugin deployment to system folders stays disabled.
 Native jobs do not configure the portable test target again.
 
+Before packaging, the same jobs run the [built-plugin audio smoke tests](../tests/native/README.md)
+against their actual VST3/CLAP modules and macOS AUv2 component. Public format
+state/MIDI/audio APIs must restore an authored tone/mute/tone sequence and render
+the expected signal or silence at 1x/8x. No GUI or audio device is opened.
+CTest output records RMS/peak; failure diagnostics include its logs. This is
+coarse native audio coverage, separate from DAW acceptance and the VST3
+headless patch-publication regression.
+
 The iPlug2 gitlink and lock entry must match. `prepare_native_sdks.py` also fetches
 locked VST3/CLAP/helper commits and required VST3 submodules without relying on
 upstream download-script branch defaults. It records source identities in
