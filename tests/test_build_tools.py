@@ -33,6 +33,7 @@ class CandidatePackages(unittest.TestCase):
                                              'iplug2': 'b' * 40}))
         for name in [
             'LICENSE', 'INSTALL.md', 'third_party/miniz/LICENSE', 'third_party/tinyxml2/LICENSE',
+            'third_party/libarchive/COPYING', 'third_party/libarchive/NOTICES',
             'projects/Synth2/resources/IPLUG2-LICENSE.txt',
             'projects/Synth2/resources/fonts/LICENSE.txt',
             'iPlug2/Dependencies/IPlug/VST3_SDK/LICENSE.txt',
@@ -64,6 +65,7 @@ class CandidatePackages(unittest.TestCase):
                          'Synth2/Synth2.vst3/Contents/x86_64-win/Synth2.vst3',
                          'Synth2/notices/iPlug2/WDL/license.txt', 'Synth2/LICENSE',
                          'Synth2/INSTALL.md', 'Synth2/notices/miniz-LICENSE',
+                         'Synth2/notices/libarchive-COPYING', 'Synth2/notices/libarchive-NOTICES',
                          'Synth2/notices/tinyxml2-LICENSE', 'Synth2/notices/fonts-LICENSE.txt',
                          'Synth2/notices/iPlug2-LICENSE.txt', 'Synth2/notices/VST3-LICENSE.txt',
                          'Synth2/notices/CLAP-LICENSE', 'Synth2/notices/CLAP-helpers-LICENSE']:

@@ -44,5 +44,13 @@
       "revision": "a380c978f429103e08afc1d17e9efbf3e3c96ee2",
       "path": "Dependencies/IPlug/CLAP_HELPERS"
     }
+  },
+  "libarchive": {
+    "repository": "https://github.com/libarchive/libarchive",
+    "version": "3.8.11",
+    "license": "BSD-2-Clause and bundled notices",
+    "source": "https://github.com/libarchive/libarchive/releases/download/v3.8.11/libarchive-3.8.11.tar.xz",
+    "sha256": "a3dc0872b1b39da34dc18ef1b944f0f11ffd37425d70ae04be679279f1cf43d2",
+    "vendored": true
   }
 }
