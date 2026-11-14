@@ -2,6 +2,8 @@
 # libraries. RAR decompression and CRC/BLAKE2 verification are built in.
 # Scope upstream's general-purpose options and build settings to this function.
 function(synth2_add_rar)
+    # Honor scoped settings even when upstream set(CACHE) supplies a default.
+    set(CMAKE_POLICY_DEFAULT_CMP0126 NEW)
     set(BUILD_SHARED_LIBS OFF)
     set(BUILD_TESTING OFF)
     # RAR reading needs no regex engine. AUTO would probe PCRE/libgcc on MSVC.
