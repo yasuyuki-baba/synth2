@@ -110,6 +110,11 @@ ctest --test-dir build-vst3-test -C Release --output-on-failure
 The existing native CI jobs run this check on Windows and Linux. It is separate
 from the SDK-free portable suite.
 
+Full host readback echoes must also preserve legacy-converted controls, saved
+state and audio, and must not round fractional recalled selectors. Real host
+edits and explicit UI setters remain effective. The built-plugin VST3 smoke
+check exercises the same audio property on macOS as well as Windows/Linux.
+
 ## Built-plugin audio smoke
 
 The existing native CI matrix also loads the built VST3/CLAP modules and macOS

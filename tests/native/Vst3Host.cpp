@@ -4,7 +4,10 @@
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivsteditcontroller.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstprocesscontext.h"
+#include "host/ParameterInfo.h"
 #include <algorithm>
 #include <cstring>
 
@@ -106,12 +109,43 @@ private:
     Event event{};
     int32 count;
 };
+
+class ParameterPoint final : public IParamValueQueue
+{
+public:
+    ParameterPoint(ParamID id, ParamValue value) : id(id), value(value) {}
+    SMOKE_UNKNOWN(IParamValueQueue)
+    ParamID PLUGIN_API getParameterId() override { return id; }
+    int32 PLUGIN_API getPointCount() override { return 1; }
+    tresult PLUGIN_API getPoint(int32 index, int32& offset, ParamValue& result) override
+    {
+        if(index != 0) return kInvalidArgument;
+        offset = 0; result = value; return kResultOk;
+    }
+    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kNotImplemented; }
+private:
+    ParamID id;
+    ParamValue value;
+};
+
+class ParameterEcho final : public IParameterChanges
+{
+public:
+    SMOKE_UNKNOWN(IParameterChanges)
+    int32 PLUGIN_API getParameterCount() override { return int32(points.size()); }
+    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
+    {
+        return index >= 0 && size_t(index) < points.size() ? &points[size_t(index)] : nullptr;
+    }
+    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
+    std::vector<ParameterPoint> points;
+};
 #undef SMOKE_UNKNOWN
 
 class Vst3Host final : public Host
 {
 public:
-    explicit Vst3Host(const std::filesystem::path& binary) : module(binary)
+    explicit Vst3Host(const std::filesystem::path& binary, bool echo) : module(binary), echoParameters(echo)
     {
 #ifdef _WIN32
         require(module.symbol<bool (*)()>("InitDll")(), "VST3 InitDll failed");
@@ -170,6 +204,25 @@ public:
         require(processor->setProcessing(true) == kResultOk, "VST3 setProcessing failed");
         processing = true;
         position = 0;
+        parameterEcho.points.clear();
+        if(echoParameters)
+        {
+            IEditController* controller = nullptr;
+            require(component->queryInterface(INLINE_UID_OF(IEditController),
+                reinterpret_cast<void**>(&controller)) == kResultOk, "VST3 controller missing");
+            // Sound parameters and quality only; the SDK's synthetic MIDI-CC
+            // parameters are events, not readback of the loaded patch.
+            for(int32 i = 0; i < controller->getParameterCount(); ++i)
+            {
+                ParameterInfo info{};
+                if(controller->getParameterInfo(i, info) == kResultOk &&
+                    info.id <= synth2::host::processorParameterCount)
+                    parameterEcho.points.emplace_back(info.id, controller->getParamNormalized(info.id));
+            }
+            controller->release();
+            require(parameterEcho.points.size() == synth2::host::processorParameterCount + 1,
+                "Incomplete VST3 parameter readback");
+        }
     }
     void render(Block& output, Midi midi) override
     {
@@ -190,8 +243,10 @@ public:
         data.numOutputs = 1;
         data.outputs = &audio;
         data.inputEvents = &events;
+        data.inputParameterChanges = &parameterEcho;
         data.processContext = &context;
         require(processor->process(data) == kResultOk, "VST3 process failed");
+        parameterEcho.points.clear();
         position += frames;
     }
 private:
@@ -207,11 +262,13 @@ private:
     IComponent* component = nullptr;
     IAudioProcessor* processor = nullptr;
     bool active = false, processing = false;
+    bool echoParameters;
+    ParameterEcho parameterEcho;
     int64 position = 0;
 };
 }
-std::unique_ptr<Host> makeVst3(const std::filesystem::path& binary)
+std::unique_ptr<Host> makeVst3(const std::filesystem::path& binary, bool echoParameters)
 {
-    return std::make_unique<Vst3Host>(binary);
+    return std::make_unique<Vst3Host>(binary, echoParameters);
 }
 }

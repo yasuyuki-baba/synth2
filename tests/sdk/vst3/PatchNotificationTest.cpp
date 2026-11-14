@@ -51,6 +51,49 @@ struct Host final : Steinberg::Vst::IComponentHandler
 
 struct Synth2Vst3PatchTest
 {
+    static void checkHostEcho()
+    {
+        // Authored legacy input: loaded control conversion must survive a host
+        // returning all of the values it just read from the controller.
+        const std::string patch="Legacy host echo\nver=100\n0,1\n1,1\n19,110\n20,8\n21,72\n"
+            "25,44\n26,96\n27,127\n28,48\n29,52\n30,90\n65,0\n66,0\n57,0\n58,0\n59,0\n73,0\n77,0\n";
+        Synth2 baseline{iplug::InstanceInfo{}},echoed{iplug::InstanceInfo{}};
+        for(auto* plugin:{&baseline,&echoed})
+        {
+            require(plugin->initialize(nullptr)==Steinberg::kResultOk,"Echo initialize failed");
+            Steinberg::Vst::ProcessSetup setup{};
+            setup.sampleRate=48000;setup.maxSamplesPerBlock=128;setup.symbolicSampleSize=Steinberg::Vst::kSample64;
+            require(plugin->setupProcessing(setup)==Steinberg::kResultOk,"Echo setup failed");
+            plugin->setActive(true);
+            std::string error;
+            require(plugin->processor.loadProgram(patch,0,error),"Echo legacy patch load failed");
+            plugin->notifyHostOfPatch();
+        }
+        const auto before=echoed.processor.saveState();
+        Steinberg::Vst::ParameterChanges changes;
+        for(int i=0;i<echoed.NParams();++i)
+        {
+            Steinberg::int32 queueIndex=0,pointIndex=0;
+            changes.addParameterData(i,queueIndex)->addPoint(0,echoed.getParamNormalized(i),pointIndex);
+        }
+        Steinberg::Vst::ProcessData data{};data.inputParameterChanges=&changes;
+        iplug::IPlugQueue<iplug::IMidiMsg> outgoing{128};
+        echoed.ProcessParameterChanges(data,outgoing);
+        require(echoed.processor.saveState()==before,"Host echo changed loaded legacy controls/state");
+        const auto a=energy(baseline),b=energy(echoed);
+        require(a==b,"Host echo changed legacy patch audio");
+        Steinberg::Vst::ParameterChanges edit;
+        Steinberg::int32 queueIndex=0,pointIndex=0;
+        edit.addParameterData(29,queueIndex)->addPoint(0,0,pointIndex);
+        data.inputParameterChanges=&edit;echoed.ProcessParameterChanges(data,outgoing);
+        require(echoed.processor.normalizedValue(29)==0,"Host gain edit was ignored");
+        require(energy(echoed)==0,"Host gain edit did not silence the patch");
+        const auto beforeUi=echoed.processor.saveState();
+        echoed.OnParamChange(43,iplug::kUI);
+        require(echoed.processor.saveState()!=beforeUi,"Explicit UI setter history was suppressed");
+        for(auto* plugin:{&baseline,&echoed}){plugin->setActive(false);plugin->terminate();}
+        std::cout<<"Legacy host parameter echo: state and audio unchanged\n";
+    }
     static double energy(Synth2& plugin)
     {
         iplug::IMidiMsg note;note.MakeNoteOnMsg(60,100,0);plugin.ProcessMidiMsg(note);
@@ -116,6 +159,7 @@ struct Synth2Vst3PatchTest
     }
     static void run()
     {
+        checkHostEcho();
         Host host;
         Synth2 plugin {iplug::InstanceInfo{}};host.plugin=&plugin;
         require(plugin.initialize(&host)==Steinberg::kResultOk,"VST3 initialize failed");
@@ -165,6 +209,15 @@ struct Synth2Vst3PatchTest
         const auto fractionalBefore=plugin.processor.saveState();
         plugin.notifyHostOfPatch();
         require(plugin.processor.saveState()==fractionalBefore,"Notification rounded fractional recalled values");
+        Steinberg::Vst::ParameterChanges fractionalEcho;
+        for(int i=0;i<plugin.NParams();++i)
+        {
+            Steinberg::int32 queueIndex=0,pointIndex=0;
+            fractionalEcho.addParameterData(i,queueIndex)->addPoint(0,plugin.getParamNormalized(i),pointIndex);
+        }
+        data.inputParameterChanges=&fractionalEcho;
+        plugin.ProcessParameterChanges(data,outgoing);
+        require(plugin.processor.saveState()==fractionalBefore,"Host echo rounded fractional recalled values");
         // Repeated UI ticks must not repeatedly request a latency restart.
         for(int factor:{4,1})
         {

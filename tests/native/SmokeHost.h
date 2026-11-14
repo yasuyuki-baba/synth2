@@ -30,7 +30,7 @@ public:
     virtual void render(Block&, Midi) = 0;
 };
 
-std::unique_ptr<Host> makeVst3(const std::filesystem::path&);
+std::unique_ptr<Host> makeVst3(const std::filesystem::path&, bool echoParameters = false);
 std::unique_ptr<Host> makeClap(const std::filesystem::path&);
 #ifdef __APPLE__
 std::unique_ptr<Host> makeAu(const std::filesystem::path&);
