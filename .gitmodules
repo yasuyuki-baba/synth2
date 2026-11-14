@@ -1,4 +1,4 @@
 [submodule "iPlug2"]
 	path = iPlug2
 	url = https://github.com/yasuyuki-baba/iPlug2.git
-	branch = feature/linux-support-2
+	branch = integration
