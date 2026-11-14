@@ -152,10 +152,10 @@ bool PatchCatalog::reload(std::string& error) {
             for(const auto& item:files.entries()) {
                 if(next.size()>=maximumCatalogPatches || item.text.size()>maximumCatalogBytes-total)throw std::runtime_error("The library exceeds its size limit.");
                 total+=item.text.size();auto relative=item.file.lexically_relative(files.directory());
-                // ZIP entries and loose files share one directory-bank hierarchy.
+                // Archive entries and loose files share one directory-bank hierarchy.
                 // Sound IDs, original entry names and source program ordinals stay intact.
                 auto bankId=portablePath(relative.parent_path());
-                if(lower(utf8(relative.extension()))==".zip") {
+                if(const auto extension=lower(utf8(relative.extension())); extension==".zip" || extension==".rar") {
                     bankId=portablePath(relative);
                     auto entry=item.archiveEntry;
                     std::replace(entry.begin(),entry.end(),'\\','/');
@@ -307,7 +307,7 @@ bool PatchCatalog::removePatch(const std::string& id,std::string& error) {
         const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
         if(!found->file.empty()) {
-            if(!found->archiveEntry.empty())throw std::runtime_error("Remove the ZIP bank to remove its contained sounds.");
+            if(!found->archiveEntry.empty())throw std::runtime_error("Remove the archive bank to remove its contained sounds.");
             if(!fs::remove(found->file))throw std::runtime_error("The file was already removed. Refresh the library.");
             std::error_code ignored;fs::remove(favorites(directory,id),ignored);fs::remove(tagPath(directory,id),ignored);
             entries.erase(found);error.clear();return true;

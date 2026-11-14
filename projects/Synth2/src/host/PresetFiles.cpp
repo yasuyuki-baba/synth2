@@ -42,7 +42,7 @@ std::string lower(std::string s)
 bool supported(const fs::path &p)
 {
     auto e = lower(utf8(p.extension()));
-    return e == ".sy1" || e == ".zip";
+    return e == ".sy1" || e == ".zip" || e == ".rar";
 }
 std::string identity(const std::string &path, const std::string &entry = {})
 {
@@ -244,12 +244,11 @@ bool PresetFiles::scan(std::string &error, bool validateSources)
                     {identity(relative), utf8(item.path().stem()), relative, {}, {}, failure, item.path()});
                 continue;
             }
-            bool zip = lower(utf8(item.path().extension())) == ".zip";
             int ordinal = 0;
             for (const auto &patch : bank.patches())
             {
                 auto docName = patch.name;
-                auto entry = zip ? patch.entry : std::string{};
+                const auto& entry = patch.entry;
                 try
                 {
                     const auto name = synth2::isContinuousPatch(patch.text)
@@ -267,7 +266,7 @@ bool PresetFiles::scan(std::string &error, bool validateSources)
                     docName = utf8(item.path().filename());
                     problem = "The patch name exceeds the library name limit.";
                 }
-                append({identity(relative, entry), docName, relative + (zip ? " / " + entry : ""), entry,
+                append({identity(relative, entry), docName, relative + (entry.empty() ? "" : " / " + entry), entry,
                         patch.text, problem, item.path()});
                 next.back().program = ordinal++;
             }
@@ -312,7 +311,7 @@ PresetImportResult PresetFiles::import(const fs::path &inputSource, const Resolv
         else
         {
             if (!supported(source))
-                throw std::runtime_error("Choose a .sy1 file, ZIP or folder.");
+                throw std::runtime_error("Choose a .sy1 file, ZIP, RAR or folder.");
             files.push_back(source);
         }
         std::sort(files.begin(), files.end());

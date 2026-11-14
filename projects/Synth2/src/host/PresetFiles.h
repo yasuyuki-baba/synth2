@@ -33,7 +33,7 @@ struct PresetImportResult
     std::size_t imported = 0, skipped = 0;
     bool catalogReady = false;
 };
-// File operations are non-RT. ZIPs remain intact and are never extracted.
+// File operations are non-RT. Archives remain intact and are never extracted.
 class PresetFiles
 {
   public:
