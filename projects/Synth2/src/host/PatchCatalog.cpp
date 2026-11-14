@@ -249,12 +249,6 @@ bool PatchCatalog::registerFiles(const std::string& path,const ResolveConflict& 
     }catch(const std::exception& e){result={};result.errors.push_back(e.what());return false;}
 }
 
-bool PatchCatalog::importFile(const std::string& path,ImportResult& result,std::string& error) {
-    PresetImportResult registered;
-    bool ok=registerFiles(path,[](const auto&){return ConflictChoice{};},registered);
-    result={registered.ids.size(),registered.skipped};
-    error=registered.errors.empty() ? "" : registered.errors.front();return ok;
-}
 bool PatchCatalog::saveFile(const fs::path& relative,const std::string& text,bool replace,std::string& id,std::string& error) {
     try {
         requireRoot(directory);PresetFiles files(directory);if(!files.save(relative,text,replace,id,error))return false;
@@ -301,50 +295,6 @@ bool PatchCatalog::restoreAutomaticTags(const std::string& id,std::string& error
         if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
         storeOverrides(directory,id,{found->tags,{}});found->hiddenTags.clear();error.clear();return true;
     }catch(const std::exception& e){error=e.what();return false;}
-}
-bool PatchCatalog::removePatch(const std::string& id,std::string& error) {
-    try {
-        requireRoot(directory);
-        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){return p.id==id;});
-        if(found==entries.end())throw std::runtime_error("This patch is no longer in the library.");
-        if(!found->file.empty()) {
-            if(!found->archiveEntry.empty())throw std::runtime_error("Remove the archive bank to remove its contained sounds.");
-            if(!fs::remove(found->file))throw std::runtime_error("The file was already removed. Refresh the library.");
-            std::error_code ignored;fs::remove(favorites(directory,id),ignored);fs::remove(tagPath(directory,id),ignored);
-            entries.erase(found);error.clear();return true;
-        }
-        const auto bank=directory/"banks"/found->bankId;
-        if(!fs::is_directory(fs::symlink_status(bank)))throw std::runtime_error("The bank folder is unavailable.");
-        const auto key=id.substr(id.find('/')+1);
-        if(!fs::remove(bank/(key+".sy1")))throw std::runtime_error("This patch was already removed. Refresh the list.");
-        std::error_code ignored;fs::remove(bank/(key+".name"),ignored);fs::remove(favorites(directory,id),ignored);fs::remove(tagPath(directory,id),ignored);
-        entries.erase(found);error.clear();return true;
-    } catch(const std::exception& e){error=e.what();return false;}
-}
-bool PatchCatalog::removeBank(const std::string& bankId,std::string& error) {
-    try {
-        requireRoot(directory);
-        const auto key=filterPath(bankId);
-        const auto found=std::find_if(entries.begin(),entries.end(),[&](const auto& p){
-            return p.file.empty() ? p.bankId==key :
-                portablePath(p.file.lexically_relative(fs::weakly_canonical(directory)))==key;
-        });
-        if(found==entries.end())throw std::runtime_error("This bank is no longer in the library.");
-        if(!found->file.empty()) {
-            if(!fs::remove(found->file))throw std::runtime_error("The bank was already removed. Refresh the library.");
-            const auto file=found->file;
-            std::error_code ignored;for(const auto& p:entries)if(p.file==file){fs::remove(favorites(directory,p.id),ignored);fs::remove(tagPath(directory,p.id),ignored);}
-            std::erase_if(entries,[&](const auto& p){return p.file==file;});error.clear();return true;
-        }
-        const auto bank=directory/"banks"/bankId;
-        if(!fs::is_directory(fs::symlink_status(bank)))throw std::runtime_error("The bank folder is unavailable.");
-        // Unpublish first; refreshes cannot observe a half-deleted bank.
-        const auto trash=directory/"banks"/(".removed-"+bankId);
-        fs::rename(bank,trash);
-        std::error_code ignored;fs::remove_all(trash,ignored);
-        for(const auto& p:entries)if(p.bankId==bankId){fs::remove(favorites(directory,p.id),ignored);fs::remove(tagPath(directory,p.id),ignored);}
-        std::erase_if(entries,[&](const auto& p){return p.bankId==bankId;});error.clear();return true;
-    } catch(const std::exception& e){error=e.what();return false;}
 }
 std::vector<CatalogBank> PatchCatalog::banks() const {
     std::map<std::string,std::string> unique;

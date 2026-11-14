@@ -31,23 +31,23 @@ TEST(PatchLibrary, ImportedBankRetainsSourceBytesAndLoadedStates) {
 }
 TEST(PatchLibrary, DirectPatchRetainsUtf8TitleCrLfAndSignedValues) {
     TemporaryFile file(".SY1");const std::string text="日本語 patch\r\nver=113\r\n9,-24\r\n86,-1\r\n";ASSERT_TRUE(file.write(text));PatchLibrary library;std::string error;
-    ASSERT_TRUE(library.openFile(file.path.string(),error));ASSERT_EQ(library.patches().size(),1u);EXPECT_EQ(library.patches()[0].text,text);EXPECT_NE(library.patches()[0].name.find("日本語 patch"),std::string::npos);EXPECT_EQ(library.search("日本語"),(std::vector<size_t>{0}));
+    ASSERT_TRUE(library.openFile(file.path.string(),error));ASSERT_EQ(library.patches().size(),1u);EXPECT_EQ(library.patches()[0].text,text);EXPECT_NE(library.patches()[0].name.find("日本語 patch"),std::string::npos);
 }
-TEST(PatchLibrary, ZipSortsNaturallyAndSearchReturnsOriginalSnapshotIndices) {
+TEST(PatchLibrary, ZipSortsNaturallyAndRetainsOriginalEntryNames) {
     TemporaryFile file(".zip");ASSERT_TRUE(writeZip(file.path,{{"bank/10.SY1","Bright lead\nver=113\n0,0\n"},{"bank/2.sy1","Soft bass\nver=113\n0,1\n"},{"readme.md","Read me"}}));PatchLibrary library;std::string error;
     ASSERT_TRUE(library.openFile(file.path.string(),error))<<error;ASSERT_EQ(library.patches().size(),2u);EXPECT_EQ(library.patches()[0].name,"bank/2.sy1  -  Soft bass");EXPECT_EQ(library.patches()[1].name,"bank/10.SY1  -  Bright lead");
-    EXPECT_EQ(library.search("  LEAD  "),(std::vector<size_t>{1}));EXPECT_EQ(library.search("bank/2"),(std::vector<size_t>{0}));EXPECT_EQ(library.search(""),(std::vector<size_t>{0,1}));EXPECT_TRUE(library.search("no such patch").empty());
+    EXPECT_EQ(library.patches()[0].entry,"bank/2.sy1");EXPECT_EQ(library.patches()[1].entry,"bank/10.SY1");
 }
 TEST(PatchLibrary, FailedOpenPreservesPreviousSnapshot) {
     TemporaryFile input(".zip");ASSERT_TRUE(writeZip(input.path,testfiles::generatedBank()));
-    PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(input.path.string(),error));const auto name=library.name(),first=library.patches().front().text;
+    PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(input.path.string(),error));const auto name=library.patches().front().name,first=library.patches().front().text;
     TemporaryFile corrupt(".zip"),empty(".sy1"),other(".bin"),missing(".zip");ASSERT_TRUE(corrupt.write("Not a ZIP"));ASSERT_TRUE(empty.write(""));ASSERT_TRUE(other.write("x"));
-    for(const auto& file:{corrupt.path,empty.path,other.path,missing.path}){EXPECT_FALSE(library.openFile(file.string(),error));EXPECT_FALSE(error.empty());EXPECT_EQ(library.name(),name);ASSERT_EQ(library.patches().size(),128u);EXPECT_EQ(library.patches().front().text,first);}
+    for(const auto& file:{corrupt.path,empty.path,other.path,missing.path}){EXPECT_FALSE(library.openFile(file.string(),error));EXPECT_FALSE(error.empty());ASSERT_EQ(library.patches().size(),128u);EXPECT_EQ(library.patches().front().name,name);EXPECT_EQ(library.patches().front().text,first);}
 }
 TEST(PatchLibrary, EmptyAndOversizedZipPatchesDoNotReplaceTheBank) {
     TemporaryFile input(".zip");ASSERT_TRUE(writeZip(input.path,testfiles::generatedBank()));
     PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(input.path.string(),error));TemporaryFile noPatches(".zip"),empty(".zip"),large(".zip");ASSERT_TRUE(writeZip(noPatches.path,{{"README.md","No patches"}}));ASSERT_TRUE(writeZip(empty.path,{{"empty.sy1",""}}));ASSERT_TRUE(writeZip(large.path,{{"large.sy1",std::string(PatchLibrary::maximumPatchBytes+1,'x')}}));
-    for(const auto& file:{noPatches.path,empty.path,large.path}){EXPECT_FALSE(library.openFile(file.string(),error));EXPECT_FALSE(error.empty());EXPECT_EQ(library.name(),input.path.filename().string());EXPECT_EQ(library.patches().size(),128u);}
+    for(const auto& file:{noPatches.path,empty.path,large.path}){EXPECT_FALSE(library.openFile(file.string(),error));EXPECT_FALSE(error.empty());EXPECT_EQ(library.patches().size(),128u);}
 }
 TEST(PatchLibrary, SelectedPatchStateRestoresWithoutTheSourceFile) {
     TemporaryFile file(".zip");ASSERT_TRUE(writeZip(file.path,{{"Owned.sy1",ownedPatch}}));PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(file.path.string(),error));synth2::host::ProcessorBridge loaded,recalled;
@@ -74,11 +74,11 @@ TEST(EditorPages, SoundParametersAppearOnceAndMetadataIsHidden) {
     std::array<int,128> seen{};for(const auto& page:synth2::editor::editorPages()){EXPECT_FALSE(page.parameters.empty());EXPECT_LE(page.parameters.size(),30u);for(int i:page.parameters){ASSERT_GE(i,0);ASSERT_LT(i,128);++seen[i];}}for(int i=0;i<128;++i)EXPECT_EQ(seen[i],i<99 ? 1 : 0)<<i;
 }
 
-TEST(PatchLibrary, CommaTitleIsDisplayedAndSearchable) {
+TEST(PatchLibrary, CommaTitleIsRetainedInDisplayName) {
     TemporaryFile file(".sy1");ASSERT_TRUE(file.write("Owned lead (wheel,aftertouch)\ncolor=blue\nver=112\n19,91\n"));
     PatchLibrary library;std::string error;ASSERT_TRUE(library.openFile(file.path.string(),error))<<error;
     EXPECT_TRUE(library.patches()[0].name.ends_with("  -  Owned lead (wheel,aftertouch)"));
-    EXPECT_EQ(library.search("wheel,aftertouch"),(std::vector<size_t>{0}));
+
 }
 
 TEST(PatchLibrary, ColorsAreAvailableForLooseAndArchivedSourcesWithoutChangingBytes) {
