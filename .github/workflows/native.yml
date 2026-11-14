@@ -54,10 +54,13 @@ jobs:
           cmake --preset ${{ matrix.preset }} -B build
           "-DSYNTH2_IPLUG2_FORMATS=${{ matrix.formats }}"
           -DSYNTH2_BUILD_TOOLS=OFF -DSYNTH2_BUILD_TESTS=OFF
+          -DSYNTH2_BUILD_NATIVE_SMOKE=ON
           "-DPython3_EXECUTABLE=${{ steps.python.outputs.python-path }}"
           -DIGRAPHICS_BACKEND=NANOVG
       - name: Build all selected formats
         run: cmake --build build --config Release --parallel 4
+      - name: Check built plugin patch audio
+        run: ctest --test-dir build -C Release -L native --verbose --no-tests=error
       - name: Check VST3 patch host synchronization
         if: matrix.platform != 'macos'
         run: |
@@ -98,5 +101,6 @@ jobs:
             build/CMakeFiles/CMakeConfigureLog.yaml
             build/CMakeCache.txt
             build/dependencies.json
+            build/Testing/Temporary/
           if-no-files-found: ignore
           retention-days: 14
