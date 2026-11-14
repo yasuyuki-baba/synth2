@@ -1,5 +1,6 @@
 #include "PresetFiles.h"
 #include "PatchLibrary.h"
+#include "LibraryFiles.h"
 #include "patch/PatchFormat.h"
 #include "patch/PatchLoader.h"
 #include <tinyxml2.h>
@@ -39,11 +40,6 @@ std::string lower(std::string s)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
-bool supported(const fs::path &p)
-{
-    auto e = lower(utf8(p.extension()));
-    return e == ".sy1" || e == ".zip" || e == ".rar" || e == ".7z";
-}
 std::string identity(const std::string &path, const std::string &entry = {})
 {
     return std::to_string(path.size()) + ":" + path + entry;
@@ -56,38 +52,6 @@ bool inside(const fs::path &parent, const fs::path &child)
         if (ci == c.end() || *pi != *ci)
             return false;
     return true;
-}
-bool naturalLess(const std::string &a, const std::string &b)
-{
-    std::size_t i = 0, j = 0;
-    while (i < a.size() && j < b.size())
-    {
-        if (std::isdigit(static_cast<unsigned char>(a[i])) && std::isdigit(static_cast<unsigned char>(b[j])))
-        {
-            auto x = i, y = j;
-            while (i < a.size() && std::isdigit(static_cast<unsigned char>(a[i])))
-                ++i;
-            while (j < b.size() && std::isdigit(static_cast<unsigned char>(b[j])))
-                ++j;
-            while (x + 1 < i && a[x] == '0')
-                ++x;
-            while (y + 1 < j && b[y] == '0')
-                ++y;
-            if (i - x != j - y)
-                return i - x < j - y;
-            int n = a.compare(x, i - x, b, y, j - y);
-            if (n)
-                return n < 0;
-        }
-        else
-        {
-            auto x = std::tolower(static_cast<unsigned char>(a[i++])),
-                 y = std::tolower(static_cast<unsigned char>(b[j++]));
-            if (x != y)
-                return x < y;
-        }
-    }
-    return i == a.size() && j != b.size();
 }
 std::string validate(const std::string &text)
 {
@@ -202,7 +166,7 @@ bool PresetFiles::isManagedBank(const fs::path &directory, const fs::path &bank)
 }
 bool PresetFiles::isManagedPatch(const fs::path &directory, const fs::path &file)
 {
-    if (lower(utf8(file.extension())) != ".sy1" || !fs::is_regular_file(fs::symlink_status(file)))
+    if (libraryFileKind(file) != LibraryFileKind::patch || !fs::is_regular_file(fs::symlink_status(file)))
         return false;
     const auto bank = file.parent_path();
     if (!isManagedBank(directory, bank))
@@ -230,7 +194,7 @@ bool PresetFiles::scan(std::string &error, bool validateSources)
         for (const auto &item :
              fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied))
         {
-            if (item.is_symlink() || !item.is_regular_file() || !supported(item.path()))
+            if (item.is_symlink() || !item.is_regular_file() || libraryFileKind(item.path()) == LibraryFileKind::unsupported)
                 continue;
             const auto relative = utf8(item.path().lexically_relative(root));
             const auto first = *item.path().lexically_relative(root).begin();
@@ -274,9 +238,9 @@ bool PresetFiles::scan(std::string &error, bool validateSources)
         std::sort(next.begin(), next.end(),
                   [](const auto &a, const auto &b)
                   {
-                      if (naturalLess(a.location, b.location))
+                      if (naturalLibraryPathLess(a.location, b.location))
                           return true;
-                      if (naturalLess(b.location, a.location))
+                      if (naturalLibraryPathLess(b.location, a.location))
                           return false;
                       return a.id < b.id;
                   });
@@ -305,12 +269,12 @@ PresetImportResult PresetFiles::import(const fs::path &inputSource, const Resolv
         {
             for (const auto &e :
                  fs::recursive_directory_iterator(source, fs::directory_options::skip_permission_denied))
-                if (!e.is_symlink() && e.is_regular_file() && supported(e.path()))
+                if (!e.is_symlink() && e.is_regular_file() && libraryFileKind(e.path()) != LibraryFileKind::unsupported)
                     files.push_back(e.path());
         }
         else
         {
-            if (!supported(source))
+            if (libraryFileKind(source) == LibraryFileKind::unsupported)
                 throw std::runtime_error("Choose a .sy1 file, ZIP, RAR, 7z or folder.");
             files.push_back(source);
         }
@@ -388,7 +352,7 @@ bool PresetFiles::save(const fs::path &relative, const std::string &text, bool r
 {
     try
     {
-        if (relative.empty() || relative.is_absolute() || lower(utf8(relative.extension())) != ".sy1" ||
+        if (relative.empty() || relative.is_absolute() || libraryFileKind(relative) != LibraryFileKind::patch ||
             !inside(root, root / relative))
             throw std::runtime_error("Save a .sy1 file inside the preset directory.");
         if (auto failure = validate(text); !failure.empty())

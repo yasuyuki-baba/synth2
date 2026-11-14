@@ -59,36 +59,63 @@ INSTANTIATE_TEST_SUITE_P(Formats, ArchiveBankTest, testing::Values(
     "rar/compressed-rar4.rar", "rar/stored-rar4.rar", "rar/compressed-rar5.rar", "rar/solid-rar5.rar",
     "7z/lzma.7z", "7z/lzma2.7z", "7z/solid.7z", "7z/stored.7z", "7z/ppmd.7z"));
 
-TEST(ArchiveBank, RegistrationRetainsOneArchiveAndCatalogHierarchyAcrossReload)
+TEST(ArchiveBank, DirectoryAndArchiveRegistrationPreserveStorageHierarchyAndRecall)
 {
-    for(const auto* input : {"rar/solid-rar5.rar", "7z/solid.7z"})
+    const std::vector<std::string> names = {"bank/2.sy1", "bank/10.SY1", "bank/日本語.sy1"};
+    for(const auto* filename : {"Collection", "Collection.ZIP", "Collection.RAR", "Collection.7Z"})
     {
-        SCOPED_TRACE(input);
+        SCOPED_TRACE(filename);
         testfiles::Directory source, destination;
-        const auto filename = fs::path(input).extension() == ".rar" ? "Collection.RAR" : "Collection.7Z";
-        const auto rar = source.path / filename;
-        fs::copy_file(fixtures / input, rar);
+        const auto input = source.path / filename;
+        const bool archived = input.has_extension();
+        if(!archived)
+        {
+            for(const auto& name : names)
+            {
+                const auto path = fs::path(std::u8string(name.begin(), name.end()));
+                fs::create_directories((input / path).parent_path());
+                fs::copy_file(fixtures / "rar/input" / path, input / path);
+            }
+        }
+        else if(input.extension() == ".ZIP")
+        {
+            std::vector<std::pair<std::string, std::string>> patches;
+            // The shared finalization must sort backend enumeration order.
+            for(auto name = names.rbegin(); name != names.rend(); ++name)
+                patches.push_back({*name, bytes(fixtures / "rar/input" /
+                    fs::path(std::u8string(name->begin(), name->end())))});
+            ASSERT_TRUE(testfiles::zip(input, patches));
+        }
+        else
+            fs::copy_file(fixtures / (input.extension() == ".RAR" ? "rar/solid-rar5.rar" : "7z/solid.7z"), input);
+
         PatchCatalog catalog(destination.path);
         ImportResult imported;
         std::string error;
         ASSERT_TRUE(catalog.importFile(utf8(source.path), imported, error)) << error;
-        EXPECT_EQ(imported.added, 3u);
+        EXPECT_EQ(imported.added, names.size());
+        const auto prefix = utf8(source.path.filename()) + "/" + filename;
         const auto copy = destination.path / source.path.filename() / filename;
-        EXPECT_EQ(bytes(copy), bytes(rar));
-        for(const auto& entry : fs::recursive_directory_iterator(destination.path))
-            EXPECT_NE(entry.path().extension(), ".sy1");
-        const auto bankId = utf8(source.path.filename()) + "/" + filename + "/bank";
-        EXPECT_EQ(catalog.search({"", bankId}).size(), 3u);
+        if(archived)
+        {
+            EXPECT_EQ(bytes(copy), bytes(input));
+            for(const auto& entry : fs::recursive_directory_iterator(destination.path))
+                EXPECT_NE(entry.path().extension(), ".sy1");
+        }
+        EXPECT_EQ(catalog.search({"", prefix + "/bank"}).size(), names.size());
         PresetFiles files(destination.path);
         ASSERT_TRUE(files.scan(error)) << error;
-        ASSERT_EQ(files.entries().size(), 3u);
+        ASSERT_EQ(files.entries().size(), names.size());
         for(std::size_t i = 0; i < files.entries().size(); ++i)
         {
             const auto& patch = files.entries()[i];
             EXPECT_TRUE(patch.error.empty()) << patch.error;
-            EXPECT_FALSE(patch.archiveEntry.empty());
-            EXPECT_EQ(patch.program, i);
-            EXPECT_EQ(patch.location, utf8(source.path.filename()) + "/" + filename + " / " + patch.archiveEntry);
+            EXPECT_EQ(patch.archiveEntry, archived ? names[i] : "");
+            EXPECT_EQ(patch.program, archived ? static_cast<int>(i) : 0);
+            EXPECT_EQ(patch.location, prefix + (archived ? " / " : "/") + names[i]);
+            const auto path = fs::path(std::u8string(names[i].begin(), names[i].end()));
+            EXPECT_EQ(patch.text, bytes(fixtures / "rar/input" / path));
+            if(!archived) EXPECT_EQ(bytes(copy / path), patch.text);
         }
         const auto previous = catalog.patches();
         fs::remove_all(source.path);
