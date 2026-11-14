@@ -1,0 +1,12 @@
+--- a/libarchive/archive_read_support_format_rar.c
++++ b/libarchive/archive_read_support_format_rar.c
+@@ -1113,7 +1113,8 @@
+   }
+ 
+   *buff = NULL;
+-  if (rar->entry_eof || rar->offset_seek >= rar->unp_size) {
++  if (rar->entry_eof ||
++      (rar->offset_seek >= rar->unp_size && rar->offset != rar->unp_size)) {
+     *size = 0;
+     *offset = rar->offset;
+     return (ARCHIVE_EOF);

@@ -54,6 +54,8 @@ def package(root, build, platform, manifest, output):
         shutil.copy2(root / 'INSTALL.md', staging / 'INSTALL.md')
         for source, destination in [
             ('third_party/miniz/LICENSE', 'notices/miniz-LICENSE'),
+            ('third_party/libarchive/COPYING', 'notices/libarchive-COPYING'),
+            ('third_party/libarchive/NOTICES', 'notices/libarchive-NOTICES'),
             ('third_party/tinyxml2/LICENSE', 'notices/tinyxml2-LICENSE'),
             ('projects/Synth2/resources/IPLUG2-LICENSE.txt', 'notices/iPlug2-LICENSE.txt'),
             ('projects/Synth2/resources/fonts/LICENSE.txt', 'notices/fonts-LICENSE.txt'),
