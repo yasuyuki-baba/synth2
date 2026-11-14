@@ -27,6 +27,17 @@ std::string utf8(const fs::path& path)
     const auto text = path.generic_u8string();
     return {text.begin(), text.end()};
 }
+void expectSnapshot(const PatchLibrary& bank, const std::vector<LibraryPatch>& previous)
+{
+    ASSERT_EQ(bank.patches().size(), previous.size());
+    for(std::size_t i = 0; i < previous.size(); ++i)
+    {
+        EXPECT_EQ(bank.patches()[i].name, previous[i].name);
+        EXPECT_EQ(bank.patches()[i].text, previous[i].text);
+        EXPECT_EQ(bank.patches()[i].entry, previous[i].entry);
+        EXPECT_EQ(bank.patches()[i].color, previous[i].color);
+    }
+}
 class ArchiveBankTest : public testing::TestWithParam<const char*> {};
 }
 
@@ -90,10 +101,11 @@ TEST(ArchiveBank, DirectoryAndArchiveRegistrationPreserveStorageHierarchyAndReca
             fs::copy_file(fixtures / (input.extension() == ".RAR" ? "rar/solid-rar5.rar" : "7z/solid.7z"), input);
 
         PatchCatalog catalog(destination.path);
-        ImportResult imported;
+        PresetImportResult imported;
         std::string error;
-        ASSERT_TRUE(catalog.importFile(utf8(source.path), imported, error)) << error;
-        EXPECT_EQ(imported.added, names.size());
+        ASSERT_TRUE(catalog.registerFiles(utf8(source.path), [](const auto&) { return ConflictChoice{}; }, imported))
+            << testing::PrintToString(imported.errors);
+        EXPECT_EQ(imported.ids.size(), names.size());
         const auto prefix = utf8(source.path.filename()) + "/" + filename;
         const auto copy = destination.path / source.path.filename() / filename;
         if(archived)
@@ -136,7 +148,7 @@ TEST(RarBank, FailedReadsKeepPreviousSnapshotAndInvalidSourcesStayVisible)
     PatchLibrary bank;
     std::string error;
     ASSERT_TRUE(bank.openFile(utf8(fixtures / "rar/compressed-rar5.rar"), error)) << error;
-    const auto previousName = bank.name(), previousText = bank.patches().front().text;
+    const auto previous = bank.patches();
     for(const auto* name : {"encrypted-rar5.rar", "oversize-rar5.rar", "solid-rar4.rar",
                             "empty-patch.rar", "no-patches.rar", "oversize-skipped.rar"})
     {
@@ -145,9 +157,7 @@ TEST(RarBank, FailedReadsKeepPreviousSnapshotAndInvalidSourcesStayVisible)
         fs::copy_file(fixtures / "rar" / name, path);
         EXPECT_FALSE(bank.openFile(utf8(path), error));
         EXPECT_FALSE(error.empty());
-        EXPECT_EQ(bank.name(), previousName);
-        ASSERT_EQ(bank.patches().size(), 3u);
-        EXPECT_EQ(bank.patches().front().text, previousText);
+        expectSnapshot(bank, previous);
     }
     for(const auto* name : {"truncated.rar", "checksum.rar", "not-rar.rar"})
     {
@@ -165,8 +175,7 @@ TEST(RarBank, FailedReadsKeepPreviousSnapshotAndInvalidSourcesStayVisible)
         SCOPED_TRACE(name);
         EXPECT_FALSE(bank.openFile(utf8(path), error));
         EXPECT_FALSE(error.empty());
-        EXPECT_EQ(bank.name(), previousName);
-        EXPECT_EQ(bank.patches().front().text, previousText);
+        expectSnapshot(bank, previous);
     }
     PresetFiles files(directory.path);
     ASSERT_TRUE(files.scan(error)) << error;
@@ -180,7 +189,7 @@ TEST(SevenZipBank, FailedReadsKeepPreviousSnapshotAndInvalidSourcesStayVisible)
     PatchLibrary bank;
     std::string error;
     ASSERT_TRUE(bank.openFile(utf8(fixtures / "7z/solid.7z"), error)) << error;
-    const auto previousName = bank.name(), previousText = bank.patches().front().text;
+    const auto previous = bank.patches();
     for(const auto* name : {"encrypted-headers.7z", "encrypted-data.7z",
                            "oversize-patch.7z", "oversize-skipped.7z", "empty-patch.7z",
                            "no-patches.7z", "unsupported-bzip2.7z", "unsupported-deflate.7z",
@@ -204,9 +213,7 @@ TEST(SevenZipBank, FailedReadsKeepPreviousSnapshotAndInvalidSourcesStayVisible)
         SCOPED_TRACE(entry.path().filename());
         EXPECT_FALSE(bank.openFile(utf8(entry.path()), error));
         EXPECT_FALSE(error.empty());
-        EXPECT_EQ(bank.name(), previousName);
-        ASSERT_EQ(bank.patches().size(), 3u);
-        EXPECT_EQ(bank.patches().front().text, previousText);
+        expectSnapshot(bank, previous);
     }
     PresetFiles files(directory.path);
     ASSERT_TRUE(files.scan(error)) << error;

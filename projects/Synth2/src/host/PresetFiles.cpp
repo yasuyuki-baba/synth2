@@ -33,13 +33,6 @@ std::string utf8(const fs::path &p)
     auto s = p.generic_u8string();
     return {s.begin(), s.end()};
 }
-std::string lower(std::string s)
-{
-    for (auto &c : s)
-        if (static_cast<unsigned char>(c) < 128)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
 std::string identity(const std::string &path, const std::string &entry = {})
 {
     return std::to_string(path.size()) + ":" + path + entry;
@@ -367,27 +360,6 @@ bool PresetFiles::save(const fs::path &relative, const std::string &text, bool r
         error = e.what();
         return false;
     }
-}
-std::vector<std::size_t> PresetFiles::search(const std::string &query, bool restricted,
-                                             const std::vector<std::string> &ids) const
-{
-    std::istringstream words(lower(query));
-    std::vector<std::string> terms;
-    std::string word;
-    while (words >> word)
-        terms.push_back(word);
-    std::vector<std::size_t> result;
-    for (std::size_t i = 0; i < items.size(); ++i)
-    {
-        const auto &item = items[i];
-        if (restricted && std::find(ids.begin(), ids.end(), item.id) == ids.end())
-            continue;
-        auto text = lower(item.name + " " + item.location);
-        if (std::all_of(terms.begin(), terms.end(),
-                        [&](const auto &t) { return text.find(t) != std::string::npos; }))
-            result.push_back(i);
-    }
-    return result;
 }
 fs::path PresetFiles::settingsDirectory()
 {

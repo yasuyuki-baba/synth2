@@ -27,14 +27,9 @@ public:
     static constexpr std::size_t maximumPatches = 65536;
 
     bool openFile(const std::string& utf8Path, std::string& error);
-    const std::string& name() const noexcept { return bankName; }
     const std::vector<LibraryPatch>& patches() const noexcept { return entries; }
-    // Case-insensitive title/entry-name search. Results index the full snapshot,
-    // so filtering cannot accidentally select another patch.
-    std::vector<std::size_t> search(const std::string& query) const;
 
 private:
-    std::string bankName;
     std::vector<LibraryPatch> entries;
 };
 }

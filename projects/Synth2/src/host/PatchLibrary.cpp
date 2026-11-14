@@ -277,8 +277,6 @@ bool PatchLibrary::openFile(const std::string& path, std::string& error)
             error = "The selected file could not be read completely.";
             return false;
         }
-        const auto filename = file.filename().u8string();
-        std::string name(filename.begin(), filename.end());
 #ifndef _WIN32
         // Keep pathname conversion and natural ordering in the same thread
         // locale for libarchive, restoring the host's locale on every exit.
@@ -294,24 +292,20 @@ bool PatchLibrary::openFile(const std::string& path, std::string& error)
         }
 #endif
         PatchBankBuilder bank;
-        switch(kind)
+        if(kind == LibraryFileKind::patch)
         {
-        case LibraryFileKind::patch:
+            const auto filename = file.filename().u8string();
+            const std::string name(filename.begin(), filename.end());
             if(!bank.accountPatch(size, error)) return false;
             bank.append(name, std::move(data), false);
-            break;
-        case LibraryFileKind::zip:
-            if(!readZip(data.data(), data.size(), bank, error)) return false;
-            break;
-        case LibraryFileKind::rar:
-        case LibraryFileKind::sevenZip:
-            if(!readArchive(data.data(), data.size(), bank, error)) return false;
-            break;
-        case LibraryFileKind::unsupported:
-            return false; // Rejected before opening the file.
         }
+        else if(kind == LibraryFileKind::zip)
+        {
+            if(!readZip(data.data(), data.size(), bank, error)) return false;
+        }
+        else if(!readArchive(data.data(), data.size(), bank, error))
+            return false;
         if(!bank.finish(entries, error)) return false;
-        bankName.swap(name);
         error.clear();
         return true;
     }
@@ -321,13 +315,5 @@ bool PatchLibrary::openFile(const std::string& path, std::string& error)
         return false;
     }
 }
-std::vector<size_t> PatchLibrary::search(const std::string& query)const
-{
-    // Whitespace trimming here is independent of .sy1 comment syntax.
-    auto term=lower(query);const auto first=term.find_first_not_of(" \t\r\n");
-    term=first==std::string::npos ? "" : term.substr(first,term.find_last_not_of(" \t\r\n")-first+1);
-    std::vector<size_t> result;
-    for(size_t i=0;i<entries.size();++i)if(term.empty() || lower(entries[i].name).find(term)!=std::string::npos)result.push_back(i);
-    return result;
-}
+
 }

@@ -1,4 +1,6 @@
 #include "host/PresetFiles.h"
+#include "host/PatchCatalog.h"
+#include <algorithm>
 #include "support/BankFiles.h"
 #include <gtest/gtest.h>
 #include "patch/PatchFormat.h"
@@ -16,7 +18,7 @@ void write(const fs::path &p, const std::string &s = patch)
 }
 const ResolveConflict keep = [](const auto &) { return ConflictChoice{}; };
 } // namespace
-TEST(PresetFiles, RecursiveScanIncludesZipEntriesErrorsAndAndSearch)
+TEST(PresetFiles, RecursiveScanFeedsCatalogSearchWithOriginalPathsAndErrors)
 {
     testfiles::Directory d;
     write(d.path / "Bass" / "10.sy1");
@@ -30,16 +32,18 @@ TEST(PresetFiles, RecursiveScanIncludesZipEntriesErrorsAndAndSearch)
     std::string error;
     ASSERT_TRUE(library.scan(error)) << error;
     ASSERT_EQ(library.entries().size(), 6u);
-    auto matches = library.search("BASS/ owned", false, {});
+    PatchCatalog catalog(d.path);
+    ASSERT_TRUE(catalog.reload(error)) << error;
+    auto matches = catalog.search({"BASS/ owned"});
     ASSERT_EQ(matches.size(), 2u);
-    EXPECT_TRUE(library.entries()[matches[0]].location.ends_with("2.sy1"));
-    EXPECT_TRUE(library.entries()[matches[1]].location.ends_with("10.sy1"));
-    auto zip = library.search("日本語 bright", false, {});
+    EXPECT_TRUE(catalog.patches()[matches[0]].location.ends_with("2.sy1"));
+    EXPECT_TRUE(catalog.patches()[matches[1]].location.ends_with("10.sy1"));
+    auto zip = catalog.search({"日本語 bright"});
     ASSERT_EQ(zip.size(), 1u);
-    EXPECT_EQ(library.entries()[zip[0]].archiveEntry, "日本語/Lead.sy1");
-    auto spaced = library.search("a  -  b.sy1", false, {});
+    EXPECT_EQ(catalog.patches()[zip[0]].archiveEntry, "日本語/Lead.sy1");
+    auto spaced = catalog.search({"a  -  b.sy1"});
     ASSERT_EQ(spaced.size(), 1u);
-    EXPECT_EQ(library.entries()[spaced[0]].archiveEntry, "a  -  b.sy1");
+    EXPECT_EQ(catalog.patches()[spaced[0]].archiveEntry, "a  -  b.sy1");
     int invalid = 0;
     for (auto &item : library.entries())
         invalid += !item.error.empty();
@@ -58,8 +62,12 @@ TEST(PresetFiles, ZipImportStaysOneFileAndFiltersExactlyThisImport)
     ASSERT_EQ(result.ids.size(), 2u);
     EXPECT_TRUE(fs::exists(destination.path / "Bank.zip"));
     EXPECT_FALSE(fs::exists(destination.path / "a.sy1"));
-    EXPECT_EQ(library.search("", true, result.ids).size(), 2u);
-    EXPECT_EQ(library.search("", false, {}).size(), 3u);
+    PatchCatalog catalog(destination.path);
+    std::string error;
+    ASSERT_TRUE(catalog.reload(error)) << error;
+    CatalogFilter filter;filter.registeredOnly = true;filter.registeredIds = result.ids;
+    EXPECT_EQ(catalog.search(filter).size(), 2u);
+    EXPECT_EQ(catalog.search({}).size(), 3u);
     auto again = library.import(destination.path / "Bank.zip", keep);
     EXPECT_EQ(again.ids, result.ids);
     EXPECT_FALSE(fs::exists(destination.path / "Bank (2).zip"));
@@ -80,9 +88,10 @@ TEST(PresetFiles, FileConflictsKeepBothSkipAndReplace)
     auto c = library.import(source.path / "Bass.sy1",
                             [](const auto &) { return ConflictChoice{FileConflict::replace}; });
     EXPECT_EQ(c.imported, 1u);
-    auto found = library.search("Bass.sy1", false, {});
-    ASSERT_EQ(found.size(), 1u);
-    EXPECT_EQ(library.entries()[found[0]].text, patch);
+    const auto found = std::find_if(library.entries().begin(), library.entries().end(),
+        [](const auto& item) { return item.file.filename() == "Bass.sy1"; });
+    ASSERT_NE(found, library.entries().end());
+    EXPECT_EQ(found->text, patch);
 }
 TEST(PresetFiles, FolderHierarchyAndApplyToAllPreserveOriginals)
 {

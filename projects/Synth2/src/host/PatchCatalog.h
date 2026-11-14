@@ -27,7 +27,6 @@ struct CatalogFilter {
     std::vector<std::string> selectedTags; // All selected tags must match.
 };
 struct TagCacheStats { std::size_t reused=0, rebuilt=0; };
-struct ImportResult { std::size_t added = 0, duplicates = 0; };
 
 // UI-only persistent library. Filesystem work never enters ProcessorBridge or
 // the render callback. Callers supply the platform's user application-data path.
@@ -40,15 +39,12 @@ public:
     static std::vector<std::string> splitTags(const std::string& text);
     static std::string tagText(const std::vector<std::string>& tags);
     bool reload(std::string& error);
-    bool importFile(const std::string& path, ImportResult& result, std::string& error);
     bool registerFiles(const std::string&, const ResolveConflict&, PresetImportResult&);
     bool saveFile(const std::filesystem::path&, const std::string&, bool replace, std::string& id, std::string& error);
     bool setFavorite(const std::string& id, bool favorite, std::string& error);
     bool setTags(const std::string& id, const std::string& tags, std::string& error);
     bool hideAutomaticTag(const std::string& id,const std::string& tag,std::string& error);
     bool restoreAutomaticTags(const std::string& id,std::string& error);
-    bool removePatch(const std::string& id, std::string& error);
-    bool removeBank(const std::string& bankId, std::string& error);
     const std::vector<CatalogPatch>& patches() const noexcept { return entries; }
     const TagCacheStats& tagCacheStats() const noexcept { return cacheStats; }
     const std::filesystem::path& root() const noexcept { return directory; }

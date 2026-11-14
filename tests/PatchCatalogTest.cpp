@@ -29,6 +29,14 @@ struct CatalogFiles {
         mz_zip_writer_end(&zip);return path;
     }
 };
+// Exercise the same registration API and conflict policy as the editor.
+bool registerSource(PatchCatalog& catalog, const std::string& path,
+                    PresetImportResult& result, std::string& error)
+{
+    const bool ok = catalog.registerFiles(path, [](const auto&) { return ConflictChoice{}; }, result);
+    error = result.errors.empty() ? "" : result.errors.front();
+    return ok;
+}
 const std::string warm="Warm Pad\nver=113\n19,97\n29,87\n";
 const std::string bass="Soft Bass\nver=113\n19,83\n29,76\n";
 const std::string lead="Bright Lead\nver=113\n19,103\n29,85\n";
@@ -39,25 +47,25 @@ std::size_t imported(const PatchCatalog& catalog) {
 }
 
 TEST(PatchCatalog, ImportAccumulatesAndSurvivesSourceRemovalAndNewInstance) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
     ASSERT_TRUE(catalog.reload(error))<<error;const auto initial=catalog.patches().size();ASSERT_EQ(initial,0u);
     const auto first=files.bank("Ambient.zip",{{"1.sy1",warm},{"2.sy1",bass}});
     const auto second=files.bank("Leads.zip",{{"1.sy1",lead},{"duplicate.sy1",warm}});
-    ASSERT_TRUE(catalog.importFile(first.string(),result,error))<<error;EXPECT_EQ(result.added,2u);
-    ASSERT_TRUE(catalog.importFile(second.string(),result,error))<<error;EXPECT_EQ(result.added,2u);EXPECT_EQ(result.duplicates,0u);
+    ASSERT_TRUE(registerSource(catalog,first.string(),result,error))<<error;EXPECT_EQ(result.ids.size(),2u);
+    ASSERT_TRUE(registerSource(catalog,second.string(),result,error))<<error;EXPECT_EQ(result.ids.size(),2u);EXPECT_EQ(result.skipped,0u);
     EXPECT_EQ(catalog.patches().size(),initial+4);
     fs::remove(first);fs::remove(second);
     PatchCatalog reopened(files.dir/"Library");ASSERT_TRUE(reopened.reload(error))<<error;
     EXPECT_EQ(reopened.patches().size(),initial+4);
     const auto matches=reopened.search({"WARM pad ambient"});ASSERT_EQ(matches.size(),1u);
     EXPECT_EQ(reopened.patches()[matches[0]].patch.text,warm);
-    ASSERT_TRUE(reopened.importFile(files.bank("Again.zip",{{"same.sy1",warm}}).string(),result,error));
-    EXPECT_EQ(result.added,1u);EXPECT_EQ(result.duplicates,0u);
+    ASSERT_TRUE(registerSource(reopened,files.bank("Again.zip",{{"same.sy1",warm}}).string(),result,error));
+    EXPECT_EQ(result.ids.size(),1u);EXPECT_EQ(result.skipped,0u);
 }
 TEST(PatchCatalog, TagsAndFavoritesAreSeparatePersistentMetadataAndCombineWithSearch) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
     const auto source=files.bank("Ambient.zip",{{"1.sy1",warm},{"2.sy1",bass}});
-    ASSERT_TRUE(catalog.importFile(source.string(),result,error))<<error;
+    ASSERT_TRUE(registerSource(catalog,source.string(),result,error))<<error;
     const auto patch=catalog.patches()[imported(catalog)];
     ASSERT_TRUE(catalog.setTags(patch.id," Pad , warm, 柔らかい, PAD, ",error))<<error;
     ASSERT_TRUE(catalog.setFavorite(patch.id,true,error));
@@ -73,14 +81,14 @@ TEST(PatchCatalog, TagsAndFavoritesAreSeparatePersistentMetadataAndCombineWithSe
     EXPECT_TRUE(catalog.search({"", "", "", true}).empty());
     PatchLibrary original;ASSERT_TRUE(original.openFile(source.string(),error));EXPECT_EQ(original.patches()[0].text,warm);
 }
-TEST(PatchCatalog, EveryImportedBankCanBeTaggedFavoritedAndRemoved) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+TEST(PatchCatalog, EveryImportedBankCanBeTaggedFavoritedAndRefreshedAfterFileDeletion) {
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
     ASSERT_TRUE(catalog.reload(error));EXPECT_TRUE(catalog.patches().empty());
-    ASSERT_TRUE(catalog.importFile(files.bank("Factory.zip",{{"1.sy1",warm},{"2.sy1",bass}}).string(),result,error));
+    ASSERT_TRUE(registerSource(catalog,files.bank("Factory.zip",{{"1.sy1",warm},{"2.sy1",bass}}).string(),result,error));
     const auto id=catalog.patches()[0].id,bank=catalog.patches()[0].bankId;
     ASSERT_TRUE(catalog.setTags(id,"My choice",error));ASSERT_TRUE(catalog.setFavorite(id,true,error));
     ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.search({"",bank,"my choice",true}).size(),1u);
-    EXPECT_FALSE(catalog.removePatch(id,error));ASSERT_TRUE(catalog.removeBank(bank,error));
+    ASSERT_TRUE(fs::remove(catalog.root()/bank));
     ASSERT_TRUE(catalog.reload(error));EXPECT_TRUE(catalog.patches().empty());
 }
 TEST(PatchCatalog, EmptyLibraryKeepsInitAndExistingSoundStateIndependent) {
@@ -90,36 +98,47 @@ TEST(PatchCatalog, EmptyLibraryKeepsInitAndExistingSoundStateIndependent) {
     ASSERT_TRUE(sounding.loadPatch(warm,error));const auto edited=sounding.saveState();
     ASSERT_TRUE(catalog.reload(error));EXPECT_TRUE(catalog.patches().empty());EXPECT_EQ(sounding.saveState(),edited);
 }
+TEST(PatchCatalog, KeywordSearchRetainsNaturalOrderAndFindsCommaTitles) {
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
+    const auto source=files.bank("Owned.zip",{
+        {"bank/10.SY1","Owned lead (wheel,aftertouch)\nver=113\n19,100\n"},
+        {"bank/2.sy1",bass}});
+    ASSERT_TRUE(registerSource(catalog,source.string(),result,error))<<error;
+    EXPECT_EQ(catalog.search({"  WHEEL,AFTERTOUCH  "}),(std::vector<std::size_t>{1}));
+    EXPECT_EQ(catalog.search({"bank/2"}),(std::vector<std::size_t>{0}));
+    EXPECT_EQ(catalog.search({""}),(std::vector<std::size_t>{0,1}));
+    EXPECT_TRUE(catalog.search({"no such patch"}).empty());
+    EXPECT_TRUE(catalog.patches()[1].patch.name.ends_with("(wheel,aftertouch)"));
+}
 TEST(PatchCatalog, InvalidRowsRemainVisibleAlongsideValidRowsWithoutChangingSound) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");ProcessorBridge sounding;std::string error;ImportResult result;
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");ProcessorBridge sounding;std::string error;PresetImportResult result;
     ASSERT_TRUE(sounding.loadPatch(lead,error));const auto state=sounding.saveState();
-    ASSERT_TRUE(catalog.importFile(files.bank("Good.zip",{{"1.sy1",warm}}).string(),result,error));
+    ASSERT_TRUE(registerSource(catalog,files.bank("Good.zip",{{"1.sy1",warm}}).string(),result,error));
     const auto count=catalog.patches().size();
-    EXPECT_FALSE(catalog.importFile(files.bank("Bad.zip",{{"1.sy1",bass},{"2.sy1","Invalid\nver=999\n19,0\n"}}).string(),result,error));
-    EXPECT_EQ(result.added,2u);EXPECT_EQ(catalog.patches().size(),count+2);
+    EXPECT_FALSE(registerSource(catalog,files.bank("Bad.zip",{{"1.sy1",bass},{"2.sy1","Invalid\nver=999\n19,0\n"}}).string(),result,error));
+    EXPECT_EQ(result.ids.size(),2u);EXPECT_EQ(catalog.patches().size(),count+2);
     ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.patches().size(),count+2);
     EXPECT_EQ(std::count_if(catalog.patches().begin(),catalog.patches().end(),[](const auto& p){return !p.error.empty();}),1);
     EXPECT_EQ(sounding.saveState(),state);
     EXPECT_FALSE(catalog.setTags("../../outside","escape",error));
-    EXPECT_FALSE(catalog.removeBank("../outside",error));
 }
-TEST(PatchCatalog, RemovingSoundAndBankPreservesSourceAndSelfContainedRecall) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+TEST(PatchCatalog, DeletingTheRegisteredArchivePreservesSourceAndSelfContainedRecall) {
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
     const auto source=files.bank("Owned.zip",{{"1.sy1",warm},{"2.sy1",bass}});
-    ASSERT_TRUE(catalog.importFile(source.string(),result,error));const auto p=catalog.patches()[imported(catalog)];
+    ASSERT_TRUE(registerSource(catalog,source.string(),result,error));const auto p=catalog.patches()[imported(catalog)];
     ProcessorBridge sounding,recalled;ASSERT_TRUE(sounding.loadProgram(p.patch.text,p.program,error,p.patch.name));
     const auto state=sounding.saveState();ASSERT_TRUE(catalog.setTags(p.id,"Pad",error));
-    EXPECT_FALSE(catalog.removePatch(p.id,error));ASSERT_TRUE(catalog.reload(error));
+    ASSERT_TRUE(catalog.reload(error));
     EXPECT_EQ(catalog.search({"Warm",p.bankId}).size(),1u);ASSERT_EQ(catalog.search({"",p.bankId}).size(),2u);
-    ASSERT_TRUE(catalog.removeBank(p.bankId,error));ASSERT_TRUE(catalog.reload(error));
+    ASSERT_TRUE(fs::remove(p.file));ASSERT_TRUE(catalog.reload(error));
     EXPECT_TRUE(catalog.search({"",p.bankId}).empty());EXPECT_TRUE(fs::exists(source));
     recalled.restoreState(state.data(),static_cast<int>(state.size()));EXPECT_EQ(recalled.currentPatchName(),p.patch.name);EXPECT_EQ(recalled.saveState(),state);
 }
 TEST(PatchCatalog, SeparateInstancesRefreshBeforeImportAndMetadataPersists) {
-    CatalogFiles files;PatchCatalog first(files.dir/"Library"),second(files.dir/"Library");std::string error;ImportResult result;
+    CatalogFiles files;PatchCatalog first(files.dir/"Library"),second(files.dir/"Library");std::string error;PresetImportResult result;
     ASSERT_TRUE(first.reload(error));ASSERT_TRUE(second.reload(error));
     const auto source=files.bank("Owned.zip",{{"1.sy1",warm}});
-    ASSERT_TRUE(first.importFile(source.string(),result,error));
+    ASSERT_TRUE(registerSource(first,source.string(),result,error));
     PresetImportResult skipped;ASSERT_TRUE(second.registerFiles(source.string(),[](const auto&){return ConflictChoice{FileConflict::skip};},skipped));EXPECT_EQ(skipped.imported,0u);EXPECT_EQ(skipped.skipped,1u);
     const auto p=second.patches()[imported(second)];
     ASSERT_TRUE(second.setTags(p.id,"Pad",error));ASSERT_TRUE(first.reload(error));
@@ -127,8 +146,8 @@ TEST(PatchCatalog, SeparateInstancesRefreshBeforeImportAndMetadataPersists) {
     EXPECT_EQ(second.search({"",p.bankId,"pad",true}).size(),1u);
 }
 TEST(PatchCatalog, RejectsOversizedTagWithoutChangingMetadata) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
-    ASSERT_TRUE(catalog.importFile(files.bank("Owned.zip",{{"1.sy1",warm}}).string(),result,error));
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
+    ASSERT_TRUE(registerSource(catalog,files.bank("Owned.zip",{{"1.sy1",warm}}).string(),result,error));
     const auto id=catalog.patches()[0].id;
     ASSERT_TRUE(catalog.setTags(id,"Pad",error));
     EXPECT_FALSE(catalog.setTags(id,std::string(129,'a'),error));ASSERT_TRUE(catalog.reload(error));
@@ -140,8 +159,8 @@ TEST(PatchCatalog, FolderImportPreservesRelativeNamesAndNaturalOrder) {
     fs::create_directories(folder/"Nested");
     {std::ofstream out(folder/"Nested"/"10.sy1",std::ios::binary);out<<bass;}
     {std::ofstream out(folder/"Nested"/"2.sy1",std::ios::binary);out<<warm;}
-    PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
-    ASSERT_TRUE(catalog.importFile(folder.string()+"/",result,error))<<error;EXPECT_EQ(result.added,2u);
+    PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
+    ASSERT_TRUE(registerSource(catalog,folder.string()+"/",result,error))<<error;EXPECT_EQ(result.ids.size(),2u);
     const auto i=imported(catalog);EXPECT_EQ(catalog.patches()[i].patch.text,warm);
     EXPECT_EQ(catalog.patches()[i].bankName,"OwnedFolder/Nested");
     EXPECT_EQ(catalog.search({"OwnedFolder/Nested/2.sy1"}),(std::vector<std::size_t>{i}));
@@ -154,12 +173,12 @@ TEST(PatchCatalog, FolderImportPreservesRelativeNamesAndNaturalOrder) {
 }
 
 TEST(PatchCatalog, ThousandsOfSoundsRetainBankOrdinalsAndCanBeNarrowed) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
     for(const auto* bank:{"bulk-a","bulk-b"}) {
         std::vector<std::pair<std::string,std::string>> patches;
         for(int i=0;i<2100;++i)patches.push_back({std::to_string(i)+".sy1",std::string(bank)+" "+std::to_string(i)+"\nver=113\n19,91\n"});
-        ASSERT_TRUE(catalog.importFile(files.bank(std::string(bank)+".zip",patches).string(),result,error))<<error;
-        EXPECT_EQ(result.added,2100u);
+        ASSERT_TRUE(registerSource(catalog,files.bank(std::string(bank)+".zip",patches).string(),result,error))<<error;
+        EXPECT_EQ(result.ids.size(),2100u);
     }
     const auto matches=catalog.search({"bulk-b 2099"});ASSERT_EQ(matches.size(),1u);EXPECT_GT(matches[0],4095u);
     const auto p=catalog.patches()[matches[0]];EXPECT_EQ(p.program,2099);
@@ -253,9 +272,9 @@ TEST(PatchCatalog, FiveDigitProgramOrdinalsImportAndReloadWithoutTruncation) {
         patches.emplace_back(std::to_string(i)+".sy1","Owned sound "+std::to_string(i)+"\nver=113\n19,97\n29,87\n");
     patches.back().second+="2,135\n";
     const auto bank=files.bank("Large.zip",patches);
-    PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
-    ASSERT_TRUE(catalog.importFile(bank.string(),result,error))<<error;
-    EXPECT_EQ(result.added,10001u);EXPECT_EQ(result.duplicates,0u);
+    PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
+    ASSERT_TRUE(registerSource(catalog,bank.string(),result,error))<<error;
+    EXPECT_EQ(result.ids.size(),10001u);EXPECT_EQ(result.skipped,0u);
     fs::remove(bank);PatchCatalog reopened(files.dir/"Library");
     ASSERT_TRUE(reopened.reload(error))<<error;ASSERT_EQ(reopened.patches().size(),10001u);
     const auto matches=reopened.search({"Owned sound 10000"});ASSERT_EQ(matches.size(),1u);
@@ -270,9 +289,9 @@ TEST(PatchCatalog, ZipDirectoryBanksIncludeAncestorsAndPreserveSoundIdentity) {
         {"root.sy1",warm},{"Pads/1.sy1",warm},{"Pads/Deep/2.sy1",bass},
         {"PadsExtra/3.sy1",lead},{"Other/Deep/4.sy1",lead}});
     const auto root=files.dir/"Library";
-    PatchCatalog catalog(root);std::string error;ImportResult result;
-    ASSERT_TRUE(catalog.importFile(source.string(),result,error))<<error;
-    EXPECT_EQ(result.added,5u);
+    PatchCatalog catalog(root);std::string error;PresetImportResult result;
+    ASSERT_TRUE(registerSource(catalog,source.string(),result,error))<<error;
+    EXPECT_EQ(result.ids.size(),5u);
     const auto banks=catalog.banks();std::vector<std::string> ids;
     for(const auto& bank:banks)ids.push_back(bank.id);
     EXPECT_EQ(ids,(std::vector<std::string>{"Collection.zip","Collection.zip/Other",
@@ -294,11 +313,10 @@ TEST(PatchCatalog, ZipDirectoryBanksIncludeAncestorsAndPreserveSoundIdentity) {
     const auto matches=reopened.search({"Bass","Collection.zip/Pads/Deep","soft",true});ASSERT_EQ(matches.size(),1u);
     const auto& recalled=reopened.patches()[matches[0]];
     EXPECT_EQ(recalled.id,patch.id);EXPECT_EQ(recalled.program,patch.program);EXPECT_EQ(recalled.patch.text,bass);
-    // A logical sub-bank must never delete its containing archive or sibling sounds.
-    EXPECT_FALSE(reopened.removeBank("Collection.zip/Pads/Deep",error));
+    // Selecting a logical sub-bank leaves its containing archive and siblings intact.
     EXPECT_TRUE(fs::exists(root/"Collection.zip"));EXPECT_EQ(reopened.patches().size(),5u);
-    ASSERT_TRUE(reopened.removeBank("Collection.zip",error))<<error;
-    EXPECT_TRUE(reopened.patches().empty());ASSERT_TRUE(reopened.reload(error));EXPECT_TRUE(reopened.patches().empty());
+    ASSERT_TRUE(fs::remove(root/"Collection.zip"));
+    ASSERT_TRUE(reopened.reload(error));EXPECT_TRUE(reopened.patches().empty());
 }
 
 TEST(PatchCatalog, OrdinaryDirectoriesAndNestedZipsShareBankHierarchy) {
@@ -323,15 +341,14 @@ TEST(PatchCatalog, OrdinaryDirectoriesAndNestedZipsShareBankHierarchy) {
     for(const auto* id:{".","Set","Set/Pads","Set/Pads/Deep","Set/PadsExtra","Other","Other/Pads", "Set/Pads/Nested.zip", "Set/Pads/Nested.zip/Inside"})
         EXPECT_NE(std::find_if(banks.begin(),banks.end(),[&](const auto& bank){return bank.id==id;}),banks.end())<<id;
     EXPECT_EQ(catalog.search({"Set/Pads/1.sy1"}).size(),1u);
-    EXPECT_FALSE(catalog.removeBank("Set/Pads",error));
     ASSERT_TRUE(catalog.reload(error));EXPECT_EQ(catalog.patches().size(),6u);
     EXPECT_EQ(catalog.search({"Bright Lead","Set"}).size(),0u);
 }
 
 TEST(PatchCatalog, ZipDirectoryBanksKeepUtf8AndOriginalBackslashEntryNames) {
     CatalogFiles files;const auto source=files.bank("Sounds.zip",{{"音色\\Pad\\1.sy1",warm},{"音色/Pad/2.sy1",bass}});
-    PatchCatalog catalog(files.dir/"Library");std::string error;ImportResult result;
-    ASSERT_TRUE(catalog.importFile(source.string(),result,error))<<error;
+    PatchCatalog catalog(files.dir/"Library");std::string error;PresetImportResult result;
+    ASSERT_TRUE(registerSource(catalog,source.string(),result,error))<<error;
     const auto matches=catalog.search({"","Sounds.zip/音色/Pad"});ASSERT_EQ(matches.size(),2u);
     EXPECT_EQ(catalog.search({"","Sounds.zip/音色"}).size(),0u);
     EXPECT_EQ(catalog.patches()[matches[0]].archiveEntry,"音色/Pad/2.sy1");
@@ -360,7 +377,7 @@ TEST(PatchTagInference, UsesWordBoundariesAndDistinctModesWithShortFeatureNames)
 TEST(PatchCatalog, AutomaticTagsRecallOverridesAndManualSpellingWinsWithoutEditingSource) {
     CatalogFiles files;const auto root=files.dir/"Library";PatchCatalog catalog(root);
     const auto zip=files.bank("Owned.zip",{{"Nested/1.sy1",warm}});
-    ImportResult result;std::string error;ASSERT_TRUE(catalog.importFile(zip.string(),result,error))<<error;
+    PresetImportResult result;std::string error;ASSERT_TRUE(registerSource(catalog,zip.string(),result,error))<<error;
     const auto id=catalog.patches().front().id;
     const auto text=catalog.patches().front().patch.text;
     EXPECT_EQ(catalog.search({"","","Pad"}).size(),1u);
@@ -394,9 +411,9 @@ TEST(PatchCatalog, InferenceUsesResolvedDialsForLegacyAndContinuousSources) {
 }
 
 TEST(PatchCatalog, LegacyManualTagSidecarsRemainReadableAndCanBePromoted) {
-    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");ImportResult result;std::string error;
+    CatalogFiles files;PatchCatalog catalog(files.dir/"Library");PresetImportResult result;std::string error;
     const auto zip=files.bank("Owned.zip",{{"Owned.sy1",warm}});
-    ASSERT_TRUE(catalog.importFile(zip.string(),result,error));const auto id=catalog.patches().front().id;
+    ASSERT_TRUE(registerSource(catalog,zip.string(),result,error));const auto id=catalog.patches().front().id;
     ASSERT_TRUE(catalog.setTags(id,"old",error));
     for(const auto& file:fs::recursive_directory_iterator(catalog.root()/"tags"))
         if(file.is_regular_file() && file.path().extension()==".tags")std::ofstream(file.path())<<"Legacy, pAD";

@@ -222,7 +222,7 @@ state and the sounding patch are instance-owned.
 
 `PatchCatalogTest.cpp` checks file-backed accumulation, metadata, exact registration
 filters, recursive directory/archive banks, direct-bank and All banks selection, unchanged source-bank
-ordinals and metadata identities, legacy managed-bank readability and removal without
+ordinals and metadata identities, legacy managed-bank readability and external-file deletion/refresh without
 changing sound recall. `ArchiveBankTest.cpp` compares directory, ZIP, RAR and 7z registration through
 the same catalog, preserving source bytes, hierarchy, IDs on reload and each
 source's program ordinals. It also checks compressed RAR4/RAR5 and 7z banks, solid data, Unicode

@@ -71,9 +71,9 @@ TEST(BankBoundary, ExactEntryLimitLoadsAndOneExtraPreservesTheFullSnapshot)
     PatchLibrary library;std::string error;
     ASSERT_TRUE(library.openFile(exact.string(),error))<<error;
     ASSERT_EQ(library.patches().size(),PatchLibrary::maximumPatches);
-    const auto name=library.name();
+    const auto name=library.patches().front().name;
     EXPECT_FALSE(library.openFile(overflow.string(),error)); EXPECT_FALSE(error.empty());
-    EXPECT_EQ(library.name(),name); ASSERT_EQ(library.patches().size(),PatchLibrary::maximumPatches);
+    ASSERT_EQ(library.patches().size(),PatchLibrary::maximumPatches); EXPECT_EQ(library.patches().front().name,name);
     for(size_t i=0;i<library.patches().size();++i)
     {
         ASSERT_EQ(library.patches()[i].text,patch);
@@ -120,7 +120,7 @@ TEST(BankBoundary, ExactExpandedByteLimitsLoadAndOneExtraByteIsRejectedAtomicall
     ASSERT_TRUE(library.openFile(exact.string(),error))<<error;
     ASSERT_EQ(library.patches().size(),count);
     EXPECT_FALSE(library.openFile(overflow.string(),error)); EXPECT_FALSE(error.empty());
-    EXPECT_EQ(library.name(),"exact.zip"); ASSERT_EQ(library.patches().size(),count);
+    ASSERT_EQ(library.patches().size(),count); EXPECT_TRUE(library.patches().front().name.starts_with("0.sy1"));
     for(const auto& entry:library.patches()) ASSERT_EQ(entry.text,large);
 }
 
@@ -141,7 +141,7 @@ TEST(BankBoundary, CorruptPayloadCrcRejectsTheBankWithoutReplacingThePreviousSel
     PatchLibrary library;std::string error;
     ASSERT_TRUE(library.openFile(initial.string(),error));
     EXPECT_FALSE(library.openFile(corrupt.string(),error)); EXPECT_FALSE(error.empty());
-    EXPECT_EQ(library.name(),"initial.zip"); ASSERT_EQ(library.patches().size(),1u);
+    ASSERT_EQ(library.patches().size(),1u); EXPECT_EQ(library.patches().front().entry,"seed.sy1");
     EXPECT_EQ(library.patches()[0].text,patch);
 }
 
@@ -157,7 +157,7 @@ TEST(BankBoundary, UnixSymlinkEntriesAreIgnoredAndLinkOnlyBanksPreserveTheSnapsh
     ASSERT_TRUE(library.openFile(mixed.string(),error))<<error;
     ASSERT_EQ(library.patches().size(),1u);EXPECT_TRUE(library.patches()[0].name.starts_with("real.sy1"));
     EXPECT_FALSE(library.openFile(only.string(),error)); EXPECT_FALSE(error.empty());
-    EXPECT_EQ(library.name(),"mixed.zip"); ASSERT_EQ(library.patches().size(),1u);
+    ASSERT_EQ(library.patches().size(),1u); EXPECT_EQ(library.patches().front().entry,"real.sy1");
     EXPECT_EQ(library.patches()[0].text,patch);
     EXPECT_FALSE(std::filesystem::exists(directory.path/"target.sy1"));
 }
