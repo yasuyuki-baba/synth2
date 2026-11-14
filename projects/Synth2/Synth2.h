@@ -20,6 +20,7 @@ public:
     void OnReset() override;
     void OnActivate(bool active) override;
     void OnParamChange(int index) override;
+    void OnParamChange(int index, iplug::EParamSource source, int sampleOffset = -1) override;
     void OnParamReset(iplug::EParamSource source) override;
     bool SerializeState(iplug::IByteChunk& chunk) const override;
     int UnserializeState(const iplug::IByteChunk& chunk, int start) override;

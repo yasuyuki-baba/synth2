@@ -1,15 +1,17 @@
 #include "SmokeHost.h"
 #include "host/PresetFiles.h"
 #include "host/ProcessorBridge.h"
+#include "patch/PatchFormat.h"
 
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
 
 namespace
 {
-smoke::State patchState(const std::filesystem::path& file, int factor)
+smoke::State patchState(const std::filesystem::path& file, int factor, bool fractional = false)
 {
     std::ifstream input(file, std::ios::binary);
     smoke::require(input.good(), "Cannot read patch: " + file.string());
@@ -17,6 +19,13 @@ smoke::State patchState(const std::filesystem::path& file, int factor)
     synth2::host::ProcessorBridge processor;
     std::string error;
     smoke::require(processor.loadPatch(text, error), "Patch load failed: " + error);
+    if(fractional)
+    {
+        auto patch = synth2::parseContinuousPatch(processor.savePatch());
+        patch.values[19] = 63.75f;
+        patch.values[64] = 2.25f;
+        smoke::require(processor.loadPatch(synth2::formatContinuousPatch(patch), error), "Fractional patch load failed");
+    }
     smoke::require(processor.setOversamplingFactor(factor), "Invalid quality factor");
     synth2::host::PresetBrowserState browser;
     browser.capture(processor);
@@ -62,6 +71,34 @@ void check(const std::string& label, const Signal& signal, bool audible, double 
     smoke::require(audible ? signal.rms() > 1e-4 : signal.peak <= silenceLimit,
         label + (audible ? ": expected sound" : ": expected silence"));
 }
+
+#ifdef SYNTH2_SMOKE_VST3
+void checkVst3Echo(const std::filesystem::path& binary, const smoke::State& state)
+{
+    auto baseline = smoke::makeVst3(binary);
+    auto echoed = smoke::makeVst3(binary, true);
+    baseline->load(state); echoed->load(state);
+    double error = 0, energy = 0;
+    bool identical = true;
+    for(int block = 0; block < 256; ++block)
+    {
+        smoke::Block a{}, b{};
+        const auto midi = block == 0 ? smoke::Midi::noteOn : block == 192 ? smoke::Midi::noteOff : smoke::Midi::none;
+        baseline->render(a, midi); echoed->render(b, midi);
+        identical = identical && std::memcmp(a.data(), b.data(), sizeof(a)) == 0;
+        for(int channel = 0; channel < 2; ++channel)for(int i = 0; i < smoke::frames; ++i)
+        {
+            smoke::require(std::isfinite(a[channel][i]) && std::isfinite(b[channel][i]), "Non-finite echo output");
+            const double difference = double(a[channel][i]) - b[channel][i];
+            error += difference * difference;
+            energy += double(a[channel][i]) * a[channel][i];
+        }
+    }
+    smoke::require(energy > 1e-8, "Echo baseline was silent");
+    std::cout << "VST3 host parameter echo raw stereo NRMSE=" << std::sqrt(error / energy) << std::endl;
+    smoke::require(identical, "VST3 host parameter echo changed patch audio");
+}
+#endif
 }
 
 int main(int argc, char** argv)
@@ -83,6 +120,10 @@ int main(int argc, char** argv)
         smoke::require(bool(host), "Unknown format: " + format);
         for (const int factor : {1, 8})
         {
+#ifdef SYNTH2_SMOKE_VST3
+            if(format == "vst3")for(const bool fractional : {false, true})
+                checkVst3Echo(argv[2], patchState(std::filesystem::path(argv[3]) / "legacy.sy1", factor, fractional));
+#endif
             // Reuse the same instance: a successful cold-start alone would not
             // catch a later state load leaving the preceding patch sounding.
             for (const int patch : {0, 1, 0})

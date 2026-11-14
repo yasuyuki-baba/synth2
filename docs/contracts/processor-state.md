@@ -71,6 +71,12 @@ parameter must receive the loaded value. Publishing the patch must not replay
 SDK parameter setters into the already-loaded processor or round fractional
 recalled controls back through discrete SDK presentation.
 
+A host returning the current SDK-presented value is synchronization, not a new
+source edit. Ignore that echo at the native host boundary, including stepped
+presentation of fractional recalled selectors. Preserve legacy load conversion,
+receiver history and serialized state. Actual host value changes and explicit
+UI/controller setters still apply normally; keep their native ordering semantics.
+
 ## Verification
 
 The public `ParameterContract` in

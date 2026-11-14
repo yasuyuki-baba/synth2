@@ -64,6 +64,20 @@ void Synth2::OnParamChange(int index)
     if(index==qualityParameter)processor.setOversamplingFactor(1<<GetParam(index)->Int());
     else processor.setNormalizedValue(index, GetParam(index)->GetNormalized());
 }
+void Synth2::OnParamChange(int index, EParamSource source, int)
+{
+    if(source==kHost && index>=0 && index<synth2::host::ProcessorBridge::parameterCount)
+    {
+        const auto* parameter=GetParam(index);
+        // Hosts can echo every published value after a patch load. Compare the
+        // SDK presentation (including discrete stepping) at bridge precision:
+        // an unchanged echo must not replace legacy-converted controls or round
+        // a fractional recalled selector. Explicit UI/native setters still run.
+        const float published=static_cast<float>(parameter->ConstrainNormalized(processor.normalizedValue(index)));
+        if(static_cast<float>(parameter->GetNormalized())==published)return;
+    }
+    OnParamChange(index);
+}
 void Synth2::OnParamReset(EParamSource source)
 {
     // iPlug2 broadcasts resets at initialization/activation. Replaying every
