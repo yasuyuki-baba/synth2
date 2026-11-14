@@ -33,7 +33,8 @@ function(synth2_add_archives)
     # Wire the vendored target explicitly: FindLibLZMA probes a built system
     # library and cannot try-link a target that is part of this build.
     target_compile_definitions(archive_static PRIVATE HAVE_LZMA_H=1 HAVE_LIBLZMA=1)
-    target_link_libraries(archive_static PRIVATE liblzma)
+    # Match upstream's plain signature, also used for platform system libraries.
+    target_link_libraries(archive_static liblzma)
     add_library(Synth2Archives ALIAS archive_static)
 endfunction()
 synth2_add_archives()
