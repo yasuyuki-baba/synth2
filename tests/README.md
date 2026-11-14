@@ -134,3 +134,7 @@ an actual sanitizer report to obtain a passing run.
 [GitHub Actions](../docs/ci.md) runs this SDK-free portable suite on Linux,
 Windows and macOS. Native wrapper builds are separate jobs using pinned SDKs;
 those jobs do not replace the product tests or manual platform checks.
+
+RAR bank coverage in `RarBankTest.cpp` uses small self-authored compressed
+RAR4/RAR5 fixtures under `tests/fixtures/rar`. No RAR executable is required
+to run these tests; regeneration instructions are beside the fixtures.

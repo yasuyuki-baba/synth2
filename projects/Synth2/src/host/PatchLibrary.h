@@ -18,7 +18,7 @@ struct LibraryPatch
 };
 
 // UI-side, immutable-after-open snapshot. No SDK types or paths are needed by
-// the audio engine. ZIP entries are read in memory, never extracted to disk.
+// the audio engine. Archive entries are read in memory, never extracted to disk.
 class PatchLibrary
 {
 public:
@@ -36,6 +36,7 @@ public:
 
 private:
     bool openZip(const void* bytes, std::size_t size, const std::string& name, std::string& error);
+    bool openRar(const void* bytes, std::size_t size, const std::string& name, std::string& error);
     std::string bankName;
     std::vector<LibraryPatch> entries;
 };

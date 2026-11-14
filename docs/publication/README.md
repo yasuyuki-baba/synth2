@@ -12,7 +12,7 @@ permissions before distributing additional material.
 - Init is the startup sound and the library is initially empty. No factory bank
   is bundled; public tests generate their own patch banks. Preserve Init
   provenance and review rights for any future bundled sounds independently.
-- miniz, tinyxml2, iPlug2 and editor fonts retain their included license notices.
+- miniz, libarchive, tinyxml2, iPlug2 and editor fonts retain their included license notices.
   Preserve those notices in source and applicable binary packages; review SDK
   terms for each native format. See the [desktop build guide](../desktop-build.md).
 - Preserve the pinned iPlug2 gitlink and public submodule URL in source checkouts.

@@ -10,7 +10,7 @@ uses checkmarks to toggle up to 32 selections; a sound must contain every select
 tag (AND). All tags clears only the tag selections. The button shows the active
 count and its tooltip lists the selections. Selections survive session recall;
 older single-tag sessions remain readable. All search
-words match independently against the title, relative file/ZIP entry location and
+words match independently against the title, relative file/archive entry location and
 tags. ASCII matching is case insensitive; other UTF-8 text matches its original
 bytes. The result viewport fits 17 rows at the standard editor size, preserving font sizes
 with compact 30-unit row spacing. A right-hand scrollbar shows the position within
@@ -58,19 +58,26 @@ is provided by this patch-selection feature.
 ## Files and registration
 
 The configured user directory is recursively scanned for `.sy1` files and `.sy1`
-entries in ZIPs. External additions and replacements become visible on refresh or
+entries in ZIP and RAR banks. External additions and replacements become visible on refresh or
 editor reopen. A manual Refresh requested during another library job is queued
-and rescans after that job completes. ZIPs remain single files: they are read in memory and never expanded
+and rescans after that job completes. Archives remain single files: they are read in memory and never expanded
 or rewritten. Invalid sources remain visible with an error and do not prevent
 other files from appearing. Selecting an invalid row preserves the current sound.
 
+RAR banks support RAR4 stored/compressed entries and RAR5 stored/compressed and
+solid entries. Password-protected banks and RAR4 solid compression are unsupported
+and produce a visible source error. Import expects a single archive file. RAR
+reads use the same patch/bank size limits as ZIP; the RAR limit also counts
+non-patch data and all headers because solid entries can require decoding earlier
+files. Japanese/Unicode filenames do not depend on the host process locale.
+
 Add a file or folder from **Add...**, or drop it on the list. Registration copies
-actual `.sy1` and ZIP files and leaves the source intact. Folder names and internal
+actual `.sy1`, ZIP and RAR files and leaves the source intact. Folder names and internal
 hierarchy are retained. Already stored files are referenced without copying. A
 bank is a directory: loose `.sy1` files in the same folder share a bank, and
-ZIP entry subdirectories form banks under the archive's relative filename.
+Archive entry subdirectories form banks under the archive's relative filename.
 For example, `Pads/Collection.zip/Analog/Soft` is distinct from
-`Leads/Collection.zip/Analog/Soft`. The bank menu shows directory and ZIP hierarchy in one indented list, without
+`Leads/Collection.zip/Analog/Soft`. The bank menu shows directory and archive hierarchy in one indented list, without
 submenus. The bank selector uses the platform popup menu so long lists use OS
 scrolling rather than the SDK custom popup, whose wheel handler is unimplemented.
 Parents are disabled classification headings. A parent with direct sounds
@@ -83,14 +90,14 @@ and stop with a disabled button at each end. Switching banks retains keywords,
 tags, favorites and the sounding patch, clears registration-only filtering and
 resets the scroll/candidate. Empty directories are omitted. Files directly in the library root use `Library root`.
 Bank paths use forward slashes on every platform. Empty folders are omitted.
-Grouping leaves sound IDs, tags, favorites, source text and original ZIP program
-ordinals unchanged. ZIP directory grouping never expands or rewrites the archive.
+Grouping leaves sound IDs, tags, favorites, source text and original archive program
+ordinals unchanged. Archive directory grouping never expands or rewrites the archive.
 A physical filename conflict offers Replace, Keep both (numbered suffix), or Skip,
 with an apply-to-all option. Source text and sound titles do not determine
 collisions. Two different filenames may intentionally contain identical sounds.
 
 After registration, the browser clears other filters and shows exactly that
-registration's item IDs, including the entries of registered ZIPs. The registration
+registration's item IDs, including the entries of registered archives. The registration
 filter is indicated in the header. **Show all sounds**, or choosing a bank, clears
 that restriction. The result summary distinguishes registered/skipped files and
 errors. No sound is automatically selected. Filesystem scans, registration and
@@ -99,12 +106,12 @@ editor with dialog lifetime guards.
 
 ## Saving and edited sounds
 
-**Save → Save** writes to the loaded loose library `.sy1`. ZIP sources, Init and
+**Save → Save** writes to the loaded loose library `.sy1`. Archive sources, Init and
 sources no longer in the library use Save as. **Save → Save as...** chooses a name
 and a destination within the configured directory, including its subfolders.
 Existing destinations require confirmation. Saving uses the existing Synth2
 `ver=200` patch API, preserving fractional controls, reserved values and master
-volume. A ZIP itself is never modified. Complete writes are staged before file
+volume. An archive itself is never modified. Complete writes are staged before file
 publication; failures retain the sounding state and its edit baseline.
 
 Successful saves select and reveal the saved file and establish a new baseline.
@@ -117,14 +124,14 @@ does not clear unsaved preset edits. Sound changes do not prompt on every auditi
 ## Metadata and storage
 
 Tags and favorites remain shared user preferences separate from source files and
-DAW sound state. Library refresh discovers current files and ZIP entries, then
+DAW sound state. Library refresh discovers current files and archive entries, then
 reuses cached validation results and automatic tags for unchanged source contents.
 Only added or changed sounds are loaded and classified using an isolated bridge
 on the library worker. Removed sounds disappear from the cache. No audio is
 rendered and the sounding processor is not loaded.
 
 The disposable `.synth2-tags.cache` in the library root compares exact source bytes,
-including ZIP-entry contents, so same-size/same-timestamp edits are detected. The
+including archive-entry contents, so same-size/same-timestamp edits are detected. The
 cache has an explicit inference/loading revision; rule or loading changes must
 bump that revision. Cache publication is atomic. Missing, corrupt or incompatible
 caches rebuild; an unwritable cache does not block library use. The cache is bounded
@@ -165,13 +172,13 @@ at least 150 ms nominal amp attack; Long release means at least one second nomin
 amp release. Short decay requires fast attack, low amp sustain and decay within
 two seconds. Filter pluck considers a fast low-pass envelope with low sustain,
 positive depth and a restrained base cutoff. FM is omitted when Ring takes
-precedence. No inferred tag changes DSP settings or original patch/ZIP bytes.
+precedence. No inferred tag changes DSP settings or original patch/archive bytes.
 
-Metadata IDs use relative file plus ZIP-entry identity; safe encoded keys prevent
+Metadata IDs use relative file plus archive-entry identity; safe encoded keys prevent
 path/underscore collisions. Existing managed `banks/bank-*` directories and their
 metadata remain readable with their original IDs and ordinals. Only recognized
 legacy records are excluded from file indexing to avoid duplicates. Ordinary
-ZIP/`.sy1` files remain discoverable alongside managed records.
+ZIP/RAR/`.sy1` files remain discoverable alongside managed records.
 
 | Platform | Default library folder |
 | --- | --- |
@@ -186,10 +193,10 @@ Delete or rename files through the file manager opened by **Open library folder*
 then Refresh to update the browser. The editor has no per-sound or per-bank Remove
 buttons. File deletion does not replace the sounding patch or saved project state. Separate instances see committed file/metadata changes on refresh.
 
-Per-file and per-ZIP PatchLibrary limits still apply. The catalog retains its
+Per-file and per-archive PatchLibrary limits still apply. The catalog retains its
 100,000-sound/512-MiB source limit; bank/display names remain bounded to 16 KiB.
 A failed catalog reload retains the previous valid snapshot. Catalog indices are
-not host program ordinals; ZIP entries retain their source-bank ordinal.
+not host program ordinals; archive entries retain their source-bank ordinal.
 
 ## Session recall
 
@@ -208,9 +215,12 @@ state and the sounding patch are instance-owned.
 ## Verification boundary
 
 `PatchCatalogTest.cpp` checks file-backed accumulation, metadata, exact registration
-filters, recursive directory/ZIP banks, direct-bank and All banks selection, unchanged source-bank
+filters, recursive directory/archive banks, direct-bank and All banks selection, unchanged source-bank
 ordinals and metadata identities, legacy managed-bank readability and removal without
-changing sound recall. `PresetFilesTest.cpp` checks recursive/ZIP scanning, physical
+changing sound recall. `RarBankTest.cpp` checks compressed RAR4/RAR5 banks, RAR5 solid banks, Unicode
+paths, unchanged source bytes and resolved states, registration, hierarchy/reload,
+corruption/checksum failure, unsupported variants and size limits.
+`PresetFilesTest.cpp` checks recursive/ZIP scanning, physical
 file conflicts, confined saves, fractional `ver=200` round trips, independent edit
 baselines and transactional wrapper-v1/v2 recall. Other loading/state/patch-format
 tests retain the source and rendering contracts. These portable checks do not
