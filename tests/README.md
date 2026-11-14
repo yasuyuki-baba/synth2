@@ -135,6 +135,6 @@ an actual sanitizer report to obtain a passing run.
 Windows and macOS. Native wrapper builds are separate jobs using pinned SDKs;
 those jobs do not replace the product tests or manual platform checks.
 
-RAR bank coverage in `RarBankTest.cpp` uses small self-authored compressed
-RAR4/RAR5 fixtures under `tests/fixtures/rar`. No RAR executable is required
+RAR/7z bank coverage in `ArchiveBankTest.cpp` uses small self-authored compressed
+RAR4/RAR5/7z fixtures under `tests/fixtures/rar` and `tests/fixtures/7z`. No archive encoder is required
 to run these tests; regeneration instructions are beside the fixtures.

@@ -36,7 +36,7 @@ public:
 
 private:
     bool openZip(const void* bytes, std::size_t size, const std::string& name, std::string& error);
-    bool openRar(const void* bytes, std::size_t size, const std::string& name, std::string& error);
+    bool openArchive(const void* bytes, std::size_t size, const std::string& name, std::string& error);
     std::string bankName;
     std::vector<LibraryPatch> entries;
 };

@@ -8,7 +8,7 @@ JUCE or another repository. Native wrappers require their platform SDKs.
 | --- | --- |
 | Product source | iPlug2 wrapper/editor and SDK-independent core under projects/Synth2 |
 | Patch loading | Synth2 version 200 preserves fractional dials; accepts legacy 1–113 and named unversioned sources; native evidence for 100/104–113; transactional failure; original source values retained |
-| Library archives | ZIP and single-file RAR banks remain intact; RAR4 stored/compressed and RAR5 solid/compressed reads; encrypted banks and RAR4 solid unsupported |
+| Library archives | ZIP, RAR and 7z banks remain intact; RAR4 stored/compressed, RAR5 solid/compressed, and 7z stored/LZMA/LZMA2/PPMd reads; encrypted banks, RAR4 solid and other 7z codecs unsupported |
 | State/parameters | Stable host metadata; readable legacy state chunks; source-aware recall without the external bank |
 | Rendering | Control-driven policy, preserved numerical/event ordering, retained physical histories and effect tails |
 | GUI | Shared layout/value semantics, bundled fonts, main Synth surface and supplementary MIDI/library views |

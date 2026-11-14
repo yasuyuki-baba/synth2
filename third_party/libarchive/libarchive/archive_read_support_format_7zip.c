@@ -396,7 +396,7 @@ struct _7zip {
 /* Maximum entry size. This limitation prevents reading intentional
  * corrupted 7-zip files on assuming there are not so many entries in
  * the files. */
-#define UMAX_ENTRY	ARCHIVE_LITERAL_LL(100000000)
+#define UMAX_ENTRY	ARCHIVE_LITERAL_LL(65536)
 
 /* Don't try to read more than 16 MB at a time */
 #define MAX_READ	16 * 1024 * 1024
@@ -1555,6 +1555,13 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 
 		filters[fi].id = LZMA_VLI_UNKNOWN;
 		filters[fi].options = NULL;
+		/* Synth2 bounds decoder working memory before allocating it. */
+		if (lzma_raw_decoder_memusage(filters) > 256 * 1024 * 1024) {
+			free(ff->options);
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "7-Zip decoder exceeds the memory limit");
+			return (ARCHIVE_FAILED);
+		}
 		r = lzma_raw_decoder(&(zip->lzstream), filters);
 		free(ff->options);
 		if (r != LZMA_OK) {
@@ -1668,7 +1675,7 @@ init_decompression(struct archive_read *a, struct _7zip *zip,
 		order = coder1->properties[0];
 		msize = archive_le32dec(&(coder1->properties[1]));
 		if (order < PPMD7_MIN_ORDER || order > PPMD7_MAX_ORDER ||
-		    msize < PPMD7_MIN_MEM_SIZE || msize > PPMD7_MAX_MEM_SIZE) {
+		    msize < PPMD7_MIN_MEM_SIZE || msize > 256 * 1024 * 1024) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Malformed PPMd parameter");
 			return (ARCHIVE_FAILED);
@@ -4046,6 +4053,12 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 	zip->pack_stream_remaining = folder->numPackedStreams;
 	zip->pack_stream_index = folder->packIndex;
 	zip->folder_outbytes_remaining = folder_uncompressed_size(folder);
+	/* This also bounds decoded headers and solid data before processing. */
+	if (zip->folder_outbytes_remaining > 64 * 1024 * 1024) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "7-Zip folder exceeds the bank size limit");
+		return (header ? ARCHIVE_FATAL : ARCHIVE_FAILED);
+	}
 	zip->uncompressed_buffer_bytes_remaining = 0;
 	coder1 = &(folder->coders[0]);
 	if (folder->numCoders == 2)
@@ -4167,12 +4180,12 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			/* Allocate memory for the decoded data of a sub
 			 * stream. */
-			if ((uint64_t)zip->folder_outbytes_remaining > SIZE_MAX) {
+			if ((uint64_t)zip->folder_outbytes_remaining > 64 * 1024 * 1024) {
 				free(b[0]); free(b[1]); free(b[2]);
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "7-Zip sub-stream size exceeds "
-				    "platform maximum");
+				    "bank size limit");
 				return (ARCHIVE_FATAL);
 			}
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);

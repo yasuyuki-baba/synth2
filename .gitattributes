@@ -3,6 +3,7 @@ third_party/** -whitespace
 # Expected archive contents must retain their original LF/CRLF bytes on Windows.
 tests/fixtures/rar/input/** -text whitespace=cr-at-eol
 tests/fixtures/rar/*.rar -text
+tests/fixtures/7z/*.7z -text
 projects/Synth2/resources/IPLUG2-LICENSE.txt -whitespace
 projects/Synth2/src/dsp/OscillatorConstants.h linguist-generated=true
 projects/Synth2/src/dsp/FmTables.h linguist-generated=true

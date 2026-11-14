@@ -42,7 +42,7 @@ std::string lower(std::string s)
 bool supported(const fs::path &p)
 {
     auto e = lower(utf8(p.extension()));
-    return e == ".sy1" || e == ".zip" || e == ".rar";
+    return e == ".sy1" || e == ".zip" || e == ".rar" || e == ".7z";
 }
 std::string identity(const std::string &path, const std::string &entry = {})
 {
@@ -311,7 +311,7 @@ PresetImportResult PresetFiles::import(const fs::path &inputSource, const Resolv
         else
         {
             if (!supported(source))
-                throw std::runtime_error("Choose a .sy1 file, ZIP, RAR or folder.");
+                throw std::runtime_error("Choose a .sy1 file, ZIP, RAR, 7z or folder.");
             files.push_back(source);
         }
         std::sort(files.begin(), files.end());

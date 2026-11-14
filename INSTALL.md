@@ -126,7 +126,7 @@ prevent unsigned software from running.
    track monitoring and configure your audio output. In the standalone app,
    select the audio device and MIDI input in its settings.
 
-Synth2 starts with Init and an empty library. Add your own `.sy1` patches or ZIP
+Synth2 starts with Init and an empty library. Add your own `.sy1` patches or ZIP/RAR/7z
 banks through the library; no factory bank is included. The default audio quality
 is 1x. Higher oversampling factors use more CPU and can change tone and level;
 reduce the factor or increase your audio buffer if playback crackles.

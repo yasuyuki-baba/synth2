@@ -3,8 +3,8 @@
 All product code lives in `projects/Synth2`, using the iPlug2OOS layout. The portable
 core in `projects/Synth2/src` must remain independent of iPlug2 headers. Production,
 tools and the portable build graph do not depend on JUCE or an original Synth1 DLL.
-ZIP/RAR/XML support uses bundled miniz/libarchive/tinyxml2 implementations.
-The static RAR reader needs no external decompressor or network download; see
+ZIP/RAR/7z/XML support uses bundled miniz/libarchive/liblzma/tinyxml2 implementations.
+The static RAR/7z reader needs no external decompressor or network download; see
 [the vendored dependency notes](../third_party/libarchive/VENDORED.md).
 
 | Platform | Intended native formats |
@@ -31,7 +31,7 @@ find the C++ compiler.
 ## Build targets and compiler requirements
 
 `Synth2Core` is the shared portable library used by native wrappers, tools and
-tests. `Synth1PatchCore` owns source parsing/conversion; resources and ZIP/RAR/XML
+tests. `Synth1PatchCore` owns source parsing/conversion; resources and ZIP/RAR/7z/XML
 support have their own static libraries. Editor fonts are native-only. These are
 build targets, not separately loaded runtime plugins.
 
