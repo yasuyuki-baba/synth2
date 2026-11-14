@@ -155,7 +155,7 @@ bool PatchCatalog::reload(std::string& error) {
                 // Archive entries and loose files share one directory-bank hierarchy.
                 // Sound IDs, original entry names and source program ordinals stay intact.
                 auto bankId=portablePath(relative.parent_path());
-                if(const auto extension=lower(utf8(relative.extension())); extension==".zip" || extension==".rar") {
+                if(const auto extension=lower(utf8(relative.extension())); extension==".zip" || extension==".rar" || extension==".7z") {
                     bankId=portablePath(relative);
                     auto entry=item.archiveEntry;
                     std::replace(entry.begin(),entry.end(),'\\','/');

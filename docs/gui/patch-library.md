@@ -58,7 +58,7 @@ is provided by this patch-selection feature.
 ## Files and registration
 
 The configured user directory is recursively scanned for `.sy1` files and `.sy1`
-entries in ZIP and RAR banks. External additions and replacements become visible on refresh or
+entries in ZIP, RAR and 7z banks. External additions and replacements become visible on refresh or
 editor reopen. A manual Refresh requested during another library job is queued
 and rescans after that job completes. Archives remain single files: they are read in memory and never expanded
 or rewritten. Invalid sources remain visible with an error and do not prevent
@@ -66,16 +66,22 @@ other files from appearing. Selecting an invalid row preserves the current sound
 
 RAR banks support RAR4 stored/compressed entries and RAR5 stored/compressed and
 solid entries. Password-protected banks and RAR4 solid compression are unsupported
-and produce a visible source error. Import expects a single archive file. RAR
-reads use the same patch/bank size limits as ZIP; the RAR limit also counts
+and produce a visible source error. Import expects a single archive file. RAR and 7z
+reads use the same patch/bank size limits as ZIP; their limit also counts
 non-patch data and all headers because solid entries can require decoding earlier
 files. Japanese/Unicode filenames do not depend on the host process locale.
 
+7z banks support stored, LZMA, LZMA2 and PPMd data, including solid archives and
+compressed headers. Encrypted 7z banks and BZip2/Deflate/Zstd compression are
+unsupported and remain visible with a source error. The decoder working-memory
+limit is 256 MiB; decoded headers, solid folders and BCJ2 substreams must each fit
+the 64-MiB bank limit. Header entry counts are bounded before allocation.
+
 Add a file or folder from **Add...**, or drop it on the list. Registration copies
-actual `.sy1`, ZIP and RAR files and leaves the source intact. Folder names and internal
+actual `.sy1`, ZIP, RAR and 7z files and leaves the source intact. Folder names and internal
 hierarchy are retained. Already stored files are referenced without copying. A
 bank is a directory: loose `.sy1` files in the same folder share a bank, and
-Archive entry subdirectories form banks under the archive's relative filename.
+archive entry subdirectories form banks under the archive's relative filename.
 For example, `Pads/Collection.zip/Analog/Soft` is distinct from
 `Leads/Collection.zip/Analog/Soft`. The bank menu shows directory and archive hierarchy in one indented list, without
 submenus. The bank selector uses the platform popup menu so long lists use OS
@@ -178,7 +184,7 @@ Metadata IDs use relative file plus archive-entry identity; safe encoded keys pr
 path/underscore collisions. Existing managed `banks/bank-*` directories and their
 metadata remain readable with their original IDs and ordinals. Only recognized
 legacy records are excluded from file indexing to avoid duplicates. Ordinary
-ZIP/RAR/`.sy1` files remain discoverable alongside managed records.
+ZIP/RAR/7z/`.sy1` files remain discoverable alongside managed records.
 
 | Platform | Default library folder |
 | --- | --- |
@@ -217,9 +223,9 @@ state and the sounding patch are instance-owned.
 `PatchCatalogTest.cpp` checks file-backed accumulation, metadata, exact registration
 filters, recursive directory/archive banks, direct-bank and All banks selection, unchanged source-bank
 ordinals and metadata identities, legacy managed-bank readability and removal without
-changing sound recall. `RarBankTest.cpp` checks compressed RAR4/RAR5 banks, RAR5 solid banks, Unicode
+changing sound recall. `ArchiveBankTest.cpp` checks compressed RAR4/RAR5 and 7z banks, solid data, Unicode
 paths, unchanged source bytes and resolved states, registration, hierarchy/reload,
-corruption/checksum failure, unsupported variants and size limits.
+corruption/checksum failure, unsupported variants, header/decoder limits and size limits.
 `PresetFilesTest.cpp` checks recursive/ZIP scanning, physical
 file conflicts, confined saves, fractional `ver=200` round trips, independent edit
 baselines and transactional wrapper-v1/v2 recall. Other loading/state/patch-format

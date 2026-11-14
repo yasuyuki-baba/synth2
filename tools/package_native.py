@@ -56,6 +56,8 @@ def package(root, build, platform, manifest, output):
             ('third_party/miniz/LICENSE', 'notices/miniz-LICENSE'),
             ('third_party/libarchive/COPYING', 'notices/libarchive-COPYING'),
             ('third_party/libarchive/NOTICES', 'notices/libarchive-NOTICES'),
+            ('third_party/xz/COPYING', 'notices/xz-COPYING'),
+            ('third_party/xz/COPYING.0BSD', 'notices/xz-COPYING.0BSD'),
             ('third_party/tinyxml2/LICENSE', 'notices/tinyxml2-LICENSE'),
             ('projects/Synth2/resources/IPLUG2-LICENSE.txt', 'notices/iPlug2-LICENSE.txt'),
             ('projects/Synth2/resources/fonts/LICENSE.txt', 'notices/fonts-LICENSE.txt'),

@@ -99,7 +99,7 @@ void Synth2::refreshBrowser()
     setFilterLabel(bankFilterTag,bankLabel,true);
     if(auto* control=graphics->GetControlWithTag(bankFilterTag))control->SetTooltip(bankLabel.c_str());
     if(auto* control=graphics->GetControlWithTag(librarySearchTag))
-        control->SetTooltip("Search names, banks and tags. Use several words to narrow results. Drop .zip, .rar or .sy1 files onto the sound list to add sounds.");
+        control->SetTooltip("Search names, banks and tags. Use several words to narrow results. Drop .zip, .rar, .7z or .sy1 files onto the sound list to add sounds.");
     const auto& selectedTags=libraryFilter.selectedTags;
     const auto tagLabel=selectedTags.empty() ? std::string("All tags") : selectedTags.size()==1 ? selectedTags.front() : "Tags: "+std::to_string(selectedTags.size())+" (all)";
     setFilterLabel(tagFilterTag,tagLabel);
@@ -392,7 +392,7 @@ void Synth2::importBank(const std::string &path)
 void Synth2::showImportMenu(IControl *caller)
 {
     presetMenu = std::make_unique<IPopupMenu>("Add sounds");
-    presetMenu->AddItem("Add .zip/.rar bank or .sy1 file...");
+    presetMenu->AddItem("Add .zip/.rar/.7z bank or .sy1 file...");
     presetMenu->AddItem("Add folder of .sy1 sounds...");
     presetMenu->AddItem("Open library folder");
     presetMenu->AddItem("Save");
@@ -489,7 +489,7 @@ void Synth2::promptForBank()
         return;
     const std::weak_ptr<int> lifetime = dialogLifetime;
     WDL_String file, path;
-    graphics->PromptForFile(file, path, EFileAction::Open, "sy1 zip rar",
+    graphics->PromptForFile(file, path, EFileAction::Open, "sy1 zip rar 7z",
                             [this, lifetime](const WDL_String &chosen, const WDL_String &)
                             {
                                 if (lifetime.expired() || !chosen.GetLength())
